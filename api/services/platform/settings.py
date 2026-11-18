@@ -53,7 +53,7 @@ def get_platform_settings() -> PlatformSettings:
         number_pool=_csv("PLATFORM_TWILIO_NUMBER_POOL"),
         openai_api_key=os.getenv("PLATFORM_OPENAI_API_KEY", ""),
         deepgram_api_key=os.getenv("PLATFORM_DEEPGRAM_API_KEY", ""),
-        free_seconds=int(os.getenv("PLATFORM_FREE_SECONDS", "1800")),
+        free_seconds=int(os.getenv("PLATFORM_FREE_SECONDS", "600")),
         max_call_seconds=int(os.getenv("PLATFORM_MAX_CALL_SECONDS", "600")),
         daily_call_limit=int(os.getenv("PLATFORM_DAILY_CALL_LIMIT", "20")),
         allowed_prefixes=_csv("PLATFORM_ALLOWED_PREFIXES"),
