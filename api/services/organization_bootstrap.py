@@ -27,6 +27,7 @@ from api.services.configuration.model_connections import (
 )
 from api.services.mps_billing import ensure_hosted_mps_billing_account_v2
 from api.services.mps_service_key_client import mps_service_key_client
+from api.services.platform.settings import get_platform_settings
 
 MANAGED_SERVICE_KEY_NAME = "Default Dograh Model Service Key"
 MANAGED_CONNECTION_NAME = "Dograh"
@@ -62,6 +63,13 @@ async def ensure_organization_bootstrapped(
     Never raises. A provisioning failure must not fail authentication — the
     caller is a legitimately authenticated user either way.
     """
+    if get_platform_settings().enabled:
+        # Platform mode replaces the Dograh-managed services with the
+        # operator's own provider accounts and number pool.
+        from api.services.platform.provisioning import ensure_platform_account
+
+        return await ensure_platform_account(organization_id)
+
     try:
         state = await db_client.get_configuration_values(
             organization_id, [_BOOTSTRAP_KEY, _CATALOG_DEFAULT_KEY]

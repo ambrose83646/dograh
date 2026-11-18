@@ -15,6 +15,7 @@ from api.routes.model_connections import router as model_connections_router
 from api.routes.node_types import router as node_types_router
 from api.routes.organization import router as organization_router
 from api.routes.organization_usage import router as organization_usage_router
+from api.routes.platform import router as platform_router
 from api.routes.public_agent import router as public_agent_router
 from api.routes.public_download import router as public_download_router
 from api.routes.public_embed import router as public_embed_router
@@ -70,6 +71,7 @@ router.include_router(folder_router)
 router.include_router(auth_router)
 router.include_router(node_types_router)
 router.include_router(agent_stream_router)
+router.include_router(platform_router)
 
 for _integration_router in all_routers():
     router.include_router(_integration_router)

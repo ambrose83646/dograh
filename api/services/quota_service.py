@@ -34,6 +34,8 @@ from api.services.managed_model_services import (
     uses_managed_model_services_v2,
 )
 from api.services.mps_service_key_client import mps_service_key_client
+from api.services.platform.allowance import get_allowance_status
+from api.services.platform.settings import get_platform_settings
 
 MINIMUM_DOGRAH_CREDITS_FOR_CALL = 0.10
 
@@ -647,6 +649,20 @@ async def authorize_workflow_run_start(
             error_code="workflow_not_found",
             error_message="Workflow not found",
         )
+
+    # Platform mode: the operator pays for every provider, so the free
+    # allowance gates every run on every path (API, MCP, inbound, web).
+    if get_platform_settings().enabled:
+        allowance = await get_allowance_status(
+            organization_id, exclude_current_run=workflow_run_id is not None
+        )
+        if allowance.blocked_code is not None:
+            return QuotaCheckResult(
+                has_quota=False,
+                error_code=allowance.blocked_code,
+                error_message=allowance.blocked_message,
+                status_code=402,
+            )
 
     try:
         workflow = await db_client.get_workflow(
