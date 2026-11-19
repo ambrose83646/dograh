@@ -14,6 +14,8 @@ stopped and a completed account costs one indexed read.
 from datetime import timedelta
 from typing import Any
 
+from loguru import logger
+
 from api.db import db_client
 from api.enums import OrganizationConfigurationKey
 from api.services.platform.agent_definitions import (
@@ -26,7 +28,6 @@ from api.services.platform.agent_definitions import (
 from api.services.platform.settings import PlatformSettings, get_platform_settings
 from api.services.telephony.factory import get_telephony_provider_by_id
 from api.utils.common import get_backend_endpoints
-from loguru import logger
 
 _ACCOUNT_KEY = OrganizationConfigurationKey.PLATFORM_ACCOUNT.value
 _LEASE_KEY = OrganizationConfigurationKey.PLATFORM_ACCOUNT_BOOTSTRAP.value
@@ -158,6 +159,10 @@ async def _provision(organization_id: int, settings: PlatformSettings) -> dict:
             account = await update_platform_account(
                 organization_id, inbound_workflow_id=workflow.id
             )
+
+    if account.get("number_released"):
+        # The operator reclaimed this account's number; it gets no new one.
+        return account
 
     if not account.get("phone_number_id"):
         number = await db_client.assign_platform_pool_number(

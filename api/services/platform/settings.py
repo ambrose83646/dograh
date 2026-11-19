@@ -31,6 +31,8 @@ class PlatformSettings:
     # dialled. Used before public launch to keep calls to approved test lines.
     destination_allowlist: tuple[str, ...]
     public_mcp_url: str
+    # Shared secret for the operator endpoints. Empty closes them.
+    operator_token: str
 
     @property
     def missing(self) -> list[str]:
@@ -60,4 +62,5 @@ def get_platform_settings() -> PlatformSettings:
         destination_allowlist=_csv("PLATFORM_DESTINATION_ALLOWLIST"),
         public_mcp_url=os.getenv("PLATFORM_PUBLIC_MCP_URL")
         or f"{BACKEND_API_ENDPOINT.rstrip('/')}/mcp",
+        operator_token=os.getenv("PLATFORM_OPERATOR_TOKEN", ""),
     )

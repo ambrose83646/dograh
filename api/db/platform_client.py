@@ -8,7 +8,7 @@ usage against its free allowance, and listing an organization's calls.
 from collections.abc import Sequence
 from datetime import datetime
 
-from sqlalchemy import Float, cast, func, text
+from sqlalchemy import Float, cast, delete, func, text
 from sqlalchemy.future import select
 
 from api.db.base_client import BaseDBClient
@@ -193,3 +193,20 @@ class PlatformClient(BaseDBClient):
                     TelephonyPhoneNumberModel.organization_id == organization_id,
                 )
             )
+
+    async def release_platform_phone_number(
+        self, organization_id: int, phone_number_id: int
+    ) -> bool:
+        """Take the organization's number away so the pool can hand it out again."""
+        async with self.async_session() as session:
+            await session.execute(
+                text("SELECT pg_advisory_xact_lock(:key)"), {"key": _POOL_LOCK_KEY}
+            )
+            result = await session.execute(
+                delete(TelephonyPhoneNumberModel).where(
+                    TelephonyPhoneNumberModel.id == phone_number_id,
+                    TelephonyPhoneNumberModel.organization_id == organization_id,
+                )
+            )
+            await session.commit()
+            return bool(result.rowcount)

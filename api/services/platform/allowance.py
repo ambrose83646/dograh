@@ -60,6 +60,14 @@ async def get_allowance_status(
     daily limit of the call it belongs to.
     """
     settings = get_platform_settings()
+    # Local import: provisioning sits above this module's other callers.
+    from api.services.platform.provisioning import get_platform_account
+
+    account = await get_platform_account(organization_id)
+    # The operator can grant or reduce one account's allowance.
+    free_seconds = account.get("free_seconds")
+    if not isinstance(free_seconds, int) or free_seconds < 0:
+        free_seconds = settings.free_seconds
     used = await db_client.get_platform_call_seconds(organization_id)
     recent = await db_client.count_platform_runs_since(
         organization_id, datetime.now(UTC) - timedelta(hours=24)
@@ -67,7 +75,7 @@ async def get_allowance_status(
     if exclude_current_run:
         recent = max(0, recent - 1)
     return AllowanceStatus(
-        free_seconds=settings.free_seconds,
+        free_seconds=free_seconds,
         used_seconds=int(round(used)),
         calls_last_24h=recent,
         daily_call_limit=settings.daily_call_limit,

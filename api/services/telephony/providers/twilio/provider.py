@@ -597,6 +597,19 @@ class TwilioProvider(TelephonyProvider):
         from fastapi import Response
 
         from api.errors.telephony_errors import TELEPHONY_ERROR_MESSAGES, TelephonyError
+        from api.services.platform.settings import get_platform_settings
+
+        if (
+            error_type == TelephonyError.QUOTA_EXCEEDED
+            and get_platform_settings().enabled
+        ):
+            # Platform mode: the operator pays for answered calls, so a call to
+            # an account with no allowance left is refused, not answered.
+            return Response(
+                content='<?xml version="1.0" encoding="UTF-8"?>\n'
+                '<Response><Reject reason="busy"/></Response>',
+                media_type="application/xml",
+            )
 
         message = TELEPHONY_ERROR_MESSAGES.get(
             error_type, TELEPHONY_ERROR_MESSAGES[TelephonyError.GENERAL_AUTH_FAILED]

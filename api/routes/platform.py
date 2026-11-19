@@ -1,10 +1,13 @@
 """Account endpoints for the shared calling platform (platform mode only)."""
 
-from fastapi import APIRouter, Depends, HTTPException
+import hmac
+
+from fastapi import APIRouter, Depends, Header, HTTPException
+from pydantic import BaseModel, Field
 
 from api.db.models import UserModel
 from api.services.auth.depends import get_user_with_selected_organization
-from api.services.platform import calls
+from api.services.platform import calls, operator
 from api.services.platform.settings import get_platform_settings
 
 router = APIRouter(prefix="/platform")
@@ -46,3 +49,44 @@ async def get_inbound_rules(
     user: UserModel = Depends(get_user_with_selected_organization),
 ) -> dict:
     return await calls.get_inbound_rules(user.selected_organization_id)
+
+
+def _require_operator(x_operator_token: str = Header(default="")) -> None:
+    """Operator endpoints answer 404 unless the shared secret matches.
+
+    With no secret configured they are closed to everyone.
+    """
+    expected = get_platform_settings().operator_token
+    if (
+        not get_platform_settings().enabled
+        or not expected
+        or not hmac.compare_digest(x_operator_token.encode(), expected.encode())
+    ):
+        raise HTTPException(status_code=404, detail="Not found")
+
+
+class AllowanceRequest(BaseModel):
+    free_seconds: int | None = Field(
+        default=None,
+        ge=0,
+        le=360_000,
+        description="Allowance for this account in seconds. Null restores the default.",
+    )
+
+
+@router.put(
+    "/operator/accounts/{organization_id}/allowance",
+    dependencies=[Depends(_require_operator)],
+)
+async def set_account_allowance(
+    organization_id: int, request: AllowanceRequest
+) -> dict:
+    return await operator.set_account_allowance(organization_id, request.free_seconds)
+
+
+@router.post(
+    "/operator/accounts/{organization_id}/release-number",
+    dependencies=[Depends(_require_operator)],
+)
+async def release_account_number(organization_id: int) -> dict:
+    return await operator.release_account_number(organization_id)

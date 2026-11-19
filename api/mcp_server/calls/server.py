@@ -15,6 +15,7 @@ from pydantic import Field
 
 from api.mcp_server.auth import authenticate_mcp_request
 from api.mcp_server.tracing import traced_tool
+from api.services.auth.depends import _handle_api_key_auth
 from api.services.platform import calls
 
 INSTRUCTIONS = """\
@@ -226,3 +227,41 @@ calls_mcp.tool(
 )
 for _read_tool in (get_call_result, list_calls, get_inbound_rules, get_account_status):
     calls_mcp.tool(_read_tool, annotations=_READ)
+
+
+class RequireApiKey:
+    """Answer 401 at the HTTP layer when a request carries no valid API key.
+
+    MCP clients decide whether a server needs credentials from the HTTP status,
+    so an unauthenticated client must not get as far as the tool list.
+    """
+
+    def __init__(self, app) -> None:
+        self.app = app
+
+    async def __call__(self, scope, receive, send) -> None:
+        if scope["type"] != "http" or scope.get("method") == "OPTIONS":
+            await self.app(scope, receive, send)
+            return
+        headers = {k.decode().lower(): v.decode() for k, v in scope["headers"]}
+        api_key = headers.get("x-api-key", "")
+        authorization = headers.get("authorization", "")
+        if not api_key and authorization.lower().startswith("bearer "):
+            api_key = authorization.split(" ", 1)[1].strip()
+        detail = "Send your API key as 'Authorization: Bearer <key>'."
+        if api_key:
+            try:
+                await _handle_api_key_auth(api_key)
+            except HTTPException as exc:
+                api_key, detail = "", str(exc.detail)
+        if api_key:
+            await self.app(scope, receive, send)
+            return
+        from starlette.responses import JSONResponse
+
+        response = JSONResponse(
+            status_code=401,
+            content={"error": "unauthorized", "detail": detail},
+            headers={"WWW-Authenticate": 'Bearer realm="phone-calls"'},
+        )
+        await response(scope, receive, send)

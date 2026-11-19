@@ -57,7 +57,7 @@ mcp_app = mcp.http_app(path="/", stateless_http=True)
 
 PLATFORM_MODE = get_platform_settings().enabled
 if PLATFORM_MODE:
-    from api.mcp_server.calls import calls_mcp
+    from api.mcp_server.calls import RequireApiKey, calls_mcp
 
     calls_mcp_app = calls_mcp.http_app(path="/", stateless_http=True)
 
@@ -210,5 +210,5 @@ if PLATFORM_MODE:
     # assistant. The workflow-authoring server above stays mounted but the
     # surface middleware closes it, together with every other tenant-facing
     # Dograh route that is not part of the calling service.
-    app.mount("/mcp", calls_mcp_app)
+    app.mount("/mcp", RequireApiKey(calls_mcp_app))
     app.add_middleware(PlatformSurfaceMiddleware)
