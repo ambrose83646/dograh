@@ -1,12 +1,15 @@
 """End-to-end verification of the calling platform against a running service.
 
-Two new users sign up. One is a dental clinic that saves rules for its phone
-number. The other asks its assistant to book an appointment there. The
-assistant's call is a real Twilio call between the two platform numbers, so one
-run exercises an outbound call, an inbound call answered by saved rules, the
-separation of the two accounts, and the free-allowance block.
+Two new users sign up. One is a dental clinic: the operator gives it a number
+for inbound calls and it saves rules for that number. The other, Maria, has no
+service number. She verifies a phone of her own as her caller ID, then asks her
+assistant to book an appointment at the clinic. The assistant's call is a real
+Twilio call, so one run exercises caller ID verification, an outbound call, an
+inbound call answered by saved rules, the separation of the two accounts down
+to their Twilio subaccounts, and the free-allowance block.
 
-Only the two accounts' own platform numbers are dialled. See README.md.
+Only two approved test numbers are dialled: the clinic's number and the test
+phone that plays Maria's own phone. See README.md.
 """
 
 import argparse
@@ -17,6 +20,7 @@ import random
 import re
 import sys
 import time
+import urllib.parse
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -31,7 +35,9 @@ EXPECTED_TOOLS = {
     "set_inbound_rules",
     "get_inbound_rules",
     "get_account_status",
+    "start_caller_id_verification",
 }
+TWILIO_API = "https://api.twilio.com/2010-04-01"
 # A number in the reserved fictional range: never assigned to a subscriber.
 UNAPPROVED_NUMBER = "+12025550143"
 _DIGIT_WORDS = {
@@ -158,6 +164,63 @@ async def sign_up(
     }
 
 
+class TestPhone:
+    """Plays a person's own phone: answers Twilio's check call and keys the code.
+
+    The phone is a Twilio number in the operator's main account. Its voice
+    address is set to TwiML that sends the code as keypad tones.
+    """
+
+    def __init__(self, number: str, account_sid: str, auth_token: str) -> None:
+        self.number = number
+        self.account_sid = account_sid
+        self.twilio = httpx.AsyncClient(
+            base_url=TWILIO_API, auth=(account_sid, auth_token), timeout=30
+        )
+
+    async def _set_voice_url(self, url: str, method: str = "GET") -> None:
+        found = await self.twilio.get(
+            f"/Accounts/{self.account_sid}/IncomingPhoneNumbers.json",
+            params={"PhoneNumber": self.number},
+        )
+        found.raise_for_status()
+        sid = found.json()["incoming_phone_numbers"][0]["sid"]
+        response = await self.twilio.post(
+            f"/Accounts/{self.account_sid}/IncomingPhoneNumbers/{sid}.json",
+            data={"VoiceUrl": url, "VoiceMethod": method},
+        )
+        response.raise_for_status()
+
+    async def answer_with_code(self, code: str) -> None:
+        tones = "w".join(code)
+        twiml = (
+            f'<Response><Pause length="5"/><Play digits="{tones}"/>'
+            f'<Pause length="3"/><Play digits="{tones}"/><Pause length="15"/></Response>'
+        )
+        await self._set_voice_url(
+            "https://twimlets.com/echo?Twiml=" + urllib.parse.quote(twiml)
+        )
+
+    async def hang_up(self) -> None:
+        await self._set_voice_url("")
+
+    async def subaccounts(self, organization_id: int) -> list[dict]:
+        response = await self.twilio.get(
+            "/Accounts.json",
+            params={
+                "FriendlyName": f"platform-org-{organization_id}",
+                "Status": "active",
+            },
+        )
+        response.raise_for_status()
+        return response.json()["accounts"]
+
+    async def calls_in(self, account_sid: str) -> list[dict]:
+        response = await self.twilio.get(f"/Accounts/{account_sid}/Calls.json")
+        response.raise_for_status()
+        return response.json()["calls"]
+
+
 async def wait_for_call(assistant: Assistant, call_id: int, timeout: float) -> dict:
     """Poll the way the tool description tells an assistant to."""
     deadline = time.monotonic() + timeout
@@ -186,6 +249,7 @@ async def run(args, report: Report) -> None:
         confirmation_code=f"RD-{code_digits}", cancellation_fee=fee,
     )  # fmt: skip
     accounts: list[dict] = []
+    phone = TestPhone(args.test_phone, args.twilio_account_sid, args.twilio_auth_token)
 
     async with httpx.AsyncClient(base_url=args.base_url, timeout=60) as http:
         try:
@@ -240,28 +304,111 @@ async def run(args, report: Report) -> None:
                 f"tools: {sorted(maria_tools)}",
             )
 
-            clinic_status = await clinic_ai.call("get_account_status")
+            # --- A new account has its own Twilio subaccount and no number ----
+            await clinic_ai.call("get_account_status")
             maria_status = await maria_ai.call("get_account_status")
-            clinic["phone_number"] = clinic_status["phone_number"]
-            maria["phone_number"] = maria_status["phone_number"]
-            report.evidence["accounts"] = [
-                {k: a[k] for k in ("name", "email", "organization_id", "phone_number")}
-                for a in accounts
-            ]
+            clinic_subs = await phone.subaccounts(clinic["organization_id"])
+            maria_subs = await phone.subaccounts(maria["organization_id"])
             report.check(
-                "Each new user gets a separate account with its own phone number and allowance",
+                "Each new user gets a separate account with its own Twilio subaccount, its own allowance, and no bought number",
                 clinic["organization_id"] != maria["organization_id"]
-                and bool(clinic["phone_number"])
-                and bool(maria["phone_number"])
-                and clinic["phone_number"] != maria["phone_number"]
-                and clinic_status["can_call"]
-                and maria_status["can_call"]
+                and len(clinic_subs) == 1
+                and len(maria_subs) == 1
+                and clinic_subs[0]["sid"] != maria_subs[0]["sid"]
+                and {clinic_subs[0]["status"], maria_subs[0]["status"]} == {"active"}
+                and args.twilio_account_sid
+                not in (clinic_subs[0]["sid"], maria_subs[0]["sid"])
+                and maria_status["phone_number"] is None
+                and maria_status["caller_id"] is None
+                and maria_status["can_call"] is False
                 and maria_status["free_minutes_used"] == 0,
                 f"accounts {clinic['organization_id']} and {maria['organization_id']}; "
-                f"numbers {clinic['phone_number']} and {maria['phone_number']}; "
+                f"subaccounts ...{clinic_subs[0]['sid'][-6:] if clinic_subs else '?'} and "
+                f"...{maria_subs[0]['sid'][-6:] if maria_subs else '?'}; "
                 f"{maria_status['free_minutes_total']} free minutes each",
             )
-            if not (clinic["phone_number"] and maria["phone_number"]):
+            maria["subaccount_sid"] = maria_subs[0]["sid"]
+            clinic["subaccount_sid"] = clinic_subs[0]["sid"]
+
+            # --- The operator gives the clinic a number for inbound calls -----
+            assigned = await http.post(
+                f"/api/v1/platform/operator/accounts/{clinic['organization_id']}/assign-number",
+                headers=operator,
+            )
+            assigned.raise_for_status()
+            clinic["phone_number"] = (await clinic_ai.call("get_account_status"))[
+                "phone_number"
+            ]
+            self_assign = await http.post(
+                f"/api/v1/platform/operator/accounts/{maria['organization_id']}/assign-number",
+                headers=maria["auth"],
+            )
+            report.check(
+                "Only the operator can give an account a number for inbound calls",
+                bool(clinic["phone_number"])
+                and clinic["phone_number"] != phone.number
+                and self_assign.status_code == 404,
+                f"clinic number {clinic['phone_number']}; user attempt: HTTP {self_assign.status_code}",
+            )
+
+            # --- Maria verifies her own phone as her caller ID ----------------
+            no_caller_id = await maria_ai.refusal(
+                "place_call", phone_number=clinic["phone_number"], task="Say hello."
+            )
+            stranger_phone = (
+                await maria_ai.refusal(
+                    "start_caller_id_verification", phone_number=UNAPPROVED_NUMBER
+                )
+                if maria_status["test_period"]
+                else "skipped: the service is past its test period"
+            )
+            started = await maria_ai.call(
+                "start_caller_id_verification", phone_number=phone.number
+            )
+            # Maria's phone rings; she answers and keys in the code.
+            await phone.answer_with_code(started["validation_code"])
+            verified_status: dict = {}
+            for _ in range(18):
+                await asyncio.sleep(5)
+                verified_status = await maria_ai.call("get_account_status")
+                if verified_status["caller_id"]:
+                    break
+            await phone.hang_up()
+            maria["caller_id"] = verified_status.get("caller_id")
+            report.check(
+                "A user with no caller ID cannot place a call, and cannot make the service phone an unapproved number for a check",
+                bool(no_caller_id)
+                and "caller id" in no_caller_id.lower()
+                and bool(stranger_phone),
+                f"no caller ID: {no_caller_id!r}",
+            )
+            report.check(
+                "A user verifies a phone they own with a keypad code and then calls from that number, with no number bought",
+                started["status"] == "calling"
+                and len(started["validation_code"]) == 6
+                and maria["caller_id"] == phone.number
+                and verified_status["outbound_calls_from"] == phone.number
+                and verified_status["phone_number"] is None
+                and verified_status["can_call"] is True,
+                f"caller ID {maria['caller_id']}",
+            )
+            clinic_steal = await clinic_ai.call("get_account_status")
+            report.check(
+                "The other user's account does not gain that caller ID",
+                clinic_steal["caller_id"] is None
+                and clinic_steal["outbound_calls_from"] == clinic["phone_number"],
+            )
+            report.evidence["accounts"] = [
+                {
+                    "name": a["name"],
+                    "email": a["email"],
+                    "organization_id": a["organization_id"],
+                    "phone_number": a.get("phone_number"),
+                    "caller_id": a.get("caller_id"),
+                }
+                for a in accounts
+            ]
+            if not (clinic["phone_number"] and maria["caller_id"]):
                 return
 
             # --- The clinic saves how its number is answered ------------------
@@ -305,7 +452,7 @@ async def run(args, report: Report) -> None:
                 else "skipped: the service is past its test period"
             )
             own = await maria_ai.refusal(
-                "place_call", phone_number=maria["phone_number"], task="Say hello."
+                "place_call", phone_number=maria["caller_id"], task="Say hello."
             )
             malformed = await maria_ai.refusal(
                 "place_call", phone_number="2025550143", task="Say hello."
@@ -333,14 +480,14 @@ async def run(args, report: Report) -> None:
                 task=task,
                 background=(
                     "Maria Lopez, date of birth 14 March 1988. Insurance: Delta Dental. "
-                    "Callback number: " + maria["phone_number"]
+                    "Callback number: " + maria["caller_id"]
                 ),
                 on_behalf_of="Maria Lopez",
             )
             report.check(
                 "place_call starts a call and returns a call id at once",
                 isinstance(placed.get("call_id"), int)
-                and placed["from"] == maria["phone_number"]
+                and placed["from"] == maria["caller_id"]
                 and placed["to"] == clinic["phone_number"],
                 json.dumps(placed)[:200],
             )
@@ -389,12 +536,31 @@ async def run(args, report: Report) -> None:
                 "The inbound call was answered with the clinic's saved greeting and rules while no assistant was connected",
                 bool(inbound_summary)
                 and len(clinic_calls) == 1
-                and inbound.get("from") == maria["phone_number"]
+                and inbound.get("from") == maria["caller_id"]
                 and inbound.get("status") == "completed"
                 and "front desk" in said.lower()
                 and code_digits in spoken_digits(said)
                 and "thursday" in said.lower(),
                 f"{len(in_turns)} turns; from {inbound.get('from')}",
+            )
+
+            # --- Twilio itself keeps the two users' calls apart ---------------
+            maria_twilio = await phone.calls_in(maria["subaccount_sid"])
+            clinic_twilio = await phone.calls_in(clinic["subaccount_sid"])
+            report.check(
+                "Twilio recorded the outbound leg in the caller's subaccount and the inbound leg in the clinic's subaccount",
+                any(
+                    c["direction"] == "outbound-api"
+                    and c["to"] == clinic["phone_number"]
+                    for c in maria_twilio
+                )
+                and any(
+                    c["direction"] == "inbound" and c["from"] == maria["caller_id"]
+                    for c in clinic_twilio
+                )
+                and not any(c["direction"] == "inbound" for c in maria_twilio),
+                f"{len(maria_twilio)} call records in the caller's subaccount, "
+                f"{len(clinic_twilio)} in the clinic's",
             )
 
             # --- Neither user can reach the other's data ----------------------
@@ -482,35 +648,24 @@ async def run(args, report: Report) -> None:
             )
 
             # --- The free allowance blocks further calls ----------------------
-            # Maria has used real call time. The operator sets her allowance to
-            # one minute so the limit is reached without ten minutes of calls.
+            # Both users have used real call time. The operator sets an
+            # allowance of one minute so the limit is reached without ten
+            # minutes of calls.
+            def allowance_url(account: dict) -> str:
+                return f"/api/v1/platform/operator/accounts/{account['organization_id']}/allowance"
+
             before = await maria_ai.call("get_account_status")
             limited = await http.put(
-                f"/api/v1/platform/operator/accounts/{maria['organization_id']}/allowance",
-                headers=operator, json={"free_seconds": 60},
-            )  # fmt: skip
+                allowance_url(maria), headers=operator, json={"free_seconds": 60}
+            )
             limited.raise_for_status()
             blocked_status = await maria_ai.call("get_account_status")
             blocked = await maria_ai.refusal(
                 "place_call", phone_number=clinic["phone_number"], task=task
             )
-            # An account at its limit must not cost the operator inbound minutes either.
-            inbound_to_blocked = await clinic_ai.call(
-                "place_call",
-                phone_number=maria["phone_number"],
-                task="Tell Maria Lopez that her appointment is confirmed.",
-                on_behalf_of="Riverside Dental",
+            restored = await http.put(
+                allowance_url(maria), headers=operator, json={"free_seconds": None}
             )
-            callback = await wait_for_call(
-                clinic_ai, inbound_to_blocked["call_id"], 120
-            )
-            after = await maria_ai.call("get_account_status")
-            maria_calls_after = await maria_ai.call("list_calls", limit=50)
-            answered = [c for c in maria_calls_after if c["duration_seconds"] > 0]
-            report.evidence["quota"] = {
-                "before": before, "blocked_status": blocked_status, "refusal": blocked,
-                "call_to_blocked_account": callback, "after": after,
-            }  # fmt: skip
             report.check(
                 "A user at the free allowance cannot start another call",
                 before["free_minutes_used"] >= 1.0
@@ -521,20 +676,41 @@ async def run(args, report: Report) -> None:
                 f"used {before['free_minutes_used']} min of 1; refusal: {blocked!r}",
             )
             report.check(
-                "A call to a user at the free allowance is not answered and uses no call time",
-                [c["call_id"] for c in answered] == [maria_call]
-                and after["free_minutes_used"] == before["free_minutes_used"]
-                and callback.get("duration_seconds", 0) == 0,
-                f"caller saw: {callback.get('status')}, {callback.get('duration_seconds')} s",
-            )
-            restored = await http.put(
-                f"/api/v1/platform/operator/accounts/{maria['organization_id']}/allowance",
-                headers=operator, json={"free_seconds": None},
-            )  # fmt: skip
-            report.check(
                 "The operator restores the allowance and the user can call again",
                 restored.status_code == 200
                 and (await maria_ai.call("get_account_status"))["can_call"] is True,
+            )
+
+            # An account at its limit must not cost the operator inbound
+            # minutes either: the clinic is now at its limit and Maria calls it.
+            clinic_before = await clinic_ai.call("get_account_status")
+            (
+                await http.put(
+                    allowance_url(clinic), headers=operator, json={"free_seconds": 60}
+                )
+            ).raise_for_status()
+            to_blocked = await maria_ai.call(
+                "place_call",
+                phone_number=clinic["phone_number"],
+                task="Ask if the clinic is open on Friday.",
+                on_behalf_of="Maria Lopez",
+            )
+            callback = await wait_for_call(maria_ai, to_blocked["call_id"], 120)
+            clinic_after = await clinic_ai.call("get_account_status")
+            clinic_calls_after = await clinic_ai.call("list_calls", limit=50)
+            answered = [c for c in clinic_calls_after if c["duration_seconds"] > 0]
+            report.evidence["quota"] = {
+                "before": before, "blocked_status": blocked_status, "refusal": blocked,
+                "call_to_blocked_account": callback, "clinic_after": clinic_after,
+            }  # fmt: skip
+            report.check(
+                "A call to a user at the free allowance is not answered and uses no call time",
+                clinic_before["free_minutes_used"] >= 1.0
+                and [c["call_id"] for c in answered] == [clinic_call]
+                and clinic_after["free_minutes_used"]
+                == clinic_before["free_minutes_used"]
+                and callback.get("duration_seconds", 0) == 0,
+                f"caller saw: {callback.get('status')}, {callback.get('duration_seconds')} s",
             )
 
             # --- A revoked key stops working ----------------------------------
@@ -551,15 +727,18 @@ async def run(args, report: Report) -> None:
                 f"HTTP {revoked.status_code}",
             )
         finally:
-            # Return the test numbers to the pool so the run can be repeated.
+            # Take back the clinic's number and close both test subaccounts so
+            # the run can be repeated and leaves nothing behind in Twilio.
+            await phone.hang_up()
             for account in accounts:
-                released = await http.post(
-                    f"/api/v1/platform/operator/accounts/{account['organization_id']}/release-number",
+                closed_account = await http.post(
+                    f"/api/v1/platform/operator/accounts/{account['organization_id']}/close",
                     headers=operator,
                 )
                 print(
-                    f"released number of account {account['organization_id']}: HTTP {released.status_code}"
+                    f"closed account {account['organization_id']}: HTTP {closed_account.status_code}"
                 )
+            await phone.twilio.aclose()
 
 
 def write_report(report: Report, out_dir: Path) -> None:
@@ -612,12 +791,31 @@ def main() -> int:
     parser.add_argument(
         "--operator-token", default=os.getenv("PLATFORM_OPERATOR_TOKEN", "")
     )
+    parser.add_argument(
+        "--test-phone",
+        default=os.getenv("VERIFY_TEST_PHONE", ""),
+        help="An approved test number in the operator's main Twilio account. "
+        "It plays the phone a user owns.",
+    )
+    parser.add_argument(
+        "--twilio-account-sid", default=os.getenv("PLATFORM_TWILIO_ACCOUNT_SID", "")
+    )
+    parser.add_argument(
+        "--twilio-auth-token", default=os.getenv("PLATFORM_TWILIO_AUTH_TOKEN", "")
+    )
     parser.add_argument("--out", default="platform_verification/results/latest")
     parser.add_argument("--call-timeout", type=float, default=420)
     args = parser.parse_args()
     if not args.operator_token:
         print(
             "Set PLATFORM_OPERATOR_TOKEN: the run needs it for the allowance step and cleanup."
+        )
+        return 2
+    if not (args.test_phone and args.twilio_account_sid and args.twilio_auth_token):
+        print(
+            "Set VERIFY_TEST_PHONE, PLATFORM_TWILIO_ACCOUNT_SID, and "
+            "PLATFORM_TWILIO_AUTH_TOKEN: the run answers Twilio's check call "
+            "on the test phone and reads the subaccounts."
         )
         return 2
     report = Report()

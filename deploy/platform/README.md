@@ -9,9 +9,11 @@ and connect an AI assistant to the MCP server at `/mcp`.
 - A server with Ubuntu 24.04, 2 vCPU, 4 GB memory, and ports 80 and 443 open.
 - Docker with the Compose plugin (`curl -fsSL https://get.docker.com | sh`).
 - A Twilio account, an OpenAI key, and a Deepgram key. The operator pays for
-  these.
-- One Twilio phone number for each user that you expect. Each account keeps
-  one number. When the pool is empty, a new account gets no number.
+  these. An xAI key is optional: with it, the agent speaks with a Grok voice.
+- No phone number for each user. Each new account gets its own Twilio
+  subaccount, which is free, and the user verifies a phone they own as their
+  caller ID. A user needs a Twilio number only to receive calls. The operator
+  assigns that number from a pool (see "Numbers for inbound calls").
 
 ## Steps
 
@@ -30,8 +32,12 @@ PLATFORM_TWILIO_ACCOUNT_SID=
 PLATFORM_TWILIO_AUTH_TOKEN=
 PLATFORM_OPENAI_API_KEY=
 PLATFORM_DEEPGRAM_API_KEY=
-PLATFORM_TWILIO_NUMBER_POOL=+15550100,+15550101
+PLATFORM_XAI_API_KEY=                       # optional, for Grok voices
+PLATFORM_TWILIO_NUMBER_POOL=+15550100       # optional, numbers for inbound calls
 ```
+
+The Twilio values must be those of the main account. Subaccounts are made from
+it and their usage is billed to it.
 
 Then start the stack and check it:
 
@@ -51,7 +57,10 @@ The first build takes about 10 minutes.
 | `PLATFORM_MAX_CALL_SECONDS` | `600` | Longest single call. |
 | `PLATFORM_DAILY_CALL_LIMIT` | `20` | Calls for each account in 24 hours. |
 | `PLATFORM_ALLOWED_PREFIXES` | `+1` | Number prefixes that users can call. |
-| `PLATFORM_DESTINATION_ALLOWLIST` | empty | When set, users can call only these numbers and the pool. Use it for a test period. |
+| `PLATFORM_STT_MODEL` | `flux-general-multi` | Deepgram speech recognition model. |
+| `PLATFORM_TTS_VOICE` | `eve` | Grok voice: `eve`, `ara`, `leo`, `rex`, or `sal`. Used when `PLATFORM_XAI_API_KEY` is set. |
+| `PLATFORM_CALLER_ID_DAILY_ATTEMPTS` | `3` | Caller ID checks for each account in 24 hours. Each check is a phone call. |
+| `PLATFORM_DESTINATION_ALLOWLIST` | empty | When set, users can call only these numbers and the pool. A caller ID check is a call, so the same list applies. Use it for a test period. |
 
 After a change to `.env`, run `docker compose up -d`.
 
@@ -64,6 +73,21 @@ curl -X POST https://HOST/api/v1/auth/signup \
   -H "X-Operator-Token: $PLATFORM_OPERATOR_TOKEN" -H "Content-Type: application/json" \
   -d '{"email":"user@example.com","password":"a-long-password","name":"User"}'
 ```
+
+## Numbers for inbound calls
+
+A user receives calls only after the operator assigns a number. The number
+moves from the main Twilio account into the user's subaccount:
+
+```bash
+H="X-Operator-Token: $PLATFORM_OPERATOR_TOKEN"
+curl -X POST -H "$H" https://HOST/api/v1/platform/operator/accounts/ORG_ID/assign-number
+curl -X POST -H "$H" https://HOST/api/v1/platform/operator/accounts/ORG_ID/release-number
+```
+
+`release-number` moves the number back to the pool. To stop an account, use
+`.../suspended` with `{"suspended": true}`. To end it for good, use
+`.../close`: Twilio cannot reopen a closed subaccount.
 
 ## Change the domain
 
@@ -80,7 +104,7 @@ and assigned again, so change the domain before you open signup.
 ## Verify
 
 `platform_verification/README.md` describes the end-to-end run. It makes real
-calls between two new accounts and releases their numbers at the end.
+calls between two new accounts and closes both accounts at the end.
 
 ## Backups
 

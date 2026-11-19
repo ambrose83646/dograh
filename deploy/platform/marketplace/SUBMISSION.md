@@ -10,27 +10,31 @@ form lists MCP servers for Grok Bot, Grok, and Cursor. The fields marked
 | Work Email | **operator** |
 | Organization Name | **operator** |
 | Organization Handle | **operator** (lower case, no spaces) |
-| Website URL | `https://PUBLIC_HOST/` |
+| Website URL | `https://app.danadial.com/` |
 | Logotype URL | `https://raw.githubusercontent.com/ambrose83646/dograh/main/deploy/platform/marketplace/logo.svg` |
 | Where do you want to be listed? | Grok Bot |
-| MCP Server URL | `https://PUBLIC_HOST/mcp` |
+| MCP Server URL | `https://app.danadial.com/mcp` |
 
 ## Brief Description
 
 > Gives your assistant a phone. It makes calls for you: it books an
 > appointment, asks a business a question, or confirms an order, and then
-> reports what was said. It also answers calls to your own number with rules
-> that you save. Each account gets a phone number and free call minutes.
+> reports what was said. Calls show your own phone number, which you verify
+> with a code. It can also answer calls with rules that you save. Each
+> account gets free call minutes.
 
 ## Testing Instructions
 
-> 1. Go to https://PUBLIC_HOST/ and sign in with the reviewer account:
+> 1. Go to https://app.danadial.com/ and sign in with the reviewer account:
 >    REVIEWER_EMAIL / REVIEWER_PASSWORD.
 > 2. Select "Create an access key" and copy the key.
-> 3. Add the MCP server https://PUBLIC_HOST/mcp (Streamable HTTP) with the
+> 3. Add the MCP server https://app.danadial.com/mcp (Streamable HTTP) with the
 >    header `Authorization: Bearer <key>`.
-> 4. Ask: "What is my phone number and how many call minutes do I have?"
->    The assistant calls `get_account_status`.
+> 4. Ask: "Which number do my calls show and how many call minutes do I have?"
+>    The assistant calls `get_account_status`. The reviewer account has a
+>    caller ID and a number for inbound calls already. A new user asks
+>    "Verify my phone number +1..." and the assistant calls
+>    `start_caller_id_verification`.
 > 5. Ask: "When someone calls my number, answer as the front desk of Riverside
 >    Dental. We are open Monday to Friday, 8 to 5." The assistant calls
 >    `set_inbound_rules`. Call the account's number from a phone to hear it.
@@ -48,7 +52,8 @@ form lists MCP servers for Grok Bot, Grok, and Cursor. The fields marked
 | `list_calls` | Recent inbound and outbound calls. |
 | `set_inbound_rules` | Save the greeting and rules for calls to the user's number. |
 | `get_inbound_rules` | Read the saved rules. |
-| `get_account_status` | Phone number, free minutes left, and limits. |
+| `get_account_status` | Caller ID, inbound number, free minutes left, and limits. |
+| `start_caller_id_verification` | Call the user's own phone with a code, so that calls show that number. |
 
 ## Authentication
 
@@ -57,7 +62,7 @@ page. It answers HTTP 401 without a valid key. It does not use OAuth.
 
 ## Before you submit
 
-- Replace `PUBLIC_HOST` with the production address.
+- Check that `app.danadial.com` is still the production address.
 - Create the reviewer account and give it a number from the pool.
 - Decide which number reviewers can call. While
   `PLATFORM_DESTINATION_ALLOWLIST` is set, calls go only to the numbers in it.

@@ -68,10 +68,22 @@
         <button id="sign-out" class="plain small" type="button">Sign out</button>
       </div>
       <div class="row" style="margin-top:12px">
-        <div class="stat"><span class="muted">Your phone number</span><b id="number">…</b></div>
+        <div class="stat"><span class="muted">Your calls show</span><b id="number">…</b></div>
+        <div class="stat"><span class="muted">Number for inbound calls</span><b id="inbound-number">…</b></div>
         <div class="stat"><span class="muted">Free minutes left</span><b id="minutes">…</b></div>
       </div>
       <p id="status-note" class="notice" style="margin-top:12px" hidden></p>
+    </div>
+
+    <div class="card">
+      <h2>Your phone number</h2>
+      <p id="caller-id-text"></p>
+      <form id="caller-id-form" class="row">
+        <input id="caller-id-input" type="tel" autocomplete="tel" placeholder="+14155550123" aria-label="Your phone number" required>
+        <button id="caller-id-submit" type="submit">Call me with a code</button>
+      </form>
+      <p id="caller-id-code" class="box" hidden></p>
+      <p id="caller-id-error" class="error" role="alert"></p>
     </div>
 
     <div class="card">
@@ -153,7 +165,11 @@ async function showAccount() {
   }
   $("signed-out").hidden = true;
   $("signed-in").hidden = false;
-  $("number").textContent = account.phone_number || "Not assigned";
+  $("number").textContent = account.outbound_calls_from || "Not set";
+  $("inbound-number").textContent = account.phone_number || "None";
+  $("caller-id-text").textContent = account.caller_id
+    ? "Your calls show " + account.caller_id + ". To change it, check a different number."
+    : "Your assistant calls from your own phone number. Enter it here. We call you, and you enter a code on the keypad.";
   $("minutes").textContent = account.free_minutes_remaining + " of " + account.free_minutes_total;
   $("mcp-url").textContent = account.mcp_url;
   const note = $("status-note");
@@ -163,6 +179,43 @@ async function showAccount() {
   note.hidden = !message;
   note.classList.toggle("blocked", !account.can_call);
   await Promise.all([showKeys(), showCalls()]);
+}
+
+let callerIdPoll = null;
+
+async function startCallerId(event) {
+  event.preventDefault();
+  $("caller-id-error").textContent = "";
+  $("caller-id-submit").disabled = true;
+  try {
+    const result = await api("/platform/caller-id", {
+      method: "POST",
+      body: JSON.stringify({ phone_number: $("caller-id-input").value.trim() }),
+    });
+    const box = $("caller-id-code");
+    box.hidden = false;
+    if (result.status === "verified") { box.textContent = result.note; return; }
+    box.textContent = "Your phone rings now. Answer it and enter this code: " + result.validation_code;
+    clearInterval(callerIdPoll);
+    let checks = 0;
+    callerIdPoll = setInterval(async () => {
+      checks += 1;
+      const account = await api("/platform/account");
+      if (account.caller_id === result.phone_number) {
+        clearInterval(callerIdPoll);
+        box.textContent = "Done. Your calls now show " + account.caller_id + ".";
+        $("caller-id-input").value = "";
+        await showAccount();
+      } else if (checks >= 24) {
+        clearInterval(callerIdPoll);
+        box.textContent = "The code was not entered. Try again.";
+      }
+    }, 5000);
+  } catch (error) {
+    $("caller-id-error").textContent = error.message;
+  } finally {
+    $("caller-id-submit").disabled = false;
+  }
 }
 
 async function showKeys() {
@@ -212,6 +265,7 @@ function signOut() {
 
 $("auth-switch").onclick = () => setMode(!signupMode);
 $("sign-out").onclick = signOut;
+$("caller-id-form").onsubmit = startCallerId;
 
 $("auth-form").onsubmit = async (event) => {
   event.preventDefault();

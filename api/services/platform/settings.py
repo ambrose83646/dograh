@@ -17,11 +17,18 @@ class PlatformSettings:
     enabled: bool
     twilio_account_sid: str
     twilio_auth_token: str
-    # Phone numbers owned by the platform Twilio account. Each organization is
-    # assigned at most one; a number is never shared.
+    # Phone numbers owned by the platform Twilio account that the operator may
+    # give to an account for inbound calls. A number is never shared.
     number_pool: tuple[str, ...]
     openai_api_key: str
     deepgram_api_key: str
+    # Optional. When set, speech uses xAI (Grok) voices; otherwise Deepgram.
+    xai_api_key: str
+    tts_voice: str
+    stt_model: str
+    # How many caller ID verification calls one account may start in 24 hours.
+    # Each attempt makes Twilio phone the number the user typed.
+    caller_id_daily_attempts: int
     free_seconds: int
     max_call_seconds: int
     daily_call_limit: int
@@ -55,6 +62,12 @@ def get_platform_settings() -> PlatformSettings:
         number_pool=_csv("PLATFORM_TWILIO_NUMBER_POOL"),
         openai_api_key=os.getenv("PLATFORM_OPENAI_API_KEY", ""),
         deepgram_api_key=os.getenv("PLATFORM_DEEPGRAM_API_KEY", ""),
+        xai_api_key=os.getenv("PLATFORM_XAI_API_KEY", ""),
+        tts_voice=os.getenv("PLATFORM_TTS_VOICE", ""),
+        stt_model=os.getenv("PLATFORM_STT_MODEL", "flux-general-multi"),
+        caller_id_daily_attempts=int(
+            os.getenv("PLATFORM_CALLER_ID_DAILY_ATTEMPTS", "3")
+        ),
         free_seconds=int(os.getenv("PLATFORM_FREE_SECONDS", "600")),
         max_call_seconds=int(os.getenv("PLATFORM_MAX_CALL_SECONDS", "600")),
         daily_call_limit=int(os.getenv("PLATFORM_DAILY_CALL_LIMIT", "20")),

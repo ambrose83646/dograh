@@ -24,6 +24,10 @@ from api.utils.telephony_address import normalize_telephony_address
 # signup) and the critical section is two statements.
 _POOL_LOCK_KEY = 815_204_771
 
+# The two kinds of phone number row a platform account can hold.
+INBOUND_NUMBER_LABEL = "Assigned number"
+CALLER_ID_LABEL = "Verified caller ID"
+
 
 class PlatformClient(BaseDBClient):
     async def assign_platform_pool_number(
@@ -49,6 +53,7 @@ class PlatformClient(BaseDBClient):
                     TelephonyPhoneNumberModel.organization_id == organization_id,
                     TelephonyPhoneNumberModel.telephony_configuration_id
                     == telephony_configuration_id,
+                    TelephonyPhoneNumberModel.label == INBOUND_NUMBER_LABEL,
                 )
                 .order_by(TelephonyPhoneNumberModel.id)
                 .limit(1)
@@ -62,7 +67,8 @@ class PlatformClient(BaseDBClient):
                 (
                     await session.scalars(
                         select(TelephonyPhoneNumberModel.address_normalized).where(
-                            TelephonyPhoneNumberModel.address_normalized.in_(canonical)
+                            TelephonyPhoneNumberModel.address_normalized.in_(canonical),
+                            TelephonyPhoneNumberModel.label == INBOUND_NUMBER_LABEL,
                         )
                     )
                 ).all()
@@ -79,7 +85,43 @@ class PlatformClient(BaseDBClient):
                 address_normalized=normalized.canonical,
                 address_type=normalized.address_type,
                 country_code=normalized.country_code,
-                label="Assigned number",
+                label=INBOUND_NUMBER_LABEL,
+                is_active=True,
+                is_default_caller_id=False,
+                extra_metadata={},
+            )
+            session.add(row)
+            await session.commit()
+            await session.refresh(row)
+            return row
+
+    async def set_platform_caller_id(
+        self,
+        organization_id: int,
+        telephony_configuration_id: int,
+        phone_number: str,
+    ) -> TelephonyPhoneNumberModel:
+        """Record the organization's one verified caller ID, replacing any other.
+
+        The caller must have confirmed with Twilio that the organization's own
+        subaccount holds this number as a verified caller ID.
+        """
+        normalized = normalize_telephony_address(phone_number)
+        async with self.async_session() as session:
+            await session.execute(
+                delete(TelephonyPhoneNumberModel).where(
+                    TelephonyPhoneNumberModel.organization_id == organization_id,
+                    TelephonyPhoneNumberModel.label == CALLER_ID_LABEL,
+                )
+            )
+            row = TelephonyPhoneNumberModel(
+                organization_id=organization_id,
+                telephony_configuration_id=telephony_configuration_id,
+                address=normalized.canonical,
+                address_normalized=normalized.canonical,
+                address_type=normalized.address_type,
+                country_code=normalized.country_code,
+                label=CALLER_ID_LABEL,
                 is_active=True,
                 is_default_caller_id=True,
                 extra_metadata={},
@@ -88,6 +130,16 @@ class PlatformClient(BaseDBClient):
             await session.commit()
             await session.refresh(row)
             return row
+
+    async def clear_platform_caller_id(self, organization_id: int) -> None:
+        async with self.async_session() as session:
+            await session.execute(
+                delete(TelephonyPhoneNumberModel).where(
+                    TelephonyPhoneNumberModel.organization_id == organization_id,
+                    TelephonyPhoneNumberModel.label == CALLER_ID_LABEL,
+                )
+            )
+            await session.commit()
 
     async def get_platform_call_seconds(self, organization_id: int) -> float:
         """Total recorded call seconds across every run the organization owns."""

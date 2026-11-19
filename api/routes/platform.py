@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 from api.constants import ENABLE_SIGNUP
 from api.db.models import UserModel
 from api.services.auth.depends import get_user_with_selected_organization
-from api.services.platform import calls, operator
+from api.services.platform import caller_id, calls, operator
 from api.services.platform.settings import get_platform_settings
 
 router = APIRouter(prefix="/platform")
@@ -37,6 +37,21 @@ async def get_account(
     status = await calls.get_account_status(user.selected_organization_id)
     status["mcp_url"] = get_platform_settings().public_mcp_url
     return status
+
+
+class CallerIdRequest(BaseModel):
+    phone_number: str = Field(max_length=20)
+
+
+@router.post("/caller-id", dependencies=[Depends(_require_platform_mode)])
+async def start_caller_id_verification(
+    request: CallerIdRequest,
+    user: UserModel = Depends(get_user_with_selected_organization),
+) -> dict:
+    """Phone the user's own number with a code so calls can show that number."""
+    return await caller_id.start_verification(
+        user.selected_organization_id, request.phone_number
+    )
 
 
 @router.get("/calls", dependencies=[Depends(_require_platform_mode)])
@@ -96,3 +111,31 @@ async def set_account_allowance(
 )
 async def release_account_number(organization_id: int) -> dict:
     return await operator.release_account_number(organization_id)
+
+
+@router.post(
+    "/operator/accounts/{organization_id}/assign-number",
+    dependencies=[Depends(_require_operator)],
+)
+async def assign_account_number(organization_id: int) -> dict:
+    return await operator.assign_account_number(organization_id)
+
+
+class SuspendRequest(BaseModel):
+    suspended: bool
+
+
+@router.put(
+    "/operator/accounts/{organization_id}/suspended",
+    dependencies=[Depends(_require_operator)],
+)
+async def set_account_suspended(organization_id: int, request: SuspendRequest) -> dict:
+    return await operator.set_account_suspended(organization_id, request.suspended)
+
+
+@router.post(
+    "/operator/accounts/{organization_id}/close",
+    dependencies=[Depends(_require_operator)],
+)
+async def close_account(organization_id: int) -> dict:
+    return await operator.close_account(organization_id)

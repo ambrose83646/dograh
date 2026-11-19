@@ -3,9 +3,12 @@
 Platform mode replaces Dograh's hosted bootstrap. Each organization gets:
 
 * model connections on the operator's provider keys, set as its default
-* a Twilio configuration on the operator's account
-* one phone number from the operator's pool, when one is free
-* an outbound agent and an inbound agent, the latter routed from its number
+* its own Twilio subaccount under the operator's account
+* an outbound agent and an inbound agent
+
+It gets no phone number. The user verifies a phone number they own as a caller
+ID for outbound calls (``caller_id``). A number for inbound calls is a paid
+resource the operator assigns (``operator.assign_account_number``).
 
 Every step keys on recorded state, so a failed attempt resumes where it
 stopped and a completed account costs one indexed read.
@@ -18,6 +21,7 @@ from loguru import logger
 
 from api.db import db_client
 from api.enums import OrganizationConfigurationKey
+from api.services.platform import twilio_accounts
 from api.services.platform.agent_definitions import (
     DEFAULT_INBOUND_RULES,
     INBOUND_AGENT_NAME,
@@ -26,8 +30,6 @@ from api.services.platform.agent_definitions import (
     outbound_agent_definition,
 )
 from api.services.platform.settings import PlatformSettings, get_platform_settings
-from api.services.telephony.factory import get_telephony_provider_by_id
-from api.utils.common import get_backend_endpoints
 
 _ACCOUNT_KEY = OrganizationConfigurationKey.PLATFORM_ACCOUNT.value
 _LEASE_KEY = OrganizationConfigurationKey.PLATFORM_ACCOUNT_BOOTSTRAP.value
@@ -58,8 +60,6 @@ def _is_complete(account: dict[str, Any]) -> bool:
             "telephony_configuration_id",
             "outbound_workflow_id",
             "inbound_workflow_id",
-            "phone_number_id",
-            "inbound_routed",
         )
     )
 
@@ -67,7 +67,8 @@ def _is_complete(account: dict[str, Any]) -> bool:
 async def ensure_platform_account(organization_id: int) -> bool:
     """Provision whatever the organization is still missing.
 
-    Returns True when the account is fully usable, including a phone number.
+    Returns True when the account is set up. A caller ID or a phone number is
+    a later step and is not part of this.
     Never raises: the caller is an authenticated user whatever happens here.
     """
     settings = get_platform_settings()
@@ -93,7 +94,7 @@ async def ensure_platform_account(organization_id: int) -> bool:
             account = await _provision(organization_id, settings)
         finally:
             # State, not the lease, records completion; drop the lease so an
-            # incomplete account (e.g. empty number pool) retries next time.
+            # incomplete account retries next time.
             await db_client.release_configuration_lease(
                 organization_id, _LEASE_KEY, owner_token
             )
@@ -117,18 +118,23 @@ async def _provision(organization_id: int, settings: PlatformSettings) -> dict:
         )
 
     if not account.get("telephony_configuration_id"):
+        subaccount_sid, subaccount_token = await twilio_accounts.create_subaccount(
+            f"platform-org-{organization_id}"
+        )
         row = await db_client.create_telephony_configuration(
             organization_id=organization_id,
             name=TELEPHONY_CONFIGURATION_NAME,
             provider="twilio",
             credentials={
-                "account_sid": settings.twilio_account_sid,
-                "auth_token": settings.twilio_auth_token,
+                "account_sid": subaccount_sid,
+                "auth_token": subaccount_token,
             },
             is_default_outbound=True,
         )
         account = await update_platform_account(
-            organization_id, telephony_configuration_id=row.id
+            organization_id,
+            telephony_configuration_id=row.id,
+            twilio_subaccount_sid=subaccount_sid,
         )
 
     if not (account.get("outbound_workflow_id") and account.get("inbound_workflow_id")):
@@ -160,50 +166,6 @@ async def _provision(organization_id: int, settings: PlatformSettings) -> dict:
                 organization_id, inbound_workflow_id=workflow.id
             )
 
-    if account.get("number_released"):
-        # The operator reclaimed this account's number; it gets no new one.
-        return account
-
-    if not account.get("phone_number_id"):
-        number = await db_client.assign_platform_pool_number(
-            organization_id,
-            account["telephony_configuration_id"],
-            settings.number_pool,
-        )
-        if number is None:
-            logger.warning(
-                "Platform number pool is exhausted; organization {} has no "
-                "phone number yet",
-                organization_id,
-            )
-            return account
-        account = await update_platform_account(
-            organization_id,
-            phone_number_id=number.id,
-            phone_number=number.address_normalized,
-        )
-
-    if not account.get("inbound_routed"):
-        await db_client.set_platform_inbound_workflow(
-            organization_id,
-            account["phone_number_id"],
-            account["inbound_workflow_id"],
-        )
-        provider = await get_telephony_provider_by_id(
-            account["telephony_configuration_id"], organization_id
-        )
-        backend_endpoint, _ = await get_backend_endpoints()
-        result = await provider.configure_inbound(
-            account["phone_number"],
-            f"{backend_endpoint}/api/v1/telephony/inbound/run",
-        )
-        if not result.ok:
-            raise RuntimeError(
-                f"Could not route {account['phone_number']} to the inbound "
-                f"webhook: {result.message}"
-            )
-        account = await update_platform_account(organization_id, inbound_routed=True)
-
     return account
 
 
@@ -223,8 +185,24 @@ async def _provision_models(organization_id: int, settings: PlatformSettings) ->
         connection_settings={},
     )
 
-    def _on(connection) -> dict:
-        return {"provider_connection_uuid": str(connection.uuid), "settings": {}}
+    def _on(connection, **model_settings) -> dict:
+        return {
+            "provider_connection_uuid": str(connection.uuid),
+            "settings": model_settings,
+        }
+
+    if settings.xai_api_key:
+        xai = await db_client.create_provider_connection(
+            organization_id,
+            name="Platform xAI",
+            provider="xai",
+            credentials={"api_key": settings.xai_api_key},
+            connection_settings={},
+        )
+        # "auto" lets one voice answer in the language the other party speaks.
+        tts = _on(xai, voice=settings.tts_voice or "eve", language="auto")
+    else:
+        tts = _on(deepgram)
 
     configuration = await db_client.create_named_model_configuration(
         organization_id,
@@ -233,8 +211,8 @@ async def _provision_models(organization_id: int, settings: PlatformSettings) ->
             "version": 3,
             "mode": "pipeline",
             "llm": _on(openai),
-            "stt": _on(deepgram),
-            "tts": _on(deepgram),
+            "stt": _on(deepgram, model=settings.stt_model, language="multi"),
+            "tts": tts,
             "embeddings": _on(openai),
         },
     )

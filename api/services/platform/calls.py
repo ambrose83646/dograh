@@ -11,6 +11,7 @@ from fastapi import HTTPException
 from loguru import logger
 
 from api.db import db_client
+from api.services.platform import caller_id as caller_id_service
 from api.services.platform.agent_definitions import (
     DEFAULT_INBOUND_RULES,
     inbound_agent_definition,
@@ -53,18 +54,44 @@ async def _ready_account(organization_id: int) -> dict[str, Any]:
     return account
 
 
+def _from_number(account: dict[str, Any]) -> tuple[int | None, str | None]:
+    """The number outbound calls show: the user's own, else the service number."""
+    if account.get("caller_id_phone_number_id"):
+        return account["caller_id_phone_number_id"], account.get("caller_id")
+    if account.get("phone_number_id"):
+        return account["phone_number_id"], account.get("phone_number")
+    return None, None
+
+
 async def get_account_status(organization_id: int) -> dict[str, Any]:
     account = await _ready_account(organization_id)
+    account = await caller_id_service.refresh(organization_id, account)
     allowance = await get_allowance_status(organization_id)
     settings = get_platform_settings()
     phone_number = account.get("phone_number")
+    from_id, from_number = _from_number(account)
+    pending = account.get("caller_id_pending")
+    if account.get("caller_id"):
+        caller_id_status = "verified"
+    elif pending:
+        caller_id_status = (
+            f"Waiting for the code to be entered on {pending['phone_number']}."
+        )
+    else:
+        caller_id_status = (
+            "Not set. Use start_caller_id_verification with a phone number "
+            "the user owns. Outbound calls then show that number."
+        )
     return {
+        "caller_id": account.get("caller_id"),
+        "caller_id_status": caller_id_status,
+        "outbound_calls_from": from_number,
         "phone_number": phone_number,
         "phone_number_status": (
             "ready"
             if phone_number and account.get("inbound_routed")
-            else "No phone number is available yet. Outbound and inbound calls "
-            "start to work when the operator adds numbers."
+            else "This account has no number for inbound calls. The operator "
+            "adds one on request."
         ),
         "free_minutes_total": round(allowance.free_seconds / 60, 1),
         "free_minutes_used": round(allowance.used_seconds / 60, 1),
@@ -72,7 +99,7 @@ async def get_account_status(organization_id: int) -> dict[str, Any]:
         "calls_in_last_24_hours": allowance.calls_last_24h,
         "daily_call_limit": allowance.daily_call_limit,
         "max_call_minutes": round(settings.max_call_seconds / 60, 1),
-        "can_call": allowance.blocked_code is None and bool(phone_number),
+        "can_call": allowance.blocked_code is None and from_id is not None,
         "blocked_reason": allowance.blocked_message,
         "test_period": bool(settings.destination_allowlist),
     }
@@ -108,15 +135,18 @@ async def place_call(
     assert_destination_allowed(phone_number)
 
     account = await _ready_account(organization_id)
-    if not account.get("phone_number_id"):
+    account = await caller_id_service.refresh(organization_id, account)
+    from_id, from_number = _from_number(account)
+    if from_id is None:
         raise HTTPException(
-            status_code=503,
+            status_code=409,
             detail=(
-                "This account has no phone number yet, so it cannot place "
-                "calls. The operator must add numbers."
+                "This account has no caller ID yet. Use "
+                "start_caller_id_verification with a phone number the user "
+                "owns, then place the call."
             ),
         )
-    if phone_number == account.get("phone_number"):
+    if phone_number in (account.get("phone_number"), account.get("caller_id")):
         raise HTTPException(
             status_code=400, detail="An account cannot call its own number."
         )
@@ -162,7 +192,7 @@ async def place_call(
             phone_number=phone_number,
             initial_context=context,
             telephony_configuration_id=account["telephony_configuration_id"],
-            from_phone_number_id=account["phone_number_id"],
+            from_phone_number_id=from_id,
         ),
         use_draft=False,
         api_key_id=api_key_id,
@@ -172,7 +202,7 @@ async def place_call(
         "call_id": response.workflow_run_id,
         "status": "ringing",
         "to": phone_number,
-        "from": account.get("phone_number"),
+        "from": from_number,
         "next_step": (
             "The call is in progress. Call get_call_result with this call_id "
             "after about 30 seconds, and again until status is 'completed'."

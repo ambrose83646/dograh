@@ -16,12 +16,17 @@ from pydantic import Field
 from api.mcp_server.auth import authenticate_mcp_request
 from api.mcp_server.tracing import traced_tool
 from api.services.auth.depends import _handle_api_key_auth
-from api.services.platform import calls
+from api.services.platform import caller_id, calls
 
 INSTRUCTIONS = """\
 This server gives you a phone. You can call a number to carry out a spoken task
 for the user, read what was said, and decide how calls to the user's own number
 are answered when you are not there.
+
+Before the first call: calls show the user's own phone number. If
+get_account_status shows no caller_id, ask the user for a phone number they
+own, call start_caller_id_verification, and tell the user the code. Their
+phone rings; they answer and enter the code on the keypad. This is done once.
 
 How to make a call:
 1. Call place_call with the number in international format (+14155550123) and
@@ -199,8 +204,33 @@ async def get_inbound_rules() -> dict:
 
 @_tool
 async def get_account_status() -> dict:
-    """Read the user's phone number, free call minutes left, and call limits."""
+    """Read the user's caller ID, free call minutes left, and call limits.
+
+    Also completes a caller ID check: after the user entered the code,
+    `caller_id` shows the verified number.
+    """
     return await calls.get_account_status(await _organization_id())
+
+
+@_tool
+async def start_caller_id_verification(
+    phone_number: Annotated[
+        str,
+        Field(
+            description=(
+                "A phone number the user owns and can answer now, in "
+                "international format. Example: +14155550123."
+            )
+        ),
+    ],
+) -> dict:
+    """Verify a phone number the user owns so outbound calls show that number.
+
+    The user's phone rings within seconds. Tell the user the returned
+    validation_code first: they must answer and enter it on the keypad. Then
+    call get_account_status to confirm. Needed once, before the first call.
+    """
+    return await caller_id.start_verification(await _organization_id(), phone_number)
 
 
 _READ = ToolAnnotations(
@@ -223,6 +253,15 @@ calls_mcp.tool(
         idempotentHint=True,
         destructiveHint=True,
         openWorldHint=False,
+    ),
+)
+calls_mcp.tool(
+    start_caller_id_verification,
+    annotations=ToolAnnotations(
+        readOnlyHint=False,
+        idempotentHint=False,
+        destructiveHint=False,
+        openWorldHint=True,
     ),
 )
 for _read_tool in (get_call_result, list_calls, get_inbound_rules, get_account_status):
