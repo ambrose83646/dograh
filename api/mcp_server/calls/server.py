@@ -23,6 +23,9 @@ This server gives you a phone. You can call a number to carry out a spoken task
 for the user, read what was said, and decide how calls to the user's own number
 are answered when you are not there.
 
+The user manages everything through you. Do not send the user to a web page
+for a setting: caller ID, voice, and inbound rules all have tools here.
+
 Before the first call: calls show the user's own phone number. If
 get_account_status shows no caller_id, ask the user for a phone number they
 own, call start_caller_id_verification, and tell the user the code. Their
@@ -112,11 +115,38 @@ async def place_call(
             )
         ),
     ] = None,
+    call_reason: Annotated[
+        str | None,
+        Field(
+            description=(
+                "Why you call, as the end of the sentence 'This is an AI "
+                "assistant calling for Maria Lopez, ...'. Example: 'about "
+                "Friday's delivery'. Spoken when a call screener asks for the "
+                "caller's name and reason, and at the start of a voicemail "
+                "message."
+            )
+        ),
+    ] = None,
+    voicemail_message: Annotated[
+        str | None,
+        Field(
+            description=(
+                "The exact words to leave if a voicemail box answers. Say who "
+                "calls, why, and how to reply. Leave empty for a short "
+                "standard message."
+            )
+        ),
+    ] = None,
 ) -> dict:
     """Start a phone call. A voice agent phones the number and carries out the task.
 
     Returns immediately with a call_id while the phone rings. The call is not
     finished when this returns: read the outcome with get_call_result.
+
+    The service detects what answers. A person: the agent does the task. A
+    voicemail box: it leaves voicemail_message and ends the call. A call
+    screener that asks who calls: it gives the name and call_reason, then
+    waits for the person. get_call_result reports this in `answered_by`.
     """
     return await calls.place_call(
         await _organization_id(),
@@ -124,6 +154,8 @@ async def place_call(
         task=task,
         background=background,
         on_behalf_of=on_behalf_of,
+        call_reason=call_reason,
+        voicemail_message=voicemail_message,
     )
 
 
@@ -139,6 +171,10 @@ async def get_call_result(
     call is not finished, wait about 20 seconds and ask again. `result` holds
     the agent's own summary when the call reached its closing step; always
     check it against `transcript`, which is the record of what was said.
+    For an outbound call, `answered_by` is "person", "voicemail",
+    "call_screener" (the screener answered and the person did not pick up),
+    or "phone_menu". With "voicemail" the task was not done: tell the user,
+    and say if a message was left (`voicemail_message_left`).
     Works for outbound calls and for inbound calls to the user's number.
     """
     return await calls.get_call_result(await _organization_id(), call_id)
@@ -204,7 +240,7 @@ async def get_inbound_rules() -> dict:
 
 @_tool
 async def get_account_status() -> dict:
-    """Read the user's caller ID, free call minutes left, and call limits.
+    """Read the user's caller ID, voice, free call minutes left, and call limits.
 
     Also completes a caller ID check: after the user entered the code,
     `caller_id` shows the verified number.
@@ -233,6 +269,26 @@ async def start_caller_id_verification(
     return await caller_id.start_verification(await _organization_id(), phone_number)
 
 
+@_tool
+async def update_settings(
+    voice: Annotated[
+        str | None,
+        Field(
+            description=(
+                "The voice the agent speaks with on the user's calls. "
+                "get_account_status lists the choices in `voice_options`."
+            )
+        ),
+    ] = None,
+) -> dict:
+    """Change how the user's voice agent sounds. Returns the settings in use.
+
+    Applies to the next call, outbound and inbound. Call it with no arguments
+    to read the settings.
+    """
+    return await calls.update_settings(await _organization_id(), voice=voice)
+
+
 _READ = ToolAnnotations(
     readOnlyHint=True, idempotentHint=True, destructiveHint=False, openWorldHint=False
 )
@@ -244,6 +300,15 @@ calls_mcp.tool(
         idempotentHint=False,
         destructiveHint=False,
         openWorldHint=True,
+    ),
+)
+calls_mcp.tool(
+    update_settings,
+    annotations=ToolAnnotations(
+        readOnlyHint=False,
+        idempotentHint=True,
+        destructiveHint=False,
+        openWorldHint=False,
     ),
 )
 calls_mcp.tool(

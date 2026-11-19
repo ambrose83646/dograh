@@ -101,6 +101,12 @@ class AnswerSupervisorConfig(BaseModel):
         default="hangup",
         description="Disconnect or play a message after voicemail is detected.",
     )
+    ivr_action: Literal["hangup", "continue"] = Field(
+        default="hangup",
+        description=(
+            "Disconnect when a phone menu answers, or let the agent talk to it."
+        ),
+    )
     voicemail_message: AnswerMessage = Field(
         default_factory=AnswerMessage,
         description="Text or recording to play when voicemail_action is leave_message.",

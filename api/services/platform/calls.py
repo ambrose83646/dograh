@@ -20,9 +20,13 @@ from api.services.platform.agent_definitions import (
 from api.services.platform.allowance import get_allowance_status
 from api.services.platform.destinations import assert_destination_allowed
 from api.services.platform.provisioning import (
+    VOICES,
     ensure_platform_account,
     get_platform_account,
+    get_voice,
+    set_voice,
     update_platform_account,
+    upgrade_outbound_agent,
 )
 from api.services.platform.settings import get_platform_settings
 from api.services.workflow_run_artifacts import (
@@ -34,6 +38,8 @@ MAX_TASK_CHARS = 4000
 MAX_BACKGROUND_CHARS = 6000
 MAX_RULES_CHARS = 6000
 MAX_NAME_CHARS = 120
+MAX_REASON_CHARS = 200
+MAX_VOICEMAIL_CHARS = 600
 MAX_GREETING_CHARS = 300
 
 
@@ -51,7 +57,7 @@ async def _ready_account(organization_id: int) -> dict[str, Any]:
             status_code=503,
             detail="This account is still being set up. Try again in a minute.",
         )
-    return account
+    return await upgrade_outbound_agent(organization_id, account)
 
 
 def _from_number(account: dict[str, Any]) -> tuple[int | None, str | None]:
@@ -71,6 +77,7 @@ async def get_account_status(organization_id: int) -> dict[str, Any]:
     phone_number = account.get("phone_number")
     from_id, from_number = _from_number(account)
     pending = account.get("caller_id_pending")
+    voice = await get_voice(organization_id, account)
     if account.get("caller_id"):
         caller_id_status = "verified"
     elif pending:
@@ -102,6 +109,33 @@ async def get_account_status(organization_id: int) -> dict[str, Any]:
         "can_call": allowance.blocked_code is None and from_id is not None,
         "blocked_reason": allowance.blocked_message,
         "test_period": bool(settings.destination_allowlist),
+        "voice": voice,
+        "voice_options": list(VOICES) if voice else [],
+    }
+
+
+async def update_settings(
+    organization_id: int, *, voice: str | None = None
+) -> dict[str, Any]:
+    account = await _ready_account(organization_id)
+    current = await get_voice(organization_id, account)
+    if voice is not None:
+        voice = voice.strip().lower()
+        if current is None:
+            raise HTTPException(
+                status_code=409, detail="This service has one voice only."
+            )
+        if voice not in VOICES:
+            raise HTTPException(
+                status_code=400,
+                detail="Unknown voice. The voices are: " + ", ".join(VOICES) + ".",
+            )
+        await set_voice(organization_id, account, voice)
+        current = voice
+    return {
+        "voice": current,
+        "voice_options": list(VOICES) if current else [],
+        "note": "The voice applies to the next call, outbound and inbound.",
     }
 
 
@@ -112,6 +146,8 @@ async def place_call(
     task: str,
     background: str | None = None,
     on_behalf_of: str | None = None,
+    call_reason: str | None = None,
+    voicemail_message: str | None = None,
     api_key_id: int | None = None,
     api_key_created_by: int | None = None,
 ) -> dict[str, Any]:
@@ -171,6 +207,19 @@ async def place_call(
         context["background"] = background.strip()
     if on_behalf_of and on_behalf_of.strip():
         context["principal_name"] = on_behalf_of.strip()[:MAX_NAME_CHARS]
+    # Spoken by the answer handling, before the agent's own conversation:
+    # the first to a call screener, the second to a voicemail box.
+    principal = context.get("principal_name", "a client")
+    reason = (call_reason or "").strip().rstrip(".")[:MAX_REASON_CHARS]
+    introduction = f"This is an AI assistant calling for {principal}" + (
+        f", {reason}." if reason else "."
+    )
+    context["screening_introduction"] = introduction
+    context["voicemail_message"] = (voicemail_message or "").strip()[
+        :MAX_VOICEMAIL_CHARS
+    ] or (
+        f"Hello. {introduction} Sorry I missed you. We will call again later. Goodbye."
+    )
 
     # The public agent route owns Dograh's one outbound dial path (concurrency
     # slot, quota, provider call). It is reused as-is so platform calls cannot
@@ -210,6 +259,38 @@ async def place_call(
     }
 
 
+def _answered_by(gathered: dict[str, Any]) -> dict[str, Any]:
+    """What picked up an outbound call, from the answer handling's verdicts."""
+    verdicts = [
+        v for v in gathered.get("answer_supervisor") or [] if isinstance(v, dict)
+    ]
+    if not verdicts:
+        return {}
+    subtypes = [v.get("subtype") for v in verdicts]
+    final = verdicts[-1]
+    if "VOICEMAIL" in subtypes or "NO_MESSAGE" in subtypes:
+        answered_by = "voicemail"
+    elif "IVR" in subtypes:
+        answered_by = "phone_menu"
+    elif final.get("action") == "release":
+        answered_by = "person"
+    elif "SCREENER" in subtypes or "SCREENING_WAIT" in subtypes:
+        # The screener answered and the person did not pick up.
+        answered_by = "call_screener"
+    else:
+        answered_by = "unknown"
+    result: dict[str, Any] = {"answered_by": answered_by}
+    if "SCREENER" in subtypes or "SCREENING_WAIT" in subtypes:
+        result["call_screener_detected"] = True
+    if answered_by == "voicemail":
+        result["voicemail_message_left"] = (
+            final.get("action") == "leave_message"
+            and final.get("reason") != "answer_message_failed"
+            and gathered.get("call_disposition") != "answer_message_failed"
+        )
+    return result
+
+
 def _direction(run, account: dict[str, Any]) -> str:
     if run.workflow_id == account.get("inbound_workflow_id"):
         return "inbound"
@@ -243,6 +324,8 @@ def _summarize(run, account: dict[str, Any]) -> dict[str, Any]:
         "disposition": gathered.get("mapped_call_disposition")
         or gathered.get("call_disposition"),
     }
+    if direction == "outbound":
+        summary.update(_answered_by(gathered))
     if direction == "outbound":
         summary["task"] = initial.get("task")
     if error:

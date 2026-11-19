@@ -457,7 +457,11 @@ class AnswerSupervisor(FrameProcessor):
             ),
             MachineSubtype.NO_MESSAGE: AnswerAction.DROP,
             MachineSubtype.SCREENER: AnswerAction.SCREEN_THEN_REARM,
-            MachineSubtype.IVR: AnswerAction.DROP,
+            MachineSubtype.IVR: (
+                AnswerAction.RELEASE
+                if self.config.ivr_action == "continue"
+                else AnswerAction.DROP
+            ),
             MachineSubtype.CONVERSATION: AnswerAction.RELEASE,
             MachineSubtype.UNKNOWN: AnswerAction.RELEASE,
         }

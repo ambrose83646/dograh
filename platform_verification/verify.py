@@ -36,6 +36,7 @@ EXPECTED_TOOLS = {
     "get_inbound_rules",
     "get_account_status",
     "start_caller_id_verification",
+    "update_settings",
 }
 TWILIO_API = "https://api.twilio.com/2010-04-01"
 # A number in the reserved fictional range: never assigned to a subscriber.
@@ -199,6 +200,13 @@ class TestPhone:
         )
         await self._set_voice_url(
             "https://twimlets.com/echo?Twiml=" + urllib.parse.quote(twiml)
+        )
+
+    async def answer_with_script(self, twiml_body: str) -> None:
+        """Answer the next call by playing a fixed script, like a machine."""
+        await self._set_voice_url(
+            "https://twimlets.com/echo?Twiml="
+            + urllib.parse.quote(f"<Response>{twiml_body}</Response>")
         )
 
     async def hang_up(self) -> None:
@@ -632,7 +640,14 @@ async def run(args, report: Report) -> None:
             report.check(
                 "A user cannot choose a caller number and cannot reach the provider keys, phone numbers, or agents through the underlying Dograh API",
                 set(schema["properties"])
-                == {"phone_number", "task", "background", "on_behalf_of"}
+                == {
+                    "phone_number",
+                    "task",
+                    "background",
+                    "on_behalf_of",
+                    "call_reason",
+                    "voicemail_message",
+                }
                 and set(closed.values()) == {404},
                 json.dumps(closed),
             )
@@ -645,6 +660,120 @@ async def run(args, report: Report) -> None:
                 operator_probe.status_code == 404
                 and (await clinic_ai.call("get_account_status"))["can_call"] is True,
                 f"HTTP {operator_probe.status_code}",
+            )
+
+            # --- The user changes the voice through MCP -----------------------
+            voices = (await clinic_ai.call("get_account_status"))["voice_options"]
+            if voices:
+                new_voice = next(v for v in voices if v != "eve")
+                changed = await clinic_ai.call("update_settings", voice=new_voice)
+                bad_voice = await clinic_ai.refusal("update_settings", voice="nobody")
+                report.check(
+                    "A user changes the agent's voice through MCP, and the other user's voice does not change",
+                    changed["voice"] == new_voice
+                    and (await clinic_ai.call("get_account_status"))["voice"]
+                    == new_voice
+                    and (await maria_ai.call("get_account_status"))["voice"] == "eve"
+                    and bool(bad_voice),
+                    f"clinic voice: {new_voice}; unknown voice: {bad_voice!r}",
+                )
+
+            # --- A voicemail box answers --------------------------------------
+            # The test phone plays a voicemail greeting. The clinic's agent
+            # must leave the message it was given and end the call.
+            callback_code = f"{random.randint(100, 999)}"
+            await phone.answer_with_script(
+                '<Pause length="1"/><Say>Hi, you have reached Sam Carter. I can not '
+                "take your call right now. Please leave a message after the tone."
+                '</Say><Pause length="40"/>'
+            )
+            voicemail_call = await clinic_ai.call(
+                "place_call",
+                phone_number=phone.number,
+                task="Remind Sam Carter of the cleaning appointment on Thursday at 9 am.",
+                on_behalf_of="Riverside Dental",
+                call_reason="about an appointment on Thursday",
+                voicemail_message=(
+                    "Hello, this is the assistant of Riverside Dental with a reminder "
+                    "of your cleaning on Thursday at nine. To change it, call us and "
+                    f"give the reference {' '.join(callback_code)}. Goodbye."
+                ),
+            )
+            voicemail = await wait_for_call(clinic_ai, voicemail_call["call_id"], 150)
+            report.evidence["voicemail_call"] = voicemail
+            vm_said = " ".join(
+                text
+                for role, text in transcript_turns(voicemail.get("transcript", ""))
+                if role == "assistant"
+            )
+            report.check(
+                "When a voicemail box answers, the agent leaves the given message, ends the call, and reports voicemail",
+                voicemail.get("answered_by") == "voicemail"
+                and voicemail.get("voicemail_message_left") is True
+                and callback_code in spoken_digits(vm_said)
+                and "thursday" in vm_said.lower()
+                and 0 < voicemail.get("duration_seconds", 0) <= 60,
+                f"answered_by {voicemail.get('answered_by')}, "
+                f"{voicemail.get('duration_seconds')} s; agent said: {vm_said[:160]!r}",
+            )
+
+            # --- A call screener answers, then the person picks up ------------
+            # The test phone asks for name and reason, holds, and then a
+            # "person" comes on the line and gives a price that is random for
+            # each run.
+            price, price_words = random.choice(
+                [(140, "forty"), (160, "sixty"), (180, "eighty")]
+            )
+
+            def has_price(text: str) -> bool:
+                # Speech-to-text writes "160" or "one hundred sixty".
+                return str(price) in text or f"hundred {price_words}" in text.replace(
+                    " and ", " "
+                )
+
+            await phone.answer_with_script(
+                "<Say>Hi. Before I try to connect you, please say your name and the "
+                'reason for your call.</Say><Pause length="9"/>'
+                '<Say>Thank you. Please stay on the line.</Say><Pause length="4"/>'
+                '<Say>Hello, this is Sam Carter speaking. Go ahead.</Say><Pause length="14"/>'
+                f"<Say>Yes, the bike is still for sale. The price is {price} dollars. "
+                'That is all I can tell you. Goodbye.</Say><Pause length="20"/>'
+            )
+            screened_call = await clinic_ai.call(
+                "place_call",
+                phone_number=phone.number,
+                task=(
+                    "Ask Sam Carter if the bike in his advertisement is still for "
+                    "sale, and what the price is. Bring back both answers."
+                ),
+                on_behalf_of="Dana Reyes",
+                call_reason="about the bike you advertised",
+            )
+            screened = await wait_for_call(clinic_ai, screened_call["call_id"], 180)
+            report.evidence["screened_call"] = screened
+            screened_turns = transcript_turns(screened.get("transcript", ""))
+            sc_said = " ".join(t for r, t in screened_turns if r == "assistant").lower()
+            sc_heard = " ".join(t for r, t in screened_turns if r == "user").lower()
+            report.check(
+                "When a call screener answers, the agent gives the name and reason, waits, and then does the task with the person",
+                screened.get("call_screener_detected") is True
+                and screened.get("answered_by") == "person"
+                and "dana reyes" in sc_said
+                and "bike" in sc_said
+                and "sam" in sc_said
+                and sc_said.index("dana reyes") < sc_said.index("sam")
+                and has_price(sc_heard)
+                and has_price(sc_said),
+                f"answered_by {screened.get('answered_by')}, screener "
+                f"{screened.get('call_screener_detected')}, {screened.get('duration_seconds')} s, "
+                f"price {price}; agent said: {sc_said[:220]!r}",
+            )
+            await phone.hang_up()
+            report.check(
+                "A call that a person answered reports that a person answered",
+                outbound.get("answered_by") == "person"
+                and not outbound.get("call_screener_detected"),
+                f"answered_by {outbound.get('answered_by')}",
             )
 
             # --- The free allowance blocks further calls ----------------------
@@ -684,6 +813,11 @@ async def run(args, report: Report) -> None:
             # An account at its limit must not cost the operator inbound
             # minutes either: the clinic is now at its limit and Maria calls it.
             clinic_before = await clinic_ai.call("get_account_status")
+            answered_before = {
+                c["call_id"]
+                for c in await clinic_ai.call("list_calls", limit=50)
+                if c["duration_seconds"] > 0
+            }
             (
                 await http.put(
                     allowance_url(clinic), headers=operator, json={"free_seconds": 60}
@@ -698,7 +832,9 @@ async def run(args, report: Report) -> None:
             callback = await wait_for_call(maria_ai, to_blocked["call_id"], 120)
             clinic_after = await clinic_ai.call("get_account_status")
             clinic_calls_after = await clinic_ai.call("list_calls", limit=50)
-            answered = [c for c in clinic_calls_after if c["duration_seconds"] > 0]
+            answered = {
+                c["call_id"] for c in clinic_calls_after if c["duration_seconds"] > 0
+            }
             report.evidence["quota"] = {
                 "before": before, "blocked_status": blocked_status, "refusal": blocked,
                 "call_to_blocked_account": callback, "clinic_after": clinic_after,
@@ -706,7 +842,7 @@ async def run(args, report: Report) -> None:
             report.check(
                 "A call to a user at the free allowance is not answered and uses no call time",
                 clinic_before["free_minutes_used"] >= 1.0
-                and [c["call_id"] for c in answered] == [clinic_call]
+                and answered == answered_before
                 and clinic_after["free_minutes_used"]
                 == clinic_before["free_minutes_used"]
                 and callback.get("duration_seconds", 0) == 0,
@@ -765,6 +901,8 @@ def write_report(report: Report, out_dir: Path) -> None:
     for title, key in (
         ("Outbound call, as the caller's assistant read it", "outbound_call"),
         ("Inbound call, as the clinic's assistant read it afterwards", "inbound_call"),
+        ("Call answered by a voicemail box", "voicemail_call"),
+        ("Call answered by a call screener, then a person", "screened_call"),
     ):
         call = report.evidence.get(key) or {}
         lines += ["", f"## {title}", "", f"Call {call.get('call_id')}: {call.get('status')}, "

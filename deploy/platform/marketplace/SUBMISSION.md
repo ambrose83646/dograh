@@ -47,12 +47,13 @@ form lists MCP servers for Grok Bot, Grok, and Cursor. The fields marked
 
 | Tool | Purpose |
 | --- | --- |
-| `place_call` | Start a call with a task for the voice agent. Returns a call id at once. |
+| `place_call` | Start a call with a task for the voice agent. Returns a call id at once. Leaves a message on voicemail and passes a call screener. |
 | `get_call_result` | Status, result, and transcript of one call. |
 | `list_calls` | Recent inbound and outbound calls. |
 | `set_inbound_rules` | Save the greeting and rules for calls to the user's number. |
 | `get_inbound_rules` | Read the saved rules. |
 | `get_account_status` | Caller ID, inbound number, free minutes left, and limits. |
+| `update_settings` | Change the voice the agent speaks with. |
 | `start_caller_id_verification` | Call the user's own phone with a code, so that calls show that number. |
 
 ## Authentication

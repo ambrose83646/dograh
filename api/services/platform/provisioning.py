@@ -26,7 +26,9 @@ from api.services.platform.agent_definitions import (
     DEFAULT_INBOUND_RULES,
     INBOUND_AGENT_NAME,
     OUTBOUND_AGENT_NAME,
+    OUTBOUND_AGENT_VERSION,
     inbound_agent_definition,
+    outbound_agent_configurations,
     outbound_agent_definition,
 )
 from api.services.platform.settings import PlatformSettings, get_platform_settings
@@ -147,10 +149,12 @@ async def _provision(organization_id: int, settings: PlatformSettings) -> dict:
                 outbound_agent_definition(),
                 owner_id,
                 organization_id,
-                settings,
+                outbound_agent_configurations(settings.max_call_seconds),
             )
             account = await update_platform_account(
-                organization_id, outbound_workflow_id=workflow.id
+                organization_id,
+                outbound_workflow_id=workflow.id,
+                outbound_agent_version=OUTBOUND_AGENT_VERSION,
             )
         if not account.get("inbound_workflow_id"):
             workflow = await _create_agent(
@@ -160,7 +164,7 @@ async def _provision(organization_id: int, settings: PlatformSettings) -> dict:
                 ),
                 owner_id,
                 organization_id,
-                settings,
+                {"max_call_duration": settings.max_call_seconds},
             )
             account = await update_platform_account(
                 organization_id, inbound_workflow_id=workflow.id
@@ -227,18 +231,66 @@ async def _create_agent(
     definition: dict,
     owner_id: int,
     organization_id: int,
-    settings: PlatformSettings,
+    configurations: dict,
 ):
     workflow = await db_client.create_workflow(
         name, definition, owner_id, organization_id
     )
-    # The per-call ceiling is a cost control the tenant cannot raise.
     await db_client.save_workflow_draft(
         workflow.id,
         workflow_definition=definition,
-        workflow_configurations={"max_call_duration": settings.max_call_seconds},
+        workflow_configurations=configurations,
     )
     await db_client.publish_workflow_draft(
         workflow.id, change_description="Platform defaults"
     )
     return workflow
+
+
+async def upgrade_outbound_agent(organization_id: int, account: dict) -> dict:
+    """Republish an older account's outbound agent with the current settings."""
+    if account.get("outbound_agent_version") == OUTBOUND_AGENT_VERSION:
+        return account
+    settings = get_platform_settings()
+    await db_client.save_workflow_draft(
+        account["outbound_workflow_id"],
+        workflow_definition=outbound_agent_definition(),
+        workflow_configurations=outbound_agent_configurations(
+            settings.max_call_seconds
+        ),
+    )
+    await db_client.publish_workflow_draft(
+        account["outbound_workflow_id"],
+        change_description=f"Platform agent version {OUTBOUND_AGENT_VERSION}",
+    )
+    return await update_platform_account(
+        organization_id, outbound_agent_version=OUTBOUND_AGENT_VERSION
+    )
+
+
+VOICES = ("eve", "ara", "leo", "rex", "sal")
+
+
+async def get_voice(organization_id: int, account: dict) -> str | None:
+    """The account's voice, or None when the service has no selectable voices."""
+    row = await db_client.get_named_model_configuration(
+        organization_id, account["model_configuration_uuid"]
+    )
+    tts = ((row.configuration if row else None) or {}).get("tts") or {}
+    voice = (tts.get("settings") or {}).get("voice")
+    return voice if voice in VOICES else None
+
+
+async def set_voice(organization_id: int, account: dict, voice: str) -> None:
+    row = await db_client.get_named_model_configuration(
+        organization_id, account["model_configuration_uuid"]
+    )
+    configuration = dict(row.configuration)
+    tts = dict(configuration["tts"])
+    tts["settings"] = {**(tts.get("settings") or {}), "voice": voice}
+    configuration["tts"] = tts
+    await db_client.update_named_model_configuration(
+        organization_id,
+        account["model_configuration_uuid"],
+        changes={"configuration": configuration},
+    )

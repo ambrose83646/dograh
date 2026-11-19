@@ -12,6 +12,10 @@ from api.services.workflow.workflow_graph import WorkflowGraph
 OUTBOUND_AGENT_NAME = "Assistant outbound calls"
 INBOUND_AGENT_NAME = "Inbound call rules"
 
+# Raise when the outbound agent's definition or settings change. An account
+# on an older version is republished before its next call.
+OUTBOUND_AGENT_VERSION = 2
+
 DEFAULT_INBOUND_RULES = (
     "Answer politely, say the owner of this number is not available, and take a "
     "message: ask for the caller's name, the reason for the call, and a number "
@@ -170,6 +174,28 @@ def _definition(
     # Fail at build time, not on the first call.
     WorkflowGraph(ReactFlowDTO.model_validate(definition))
     return definition
+
+
+def outbound_agent_configurations(max_call_seconds: int) -> dict:
+    """Settings of the outbound agent, the same for every call.
+
+    The opening of each call is classified. The words spoken to a voicemail
+    box and to a call screener come from the call's own context, so one
+    published agent serves every call.
+    """
+    return {
+        # The per-call ceiling is a cost control the tenant cannot raise.
+        "max_call_duration": max_call_seconds,
+        "voicemail_detection": {
+            "enabled": True,
+            "use_workflow_llm": True,
+            "voicemail_action": "leave_message",
+            "voicemail_message": {"text": "{{voicemail_message}}"},
+            "screening_message": {"text": "{{screening_introduction}}"},
+            # Many businesses answer with a menu that takes spoken answers.
+            "ivr_action": "continue",
+        },
+    }
 
 
 def outbound_agent_definition() -> dict:

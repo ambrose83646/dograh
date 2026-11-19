@@ -30,10 +30,20 @@ and their AI assistants use it. It makes real phone calls.
     inbound leg is in the clinic's subaccount.
 12. Each user tries to read the other's calls, rules, and keys, and tries the
     closed Dograh API.
-13. The operator sets Maria's allowance below her used time, and her next call
+13. The clinic changes its voice with `update_settings`. Maria's voice stays
+    the same.
+14. The clinic's assistant calls the test phone, which plays a voicemail
+    greeting. The agent must leave the message from `voicemail_message`, end
+    the call in under a minute, and report `answered_by: voicemail`.
+15. The clinic's assistant calls the test phone again. This time it plays a
+    call screener ("say your name and the reason for your call"), holds, and
+    then a person comes on the line with a price that is random for each run.
+    The agent must give the name and `call_reason`, wait, and then get the
+    price.
+16. The operator sets Maria's allowance below her used time, and her next call
     is refused. The operator does the same to the clinic, and a call to the
     clinic's number is not answered.
-14. Both test accounts are closed. The clinic's number goes back to the pool
+17. Both test accounts are closed. The clinic's number goes back to the pool
     and both subaccounts are closed in Twilio, so the run can be repeated.
 
 ## Which numbers are called
@@ -66,7 +76,10 @@ python platform_verification/verify.py \
   --out platform_verification/results/$(date +%Y%m%d-%H%M)
 ```
 
-The run takes about seven minutes and uses about five minutes of call time.
+The voicemail box and the call screener are scripts that Twilio plays on the
+test phone. They are not a carrier voicemail or a real screening service.
+
+The run takes about nine minutes and uses about seven minutes of call time.
 The exit code is 0 only when every check passes.
 
 ## Output
