@@ -16,7 +16,8 @@ and connect an AI assistant to the MCP server at `/mcp`.
 ## Steps
 
 ```bash
-git clone https://github.com/ambrose83646/dograh.git && cd dograh/deploy/platform
+git clone --recurse-submodules https://github.com/ambrose83646/dograh.git
+cd dograh/deploy/platform
 ./setup.sh                 # or: ./setup.sh calls.example.com
 ```
 
