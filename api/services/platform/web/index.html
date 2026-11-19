@@ -1,0 +1,245 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Phone calls for your AI assistant</title>
+<style>
+  :root { --ink:#16181d; --muted:#5d6470; --line:#e2e5ea; --bg:#f6f7f9; --card:#fff; --accent:#1f5eff; --bad:#b3261e; --good:#12733c; }
+  * { box-sizing:border-box; }
+  body { margin:0; font:16px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif; color:var(--ink); background:var(--bg); }
+  main { max-width:760px; margin:0 auto; padding:32px 20px 64px; }
+  h1 { font-size:28px; line-height:1.2; margin:0 0 8px; }
+  h2 { font-size:18px; margin:0 0 12px; }
+  p { margin:0 0 12px; }
+  .muted { color:var(--muted); }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:20px; margin-top:16px; }
+  label { display:block; font-size:14px; font-weight:600; margin:12px 0 4px; }
+  input { width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:8px; font:inherit; }
+  button { font:inherit; font-weight:600; padding:10px 16px; border-radius:8px; border:1px solid var(--accent); background:var(--accent); color:#fff; cursor:pointer; }
+  button.plain { background:#fff; color:var(--accent); }
+  button.small { padding:4px 10px; font-size:14px; }
+  button:disabled { opacity:.5; cursor:default; }
+  .row { display:flex; gap:12px; flex-wrap:wrap; align-items:center; }
+  .stat { flex:1 1 180px; }
+  .stat b { display:block; font-size:22px; }
+  code, .mono { font:14px ui-monospace,Menlo,Consolas,monospace; word-break:break-all; }
+  .box { background:var(--bg); border:1px solid var(--line); border-radius:8px; padding:10px 12px; }
+  .error { color:var(--bad); min-height:1.5em; }
+  .notice { border-left:4px solid var(--accent); padding:8px 12px; background:#eef3ff; border-radius:4px; }
+  .blocked { border-left-color:var(--bad); background:#fdecea; }
+  table { width:100%; border-collapse:collapse; font-size:14px; }
+  th, td { text-align:left; padding:8px 6px; border-bottom:1px solid var(--line); }
+  [hidden] { display:none !important; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Phone calls for your AI assistant</h1>
+  <p class="muted">Connect your assistant with MCP. It can then make phone calls for you, and answer calls to your number with rules that you save.</p>
+
+  <section id="signed-out" hidden>
+    <div class="card">
+      <h2 id="form-title">Sign in</h2>
+      <p id="closed-note" class="notice" hidden>Signup is not open yet. If you have an account, sign in.</p>
+      <form id="auth-form">
+        <div id="name-field" hidden>
+          <label for="name">Name</label>
+          <input id="name" autocomplete="name">
+        </div>
+        <label for="email">Email</label>
+        <input id="email" type="email" autocomplete="email" required>
+        <label for="password">Password</label>
+        <input id="password" type="password" autocomplete="current-password" minlength="8" required>
+        <p id="auth-error" class="error" role="alert"></p>
+        <div class="row">
+          <button id="auth-submit" type="submit">Sign in</button>
+          <button id="auth-switch" type="button" class="plain" hidden>Create an account</button>
+        </div>
+      </form>
+      <p id="free-note" class="muted" style="margin-top:12px"></p>
+    </div>
+  </section>
+
+  <section id="signed-in" hidden>
+    <div class="card">
+      <div class="row" style="justify-content:space-between">
+        <h2 style="margin:0">Your account</h2>
+        <button id="sign-out" class="plain small" type="button">Sign out</button>
+      </div>
+      <div class="row" style="margin-top:12px">
+        <div class="stat"><span class="muted">Your phone number</span><b id="number">…</b></div>
+        <div class="stat"><span class="muted">Free minutes left</span><b id="minutes">…</b></div>
+      </div>
+      <p id="status-note" class="notice" style="margin-top:12px" hidden></p>
+    </div>
+
+    <div class="card">
+      <h2>Connect your assistant</h2>
+      <p>1. Add a remote MCP server to your assistant with this address:</p>
+      <p class="box mono" id="mcp-url"></p>
+      <p>2. Set the authorization header to <code>Bearer</code> and an access key:</p>
+      <div id="new-key" hidden>
+        <p class="box mono" id="new-key-value"></p>
+        <p class="notice">Copy this key now. It is shown one time only.</p>
+      </div>
+      <div class="row">
+        <button id="create-key" type="button">Create an access key</button>
+      </div>
+      <table id="keys" style="margin-top:12px" hidden>
+        <thead><tr><th>Key</th><th>Created</th><th>Last used</th><th></th></tr></thead>
+        <tbody></tbody>
+      </table>
+      <p class="muted" style="margin-top:12px">3. Ask your assistant to call a number, or to save rules for calls that come to your number.</p>
+    </div>
+
+    <div class="card">
+      <h2>Recent calls</h2>
+      <p id="no-calls" class="muted">No calls yet.</p>
+      <table id="calls" hidden>
+        <thead><tr><th>When</th><th>Direction</th><th>Other number</th><th>Status</th><th>Seconds</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+</main>
+<script>
+const $ = (id) => document.getElementById(id);
+const API = "/api/v1";
+let token = localStorage.getItem("token");
+let signupMode = false;
+
+async function api(path, options = {}) {
+  const headers = { "Content-Type": "application/json", ...(options.headers || {}) };
+  if (token) headers.Authorization = "Bearer " + token;
+  const response = await fetch(API + path, { ...options, headers });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const detail = typeof body.detail === "string" ? body.detail : "The request failed.";
+    throw Object.assign(new Error(detail), { status: response.status });
+  }
+  return body;
+}
+
+function cell(row, text) { const td = row.insertCell(); td.textContent = text ?? ""; return td; }
+function when(value) { return value ? new Date(value).toLocaleString() : "—"; }
+
+function setMode(signup) {
+  signupMode = signup;
+  $("form-title").textContent = signup ? "Create an account" : "Sign in";
+  $("auth-submit").textContent = signup ? "Create account" : "Sign in";
+  $("auth-switch").textContent = signup ? "I have an account" : "Create an account";
+  $("name-field").hidden = !signup;
+  $("password").autocomplete = signup ? "new-password" : "current-password";
+  $("auth-error").textContent = "";
+}
+
+async function showSignedOut() {
+  $("signed-in").hidden = true;
+  $("signed-out").hidden = false;
+  const info = await api("/platform/info");
+  $("auth-switch").hidden = !info.signup_open;
+  $("closed-note").hidden = info.signup_open;
+  $("free-note").textContent = "Each account gets its own phone number and " + info.free_minutes + " free call minutes.";
+  setMode(false);
+}
+
+async function showAccount() {
+  let account;
+  try { account = await api("/platform/account"); }
+  catch (error) {
+    if (error.status === 401 || error.status === 403) { signOut(); return; }
+    throw error;
+  }
+  $("signed-out").hidden = true;
+  $("signed-in").hidden = false;
+  $("number").textContent = account.phone_number || "Not assigned";
+  $("minutes").textContent = account.free_minutes_remaining + " of " + account.free_minutes_total;
+  $("mcp-url").textContent = account.mcp_url;
+  const note = $("status-note");
+  const message = account.blocked_reason
+    || (account.test_period ? "Test period: calls can go to approved test numbers only." : "");
+  note.textContent = message;
+  note.hidden = !message;
+  note.classList.toggle("blocked", !account.can_call);
+  await Promise.all([showKeys(), showCalls()]);
+}
+
+async function showKeys() {
+  const keys = await api("/user/api-keys");
+  const body = $("keys").tBodies[0];
+  body.replaceChildren();
+  for (const key of keys) {
+    const row = body.insertRow();
+    cell(row, key.key_prefix + "…").className = "mono";
+    cell(row, when(key.created_at));
+    cell(row, when(key.last_used_at));
+    const button = document.createElement("button");
+    button.textContent = "Revoke";
+    button.className = "plain small";
+    button.onclick = async () => {
+      if (!confirm("Revoke this key? An assistant that uses it loses access.")) return;
+      await api("/user/api-keys/" + key.id, { method: "DELETE" });
+      await showKeys();
+    };
+    row.insertCell().append(button);
+  }
+  $("keys").hidden = keys.length === 0;
+}
+
+async function showCalls() {
+  const calls = await api("/platform/calls?limit=20");
+  const body = $("calls").tBodies[0];
+  body.replaceChildren();
+  for (const call of calls) {
+    const row = body.insertRow();
+    cell(row, when(call.started_at));
+    cell(row, call.direction);
+    cell(row, call.direction === "inbound" ? call.from : call.to);
+    cell(row, call.status);
+    cell(row, call.duration_seconds);
+  }
+  $("calls").hidden = calls.length === 0;
+  $("no-calls").hidden = calls.length !== 0;
+}
+
+function signOut() {
+  token = null;
+  localStorage.removeItem("token");
+  $("new-key").hidden = true;
+  showSignedOut();
+}
+
+$("auth-switch").onclick = () => setMode(!signupMode);
+$("sign-out").onclick = signOut;
+
+$("auth-form").onsubmit = async (event) => {
+  event.preventDefault();
+  $("auth-error").textContent = "";
+  $("auth-submit").disabled = true;
+  try {
+    const body = { email: $("email").value.trim(), password: $("password").value };
+    if (signupMode) body.name = $("name").value.trim() || body.email.split("@")[0];
+    const result = await api(signupMode ? "/auth/signup" : "/auth/login", { method: "POST", body: JSON.stringify(body) });
+    token = result.token;
+    localStorage.setItem("token", token);
+    $("password").value = "";
+    await showAccount();
+  } catch (error) {
+    $("auth-error").textContent = error.message;
+  } finally {
+    $("auth-submit").disabled = false;
+  }
+};
+
+$("create-key").onclick = async () => {
+  const created = await api("/user/api-keys", { method: "POST", body: JSON.stringify({ name: "assistant" }) });
+  $("new-key-value").textContent = created.api_key;
+  $("new-key").hidden = false;
+  await showKeys();
+};
+
+(token ? showAccount() : showSignedOut()).catch(() => showSignedOut());
+</script>
+</body>
+</html>

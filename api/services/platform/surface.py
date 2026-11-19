@@ -18,6 +18,8 @@ _ALLOWED: tuple[tuple[frozenset[str] | None, re.Pattern[str]], ...] = tuple(
     (frozenset(methods) if methods else None, re.compile(pattern))
     for methods, pattern in (
         (None, r"/mcp(/.*)?"),
+        # The account web page.
+        ({"GET"}, r"/"),
         ({"GET"}, rf"{_API}/health"),
         (None, rf"{_API}/auth/.*"),
         ({"GET"}, rf"{_API}/user/auth/user"),

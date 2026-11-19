@@ -6,8 +6,9 @@ preference. Applied on every outbound path through ``start_outbound_call``.
 
 import re
 
-from api.services.platform.settings import get_platform_settings
 from fastapi import HTTPException
+
+from api.services.platform.settings import get_platform_settings
 
 _E164 = re.compile(r"^\+[1-9]\d{7,14}$")
 

@@ -127,7 +127,9 @@ class Assistant:
         return None
 
 
-async def sign_up(http: httpx.AsyncClient, name: str, run_id: str) -> dict:
+async def sign_up(
+    http: httpx.AsyncClient, name: str, run_id: str, operator: dict | None = None
+) -> dict:
     email = f"verify-{run_id}-{name.split()[0].lower()}@example.com"
     response = await http.post(
         "/api/v1/auth/signup",
@@ -136,6 +138,8 @@ async def sign_up(http: httpx.AsyncClient, name: str, run_id: str) -> dict:
             "password": f"Verify-{run_id}-{random.random()}",
             "name": name,
         },
+        # Sent only while public signup is closed.
+        headers=operator or {},
     )
     response.raise_for_status()
     body = response.json()
@@ -204,9 +208,26 @@ async def run(args, report: Report) -> None:
             )
 
             # --- Two people sign up with no operator involved ----------------
-            clinic = await sign_up(http, "Riverside Dental", run_id)
+            info = (await http.get("/api/v1/platform/info")).json()
+            report.evidence["signup_open"] = info["signup_open"]
+            invite = None if info["signup_open"] else operator
+            if invite:
+                stranger = await http.post(
+                    "/api/v1/auth/signup",
+                    json={
+                        "email": f"verify-{run_id}-stranger@example.com",
+                        "password": f"Verify-{run_id}-{random.random()}",
+                        "name": "Stranger",
+                    },
+                )
+                report.check(
+                    "While public signup is closed, a person without the operator secret cannot sign up",
+                    stranger.status_code == 403,
+                    f"HTTP {stranger.status_code}",
+                )
+            clinic = await sign_up(http, "Riverside Dental", run_id, invite)
             accounts.append(clinic)
-            maria = await sign_up(http, "Maria Lopez", run_id)
+            maria = await sign_up(http, "Maria Lopez", run_id, invite)
             accounts.append(maria)
             clinic_ai = Assistant(mcp_url, clinic["api_key"])
             maria_ai = Assistant(mcp_url, maria["api_key"])

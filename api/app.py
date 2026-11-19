@@ -1,5 +1,7 @@
 """Set up logging before importing anything else"""
 
+from pathlib import Path
+
 import sentry_sdk
 
 from api.constants import (
@@ -29,7 +31,7 @@ from contextlib import AsyncExitStack, asynccontextmanager
 
 from fastapi import APIRouter, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 from loguru import logger
 
 from api.constants import REDIS_URL
@@ -212,3 +214,9 @@ if PLATFORM_MODE:
     # Dograh route that is not part of the calling service.
     app.mount("/mcp", RequireApiKey(calls_mcp_app))
     app.add_middleware(PlatformSurfaceMiddleware)
+
+    _PLATFORM_PAGE = Path(__file__).parent / "services/platform/web/index.html"
+
+    @app.get("/", include_in_schema=False)
+    async def platform_account_page() -> FileResponse:
+        return FileResponse(_PLATFORM_PAGE, headers={"Cache-Control": "no-cache"})

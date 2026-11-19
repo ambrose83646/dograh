@@ -7,6 +7,9 @@ through it; ids that arrive from a client are never trusted on their own.
 
 from typing import Any
 
+from fastapi import HTTPException
+from loguru import logger
+
 from api.db import db_client
 from api.services.platform.agent_definitions import (
     DEFAULT_INBOUND_RULES,
@@ -25,8 +28,6 @@ from api.services.workflow_run_artifacts import (
     TranscriptDownloadError,
     download_run_transcript_text,
 )
-from fastapi import HTTPException
-from loguru import logger
 
 MAX_TASK_CHARS = 4000
 MAX_BACKGROUND_CHARS = 6000

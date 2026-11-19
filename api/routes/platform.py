@@ -1,10 +1,9 @@
 """Account endpoints for the shared calling platform (platform mode only)."""
 
-import hmac
-
 from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel, Field
 
+from api.constants import ENABLE_SIGNUP
 from api.db.models import UserModel
 from api.services.auth.depends import get_user_with_selected_organization
 from api.services.platform import calls, operator
@@ -16,6 +15,18 @@ router = APIRouter(prefix="/platform")
 def _require_platform_mode() -> None:
     if not get_platform_settings().enabled:
         raise HTTPException(status_code=404, detail="Not found")
+
+
+@router.get("/info", dependencies=[Depends(_require_platform_mode)])
+async def get_service_info() -> dict:
+    """Public facts the sign-in page needs. No account data."""
+    settings = get_platform_settings()
+    return {
+        "signup_open": ENABLE_SIGNUP,
+        "free_minutes": settings.free_seconds / 60,
+        "test_period": bool(settings.destination_allowlist),
+        "mcp_url": settings.public_mcp_url,
+    }
 
 
 @router.get("/account", dependencies=[Depends(_require_platform_mode)])
@@ -56,12 +67,7 @@ def _require_operator(x_operator_token: str = Header(default="")) -> None:
 
     With no secret configured they are closed to everyone.
     """
-    expected = get_platform_settings().operator_token
-    if (
-        not get_platform_settings().enabled
-        or not expected
-        or not hmac.compare_digest(x_operator_token.encode(), expected.encode())
-    ):
+    if not operator.is_operator_token(x_operator_token):
         raise HTTPException(status_code=404, detail="Not found")
 
 

@@ -4,6 +4,7 @@ These are the controls the operator needs to run a free service on its own
 provider accounts. Tenants never reach them.
 """
 
+import hmac
 from typing import Any
 
 from fastapi import HTTPException
@@ -14,6 +15,17 @@ from api.services.platform.provisioning import (
     get_platform_account,
     update_platform_account,
 )
+from api.services.platform.settings import get_platform_settings
+
+
+def is_operator_token(token: str) -> bool:
+    """True only in platform mode, with a secret configured, and a match."""
+    settings = get_platform_settings()
+    return bool(
+        settings.enabled
+        and settings.operator_token
+        and hmac.compare_digest(token.encode(), settings.operator_token.encode())
+    )
 
 
 async def _existing_account(organization_id: int) -> dict[str, Any]:

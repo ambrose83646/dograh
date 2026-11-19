@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException
 
 from api.constants import ENABLE_SIGNUP
 from api.db import db_client
@@ -7,6 +7,7 @@ from api.enums import PostHogEvent
 from api.schemas.auth import AuthResponse, LoginRequest, SignupRequest, UserResponse
 from api.services.auth.depends import get_user, require_local_auth
 from api.services.organization_bootstrap import ensure_organization_bootstrapped
+from api.services.platform.operator import is_operator_token
 from api.services.posthog_client import capture_event
 from api.services.posthog_tenant import tenant_properties
 from api.utils.auth import create_jwt_token, hash_password, verify_password
@@ -22,8 +23,9 @@ router = APIRouter(
     response_model=AuthResponse,
     dependencies=[Depends(require_local_auth)],
 )
-async def signup(request: SignupRequest):
-    if not ENABLE_SIGNUP:
+async def signup(request: SignupRequest, x_operator_token: str = Header(default="")):
+    # Platform mode: the operator can create accounts while signup is closed.
+    if not ENABLE_SIGNUP and not is_operator_token(x_operator_token):
         raise HTTPException(status_code=403, detail="Signup is disabled")
 
     # Check if email is already taken
