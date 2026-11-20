@@ -33,6 +33,9 @@ class PlatformSettings:
     caller_id_daily_attempts: int
     free_seconds: int
     billing_url: str
+    sms_from: str
+    otp_daily_per_number: int
+    otp_hourly_per_address: int
     max_call_seconds: int
     daily_call_limit: int
     # E.164 prefixes users may dial, e.g. "+1". Empty means no restriction.
@@ -74,6 +77,9 @@ def get_platform_settings() -> PlatformSettings:
         ),
         free_seconds=int(os.getenv("PLATFORM_FREE_SECONDS", "600")),
         billing_url=os.getenv("PLATFORM_BILLING_URL", ""),
+        sms_from=os.getenv("PLATFORM_SMS_FROM", ""),
+        otp_daily_per_number=int(os.getenv("PLATFORM_OTP_DAILY_PER_NUMBER", "6")),
+        otp_hourly_per_address=int(os.getenv("PLATFORM_OTP_HOURLY_PER_ADDRESS", "20")),
         max_call_seconds=int(os.getenv("PLATFORM_MAX_CALL_SECONDS", "600")),
         daily_call_limit=int(os.getenv("PLATFORM_DAILY_CALL_LIMIT", "20")),
         allowed_prefixes=_csv("PLATFORM_ALLOWED_PREFIXES"),

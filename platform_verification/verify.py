@@ -149,7 +149,13 @@ async def sign_up(
         headers=operator or {},
     )
     response.raise_for_status()
-    body = response.json()
+    return await account_from(http, name, response.json(), email)
+
+
+async def account_from(
+    http: httpx.AsyncClient, name: str, body: dict, email: str | None = None
+) -> dict:
+    """The signed-in user with a new MCP key, from a sign-up or sign-in answer."""
     auth = {"Authorization": f"Bearer {body['token']}"}
     key = await http.post(
         "/api/v1/user/api-keys", json={"name": "assistant"}, headers=auth
@@ -211,6 +217,29 @@ class TestPhone:
 
     async def hang_up(self) -> None:
         await self._set_voice_url("")
+
+    async def texts(self) -> dict[str, str]:
+        """Text messages this phone received, newest 20, as sid -> body."""
+        response = await self.twilio.get(
+            f"/Accounts/{self.account_sid}/Messages.json",
+            params={"To": self.number, "PageSize": 20},
+        )
+        response.raise_for_status()
+        return {
+            m["sid"]: m["body"]
+            for m in response.json()["messages"]
+            if m["direction"] == "inbound"
+        }
+
+    async def new_codes(self, seen: set[str], wait: float = 45) -> list[str]:
+        """Codes in the texts that arrived since ``seen``. Waits for the first."""
+        deadline = time.monotonic() + wait
+        while True:
+            fresh = {s: b for s, b in (await self.texts()).items() if s not in seen}
+            codes = [m.group(1) for b in fresh.values() if (m := re.search(r"\b(\d{6})\b", b))]
+            if codes or time.monotonic() > deadline:
+                return codes
+            await asyncio.sleep(3)
 
     async def subaccounts(self, organization_id: int) -> list[dict]:
         response = await self.twilio.get(
@@ -283,24 +312,121 @@ async def run(args, report: Report) -> None:
             info = (await http.get("/api/v1/platform/info")).json()
             report.evidence["signup_open"] = info["signup_open"]
             invite = None if info["signup_open"] else operator
-            if invite:
-                stranger = await http.post(
-                    "/api/v1/auth/signup",
-                    json={
-                        "email": f"verify-{run_id}-stranger@example.com",
-                        "password": f"Verify-{run_id}-{random.random()}",
-                        "name": "Stranger",
-                    },
-                )
-                report.check(
-                    "While public signup is closed, a person without the operator secret cannot sign up",
-                    stranger.status_code == 403,
-                    f"HTTP {stranger.status_code}",
-                )
-            clinic = await sign_up(http, "Riverside Dental", run_id, invite)
+            # An email account costs nothing to make, so each one would be ten
+            # more free minutes. Only the operator can make one, at any time.
+            stranger = await http.post(
+                "/api/v1/auth/signup",
+                json={
+                    "email": f"verify-{run_id}-stranger@example.com",
+                    "password": f"Verify-{run_id}-{random.random()}",
+                    "name": "Stranger",
+                },
+            )
+            report.check(
+                "A person without the operator secret cannot make an email account",
+                stranger.status_code == 403,
+                f"HTTP {stranger.status_code}",
+            )
+            clinic = await sign_up(http, "Riverside Dental", run_id, operator)
             accounts.append(clinic)
-            maria = await sign_up(http, "Maria Lopez", run_id, invite)
+
+            # --- Maria signs up with her phone number and a text code ---------
+            # Ways phone sign-in can go wrong:
+            # 1. a wrong code, or the code of a different number, signs in
+            # 2. a code works two times
+            # 3. a person can guess codes without a limit
+            # 4. the service sends a text for each request (the operator pays)
+            # 5. a number outside the United States and Canada gets a text
+            # 6. while signup is closed, a stranger's number gets a text
+            # 7. the same phone gets a second account with new free minutes
+            start_url = "/api/v1/platform/auth/start"
+            check_url = "/api/v1/platform/auth/verify"
+            release_url = "/api/v1/platform/operator/phone-identities/release"
+            me = {"phone_number": phone.number}
+
+            async def try_code(code: str, number: str = phone.number, headers=None):
+                return await http.post(
+                    check_url, json={"phone_number": number, "code": code},
+                    headers=headers or {},
+                )  # fmt: skip
+
+            def other_code(code: str) -> str:
+                return f"{(int(code) + 1) % 1000000:06d}"
+
+            # A run that stopped early can leave the phone bound to an account.
+            (await http.post(release_url, headers=operator, json=me)).raise_for_status()
+            seen = set(await phone.texts())
+            abroad_start = await http.post(
+                start_url, json={"phone_number": "+442079460958"}, headers=invite or {}
+            )
+            closed_start = await http.post(start_url, json=me) if invite else None
+            first_start = await http.post(start_url, json=me, headers=invite or {})
+            second_start = await http.post(start_url, json=me, headers=invite or {})
+            codes = await phone.new_codes(seen)
+            await asyncio.sleep(10)
+            codes = await phone.new_codes(seen, wait=0)
+            report.check(
+                "A sign-in request sends one text with a code; a second request "
+                "in the same minute, a number abroad, and a stranger while "
+                "signup is closed get no text",
+                first_start.status_code == 200
+                and second_start.status_code == 429
+                and abroad_start.status_code in (400, 403)
+                and (closed_start is None or closed_start.status_code == 403)
+                and len(codes) == 1,
+                f"first {first_start.status_code}, second {second_start.status_code}, "
+                f"abroad {abroad_start.status_code}, closed "
+                f"{closed_start.status_code if closed_start else 'n/a'}, texts {len(codes)}",
+            )
+            code = codes[0] if codes else "000000"
+            wrong = await try_code(other_code(code), headers=invite)
+            other_number = await try_code(code, UNAPPROVED_NUMBER, headers=invite)
+            signed_up = await try_code(code, headers=invite)
+            replay = await try_code(code, headers=invite)
+            report.check(
+                "Only the right code for the right number signs in, and a code "
+                "works one time",
+                wrong.status_code == 401
+                and other_number.status_code in (400, 401)
+                and signed_up.status_code == 200
+                and replay.status_code == 401,
+                f"wrong {wrong.status_code}, other number {other_number.status_code}, "
+                f"right {signed_up.status_code}, replay {replay.status_code}",
+            )
+            signed_up.raise_for_status()
+            maria = await account_from(http, "Maria Lopez", signed_up.json())
             accounts.append(maria)
+
+            # A new code, five wrong guesses, then the right code: refused.
+            await asyncio.sleep(61)
+            seen = set(await phone.texts())
+            (await http.post(start_url, json=me)).raise_for_status()
+            guess_code = (await phone.new_codes(seen) or ["000000"])[0]
+            guesses = [
+                (await try_code(other_code(guess_code))).status_code for _ in range(5)
+            ]
+            after_guesses = await try_code(guess_code)
+            # The same phone signs in again: the same account, no new one.
+            await asyncio.sleep(61)
+            seen = set(await phone.texts())
+            (await http.post(start_url, json=me)).raise_for_status()
+            again_code = (await phone.new_codes(seen) or ["000000"])[0]
+            signed_in = await try_code(again_code)
+            same_account = (
+                signed_in.status_code == 200
+                and signed_in.json()["user"]["organization_id"]
+                == maria["organization_id"]
+            )
+            report.check(
+                "After five wrong guesses the code is dead, and the same phone "
+                "signs in to the same account, not a new one",
+                guesses == [401] * 5
+                and after_guesses.status_code == 401
+                and same_account
+                and len({code, guess_code, again_code}) == 3,
+                f"guesses {guesses}, right code after them {after_guesses.status_code}, "
+                f"same account {same_account}",
+            )
             clinic_ai = Assistant(mcp_url, clinic["api_key"])
             maria_ai = Assistant(mcp_url, maria["api_key"])
 
@@ -399,6 +525,15 @@ async def run(args, report: Report) -> None:
                 and verified_status["phone_number"] is None
                 and verified_status["can_call"] is True,
                 f"caller ID {maria['caller_id']}",
+            )
+            taken = await clinic_ai.refusal(
+                "start_caller_id_verification", phone_number=phone.number
+            )
+            report.check(
+                "A phone number that belongs to one account cannot be the "
+                "caller ID of a different account",
+                bool(taken) and "another account" in taken.lower(),
+                f"refusal: {taken!r}",
             )
             clinic_steal = await clinic_ai.call("get_account_status")
             report.check(
@@ -1034,6 +1169,11 @@ async def run(args, report: Report) -> None:
                 print(
                     f"closed account {account['organization_id']}: HTTP {closed_account.status_code}"
                 )
+            released = await http.post(
+                "/api/v1/platform/operator/phone-identities/release",
+                headers=operator, json={"phone_number": phone.number},
+            )  # fmt: skip
+            print(f"released the test phone: HTTP {released.status_code}")
             await phone.twilio.aclose()
 
 

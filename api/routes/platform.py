@@ -1,12 +1,12 @@
 """Account endpoints for the shared calling platform (platform mode only)."""
 
-from fastapi import APIRouter, Depends, Header, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from pydantic import AwareDatetime, BaseModel, Field, model_validator
 
 from api.constants import ENABLE_SIGNUP
 from api.db.models import UserModel
 from api.services.auth.depends import get_user_with_selected_organization
-from api.services.platform import caller_id, calls, operator
+from api.services.platform import caller_id, calls, operator, phone_auth
 from api.services.platform.settings import get_platform_settings
 
 router = APIRouter(prefix="/platform")
@@ -23,10 +23,54 @@ async def get_service_info() -> dict:
     settings = get_platform_settings()
     return {
         "signup_open": ENABLE_SIGNUP,
+        "phone_sign_in": bool(settings.sms_from),
         "free_minutes": settings.free_seconds / 60,
         "test_period": bool(settings.destination_allowlist),
         "mcp_url": settings.public_mcp_url,
     }
+
+
+class SignInStartRequest(BaseModel):
+    phone_number: str = Field(max_length=30)
+
+
+class SignInVerifyRequest(BaseModel):
+    phone_number: str = Field(max_length=30)
+    code: str = Field(max_length=10)
+
+
+def _client_address(request: Request) -> str:
+    # The reverse proxy in front of the API sets this header.
+    forwarded = request.headers.get("x-forwarded-for", "")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    return request.client.host if request.client else "unknown"
+
+
+@router.post("/auth/start", dependencies=[Depends(_require_platform_mode)])
+async def start_phone_sign_in(
+    body: SignInStartRequest,
+    request: Request,
+    x_operator_token: str = Header(default=""),
+) -> dict:
+    """Text a sign-in code to the phone. The phone number is the account."""
+    return await phone_auth.start(
+        body.phone_number,
+        _client_address(request),
+        operator=operator.is_operator_token(x_operator_token),
+    )
+
+
+@router.post("/auth/verify", dependencies=[Depends(_require_platform_mode)])
+async def finish_phone_sign_in(
+    body: SignInVerifyRequest, x_operator_token: str = Header(default="")
+) -> dict:
+    """Check the code; sign in, or create the account on the first sign-in."""
+    return await phone_auth.verify(
+        body.phone_number,
+        body.code,
+        operator=operator.is_operator_token(x_operator_token),
+    )
 
 
 @router.get("/account", dependencies=[Depends(_require_platform_mode)])
@@ -36,6 +80,8 @@ async def get_account(
     """The signed-in user's number, allowance, and MCP connection details."""
     status = await calls.get_account_status(user.selected_organization_id)
     status["mcp_url"] = get_platform_settings().public_mcp_url
+    status["organization_id"] = user.selected_organization_id
+    status["sign_in_phone"] = phone_auth.sign_in_phone(user)
     return status
 
 
@@ -103,6 +149,18 @@ async def set_account_allowance(
     organization_id: int, request: AllowanceRequest
 ) -> dict:
     return await operator.set_account_allowance(organization_id, request.free_seconds)
+
+
+class PhoneIdentityRequest(BaseModel):
+    phone_number: str = Field(max_length=30)
+
+
+@router.post(
+    "/operator/phone-identities/release", dependencies=[Depends(_require_operator)]
+)
+async def release_phone_identity(request: PhoneIdentityRequest) -> dict:
+    """Unbind a phone number from its account so that it can sign up again."""
+    return await phone_auth.release(request.phone_number)
 
 
 class PlanRequest(BaseModel):

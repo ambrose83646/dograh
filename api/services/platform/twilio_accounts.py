@@ -50,6 +50,18 @@ async def _request(
         return body
 
 
+async def send_text(to: str, body: str) -> None:
+    """Send a text message from the operator's registered sender."""
+    settings = get_platform_settings()
+    sender = settings.sms_from
+    sender_field = "MessagingServiceSid" if sender.startswith("MG") else "From"
+    await _request(
+        "POST",
+        f"/Accounts/{settings.twilio_account_sid}/Messages.json",
+        data={sender_field: sender, "To": to, "Body": body},
+    )
+
+
 async def create_subaccount(friendly_name: str) -> tuple[str, str]:
     """Create a subaccount. Returns its (account_sid, auth_token)."""
     body = await _request(

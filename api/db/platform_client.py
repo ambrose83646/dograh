@@ -13,6 +13,7 @@ from sqlalchemy.future import select
 
 from api.db.base_client import BaseDBClient
 from api.db.models import (
+    OrganizationModel,
     TelephonyPhoneNumberModel,
     UserModel,
     WorkflowModel,
@@ -130,6 +131,54 @@ class PlatformClient(BaseDBClient):
             await session.commit()
             await session.refresh(row)
             return row
+
+    async def get_platform_phone_user(self, provider_id: str) -> UserModel | None:
+        async with self.async_session() as session:
+            return await session.scalar(
+                select(UserModel).where(UserModel.provider_id == provider_id)
+            )
+
+    async def release_platform_phone_identity(self, provider_id: str) -> bool:
+        """Rename the user and its organization so the phone can sign up again."""
+        suffix = f"released_{int(datetime.now().timestamp())}_"
+        async with self.async_session() as session:
+            user = await session.scalar(
+                select(UserModel).where(UserModel.provider_id == provider_id)
+            )
+            if user is None:
+                return False
+            organization = await session.scalar(
+                select(OrganizationModel).where(
+                    OrganizationModel.provider_id == f"org_{provider_id}"
+                )
+            )
+            if organization is not None:
+                organization.provider_id = f"org_{suffix}{provider_id}"
+            user.provider_id = f"{suffix}{provider_id}"
+            await session.commit()
+            return True
+
+    async def platform_number_owner_differs(
+        self, phone_number: str, organization_id: int
+    ) -> bool:
+        """True when the number is the sign-in phone or the caller ID of a
+        different organization."""
+        async with self.async_session() as session:
+            identity = await session.scalar(
+                select(UserModel.selected_organization_id).where(
+                    UserModel.provider_id == f"phone_{phone_number}"
+                )
+            )
+            if identity is not None and identity != organization_id:
+                return True
+            other = await session.scalar(
+                select(TelephonyPhoneNumberModel.id).where(
+                    TelephonyPhoneNumberModel.address_normalized == phone_number,
+                    TelephonyPhoneNumberModel.label == CALLER_ID_LABEL,
+                    TelephonyPhoneNumberModel.organization_id != organization_id,
+                )
+            )
+            return other is not None
 
     async def clear_platform_caller_id(self, organization_id: int) -> None:
         async with self.async_session() as session:

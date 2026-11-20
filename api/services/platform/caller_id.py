@@ -59,6 +59,15 @@ async def start_verification(organization_id: int, phone_number: str) -> dict[st
             detail="This is the service number of this account. Give a phone you own.",
         )
 
+    if await db_client.platform_number_owner_differs(phone_number, organization_id):
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "This phone number belongs to another account. One phone "
+                "number can be used on one account only."
+            ),
+        )
+
     now = datetime.now(UTC)
     attempts = _recent_attempts(account, now)
     limit = get_platform_settings().caller_id_daily_attempts
