@@ -105,3 +105,13 @@ It needs the same environment as `verify.py`, and also `VERIFY_BANK_PHONE`
 (the second test number; it must be in the main Twilio account) and
 `VERIFY_LINE_NUMBER` (the service's `PLATFORM_CONFERENCE_FROM`). The run
 takes about ten minutes and uses about six minutes of call time.
+
+## The sign-in code limit (`sign_in_limit.py`)
+
+`sign_in_limit.py` checks the day limit of sign-in codes, the exempt numbers
+(`PLATFORM_OTP_EXEMPT_NUMBERS`), and the operator reset
+(`phone-identities/reset-code-limit`). Start the service with
+`PLATFORM_OTP_DAILY_PER_NUMBER=2` and with the second test number in
+`PLATFORM_OTP_EXEMPT_NUMBERS` (`VERIFY_EXEMPT_PHONE`). The run sends six texts
+and takes about three minutes. Do not run it against the live service: it
+needs the low limit.

@@ -1,0 +1,41 @@
+{
+  "passed": true,
+  "checks": [
+    {
+      "name": "An exempt number keeps the one-minute wait between codes",
+      "passed": true,
+      "detail": "first 200; at once: (429, 'A code was sent a moment ago. Wait one minute.')"
+    },
+    {
+      "name": "A number that is not exempt gets two codes, then the day limit stops it",
+      "passed": true,
+      "detail": "codes: 200, 200; third: (429, 'Too many codes were requested. Try again later.')"
+    },
+    {
+      "name": "The exempt number gets a third code on the same day",
+      "passed": true,
+      "detail": "second 200, third (200, '')"
+    },
+    {
+      "name": "The reset does nothing without the operator token",
+      "passed": true,
+      "detail": "no token 404, wrong token 404, next request (429, 'A code was sent a moment ago. Wait one minute.')"
+    },
+    {
+      "name": "After the operator reset, the number gets a code at once: the day count and the wait are both clear",
+      "passed": true,
+      "detail": "reset 200 {\"phone_number\":\"+12085050523\",\"reset\":true}; next request (200, '')"
+    },
+    {
+      "name": "The reset keeps the code that the phone has, and the phone stays connected to its account and its access key",
+      "passed": true,
+      "detail": "sign-in 200; account before 500031, after 500031; key 200"
+    }
+  ],
+  "base_url": "http://localhost:8000",
+  "started_at": "2026-11-20T23:22:21.466585+00:00",
+  "limited_number": "+12085050523",
+  "exempt_number": "+12088864742",
+  "seconds": 135,
+  "finished_at": "2026-11-20T23:24:36.054183+00:00"
+}

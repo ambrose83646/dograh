@@ -59,6 +59,7 @@ The first build takes about 10 minutes.
 | `PLATFORM_CONFERENCE_FROM` | empty | A phone number of the main Twilio account. The agent uses it to phone a user and connect them with the other party of their call. Do not use a number from the pool. Empty: the agent cannot bring the user into a call. |
 | `PLATFORM_OTP_DAILY_PER_NUMBER` | `6` | Sign-in codes that one phone number can get in 24 hours. |
 | `PLATFORM_OTP_HOURLY_PER_ADDRESS` | `20` | Sign-in codes that one client address can request in one hour. |
+| `PLATFORM_OTP_EXEMPT_NUMBERS` | empty | Phone numbers in E.164 form, with commas between them. The day limit of sign-in codes does not apply to them. The one-minute wait and the limit for a client address stay. |
 | `PLATFORM_BILLING_URL` | empty | Page where a user starts the monthly plan and sets the limit of minute packs. The agent gets this address when the minutes are low or used. |
 | `PLATFORM_BILLING_WEBHOOK_URL` | empty | Address of the billing system. The service sends `pack_needed` there when an account has fewer than 5 minutes. Empty: nothing is sent. |
 | `PLATFORM_BILLING_WEBHOOK_SECRET` | empty | Signs each `pack_needed` request (HMAC SHA-256 of the body, header `X-Platform-Signature`). |
@@ -97,6 +98,25 @@ curl -X POST -H "$H" https://HOST/api/v1/platform/operator/accounts/ORG_ID/relea
 `release-number` moves the number back to the pool. To stop an account, use
 `.../suspended` with `{"suspended": true}`. To end it for good, use
 `.../close`: Twilio cannot reopen a closed subaccount.
+
+## A phone that cannot get a sign-in code
+
+A phone number gets `PLATFORM_OTP_DAILY_PER_NUMBER` codes in 24 hours. After
+that the service answers "Too many codes were requested." To let the phone
+get codes again:
+
+```bash
+curl -X POST -H "$H" -H "Content-Type: application/json" \
+  https://HOST/api/v1/platform/operator/phone-identities/reset-code-limit \
+  -d '{"phone_number":"+14155550123"}'
+```
+
+The answer is `{"phone_number": "+14155550123", "reset": true}`. The phone
+stays connected to its account. Do not use `phone-identities/release` for
+this: it disconnects the phone from its account.
+
+For numbers that must never reach the day limit, such as the owner's phone,
+set `PLATFORM_OTP_EXEMPT_NUMBERS`.
 
 ## Change the domain
 

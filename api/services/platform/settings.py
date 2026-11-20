@@ -44,6 +44,7 @@ class PlatformSettings:
     conference_from: str
     otp_daily_per_number: int
     otp_hourly_per_address: int
+    otp_exempt_numbers: tuple[str, ...]
     max_call_seconds: int
     daily_call_limit: int
     # E.164 prefixes users may dial, e.g. "+1". Empty means no restriction.
@@ -91,6 +92,7 @@ def get_platform_settings() -> PlatformSettings:
         conference_from=os.getenv("PLATFORM_CONFERENCE_FROM", "").strip(),
         otp_daily_per_number=int(os.getenv("PLATFORM_OTP_DAILY_PER_NUMBER", "6")),
         otp_hourly_per_address=int(os.getenv("PLATFORM_OTP_HOURLY_PER_ADDRESS", "20")),
+        otp_exempt_numbers=_csv("PLATFORM_OTP_EXEMPT_NUMBERS"),
         max_call_seconds=int(os.getenv("PLATFORM_MAX_CALL_SECONDS", "600")),
         daily_call_limit=int(os.getenv("PLATFORM_DAILY_CALL_LIMIT", "20")),
         allowed_prefixes=_csv("PLATFORM_ALLOWED_PREFIXES"),

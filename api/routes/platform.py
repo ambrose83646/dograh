@@ -181,6 +181,15 @@ async def release_phone_identity(request: PhoneIdentityRequest) -> dict:
     return await phone_auth.release(request.phone_number)
 
 
+@router.post(
+    "/operator/phone-identities/reset-code-limit",
+    dependencies=[Depends(_require_operator)],
+)
+async def reset_phone_code_limit(request: PhoneIdentityRequest) -> dict:
+    """Clear the sign-in code counts of a phone. Its account does not change."""
+    return await phone_auth.reset_code_limit(request.phone_number)
+
+
 class PlanRequest(BaseModel):
     name: str = Field(min_length=1, max_length=60)
     included_seconds: int = Field(ge=0)

@@ -91,8 +91,14 @@ async def start(phone_number: str, client_address: str, *, operator: bool) -> di
         raise HTTPException(
             status_code=429, detail="A code was sent a moment ago. Wait one minute."
         )
+    # The operator's own numbers have no day limit. The wait above stays.
+    over_day_limit = (
+        phone_number not in settings.otp_exempt_numbers
+        and await _count(f"otp:day:{phone_number}", 86400)
+        > settings.otp_daily_per_number
+    )
     if (
-        await _count(f"otp:day:{phone_number}", 86400) > settings.otp_daily_per_number
+        over_day_limit
         or await _count(f"otp:hour:{client_address}", 3600)
         > settings.otp_hourly_per_address
     ):
@@ -206,6 +212,16 @@ async def release(phone_number: str) -> dict[str, Any]:
         f"otp:day:{phone_number}",
     )
     return {"phone_number": phone_number, "released": released}
+
+
+async def reset_code_limit(phone_number: str) -> dict[str, Any]:
+    """Operator only: let the phone get sign-in codes again.
+
+    The phone stays connected to its account, and a code that it has stays valid.
+    """
+    phone_number = normalize_phone(phone_number)
+    await _store().delete(f"otp:day:{phone_number}", f"otp:wait:{phone_number}")
+    return {"phone_number": phone_number, "reset": True}
 
 
 def sign_in_phone(user: UserModel) -> str | None:
