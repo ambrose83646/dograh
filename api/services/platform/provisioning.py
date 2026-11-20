@@ -14,6 +14,7 @@ Every step keys on recorded state, so a failed attempt resumes where it
 stopped and a completed account costs one indexed read.
 """
 
+import asyncio
 from datetime import timedelta
 from typing import Any
 
@@ -247,6 +248,9 @@ async def _create_agent(
     return workflow
 
 
+_upgrade_locks: dict[int, asyncio.Lock] = {}
+
+
 async def upgrade_outbound_agent(organization_id: int, account: dict) -> dict:
     """Bring an older account to the current model and outbound agent."""
     settings = get_platform_settings()
@@ -269,20 +273,27 @@ async def upgrade_outbound_agent(organization_id: int, account: dict) -> dict:
         )
     if account.get("outbound_agent_version") == OUTBOUND_AGENT_VERSION:
         return account
-    await db_client.save_workflow_draft(
-        account["outbound_workflow_id"],
-        workflow_definition=outbound_agent_definition(),
-        workflow_configurations=outbound_agent_configurations(
-            settings.max_call_seconds
-        ),
-    )
-    await db_client.publish_workflow_draft(
-        account["outbound_workflow_id"],
-        change_description=f"Platform agent version {OUTBOUND_AGENT_VERSION}",
-    )
-    return await update_platform_account(
-        organization_id, outbound_agent_version=OUTBOUND_AGENT_VERSION
-    )
+    # A dashboard page sends several requests at one time. Without the lock
+    # two of them upgrade together, and the second finds no draft to publish
+    # (seen on the live server: HTTP 500). The service runs one web worker.
+    async with _upgrade_locks.setdefault(organization_id, asyncio.Lock()):
+        account = await get_platform_account(organization_id)
+        if account.get("outbound_agent_version") == OUTBOUND_AGENT_VERSION:
+            return account
+        await db_client.save_workflow_draft(
+            account["outbound_workflow_id"],
+            workflow_definition=outbound_agent_definition(),
+            workflow_configurations=outbound_agent_configurations(
+                settings.max_call_seconds
+            ),
+        )
+        await db_client.publish_workflow_draft(
+            account["outbound_workflow_id"],
+            change_description=f"Platform agent version {OUTBOUND_AGENT_VERSION}",
+        )
+        return await update_platform_account(
+            organization_id, outbound_agent_version=OUTBOUND_AGENT_VERSION
+        )
 
 
 VOICES = ("eve", "ara", "leo", "rex", "sal")
