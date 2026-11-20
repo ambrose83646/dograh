@@ -113,6 +113,7 @@ services:
       PLATFORM_DEEPGRAM_API_KEY: "${PLATFORM_DEEPGRAM_API_KEY:?set in .env}"
       # Optional. With a key, speech uses xAI (Grok) voices; without, Deepgram.
       PLATFORM_XAI_API_KEY: "${PLATFORM_XAI_API_KEY:-}"
+      PLATFORM_LLM_MODEL: "${PLATFORM_LLM_MODEL:-}"
       PLATFORM_TTS_VOICE: "${PLATFORM_TTS_VOICE:-}"
       PLATFORM_STT_MODEL: "${PLATFORM_STT_MODEL:-flux-general-multi}"
       PLATFORM_TWILIO_NUMBER_POOL: "${PLATFORM_TWILIO_NUMBER_POOL:?set in .env}"

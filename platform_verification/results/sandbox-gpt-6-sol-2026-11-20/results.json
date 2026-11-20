@@ -1,0 +1,325 @@
+{
+  "passed": true,
+  "checks": [
+    {
+      "name": "MCP refuses a client with no key and a client with a made-up key",
+      "passed": true,
+      "detail": "no key: HTTP 401; made-up key: HTTP 401"
+    },
+    {
+      "name": "A standard MCP client connects with a user's key and lists the calling tools",
+      "passed": true,
+      "detail": "tools: ['get_account_status', 'get_call_result', 'get_inbound_rules', 'list_calls', 'place_call', 'set_inbound_rules', 'start_caller_id_verification', 'update_settings']"
+    },
+    {
+      "name": "Each new user gets a separate account with its own Twilio subaccount, its own allowance, and no bought number",
+      "passed": true,
+      "detail": "accounts 500001 and 500002; subaccounts ...69695f and ...3d1460; 10.0 free minutes each"
+    },
+    {
+      "name": "Only the operator can give an account a number for inbound calls",
+      "passed": true,
+      "detail": "clinic number +12088864742; user attempt: HTTP 404"
+    },
+    {
+      "name": "A user with no caller ID cannot place a call, and cannot make the service phone an unapproved number for a check",
+      "passed": true,
+      "detail": "no caller ID: 'This account has no caller ID yet. Use start_caller_id_verification with a phone number the user owns, then place the call.'"
+    },
+    {
+      "name": "A user verifies a phone they own with a keypad code and then calls from that number, with no number bought",
+      "passed": true,
+      "detail": "caller ID +12085050523"
+    },
+    {
+      "name": "The other user's account does not gain that caller ID",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "A user saves inbound rules through MCP and reads them back",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "Calls to an unapproved number, the user's own number, and a malformed number are refused and start nothing",
+      "passed": true,
+      "detail": "unapproved: 'This service is in a test period and can call approved test numbers only.'"
+    },
+    {
+      "name": "place_call starts a call and returns a call id at once",
+      "passed": true,
+      "detail": "{\"call_id\": 43, \"status\": \"ringing\", \"to\": \"+12088864742\", \"from\": \"+12085050523\", \"next_step\": \"The call is in progress. Call get_call_result with this call_id after about 30 seconds, and again until"
+    },
+    {
+      "name": "The outbound call completes and the assistant reads a multi-turn transcript",
+      "passed": true,
+      "detail": "completed, 154 s, 24 turns"
+    },
+    {
+      "name": "The caller's agent negotiated: Wednesday was refused and Thursday 9 am was booked",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "The caller's transcript holds the confirmation code that exists only in the clinic's saved rules",
+      "passed": true,
+      "detail": "code RD-4279; digits heard: 2991419889942794599"
+    },
+    {
+      "name": "The inbound call was answered with the clinic's saved greeting and rules while no assistant was connected",
+      "passed": true,
+      "detail": "23 turns; from +12085050523"
+    },
+    {
+      "name": "Twilio recorded the outbound leg in the caller's subaccount and the inbound leg in the clinic's subaccount",
+      "passed": true,
+      "detail": "2 call records in the caller's subaccount, 1 in the clinic's"
+    },
+    {
+      "name": "A user cannot read the other user's call record or transcript through MCP",
+      "passed": true,
+      "detail": "refusals: 'Call 44 not found' / 'Call 43 not found'"
+    },
+    {
+      "name": "The same holds on the REST API with a signed-in session",
+      "passed": true,
+      "detail": "other's call: HTTP 404; own call: HTTP 200"
+    },
+    {
+      "name": "A user cannot read the other user's agent rules",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "A user cannot list or revoke the other user's access keys",
+      "passed": true,
+      "detail": "revoke attempt: HTTP 404"
+    },
+    {
+      "name": "A user cannot choose a caller number and cannot reach the provider keys, phone numbers, or agents through the underlying Dograh API",
+      "passed": true,
+      "detail": "{\"GET /api/v1/workflow/summary\": 404, \"GET /api/v1/organizations/telephony-config\": 404, \"GET /api/v1/user/configurations/user\": 404, \"GET /api/v1/model-connections\": 404, \"GET /api/v1/workflow/1/runs/44\": 404, \"POST /api/v1/public/agent/workflow/00000000-0000-0000-0000-000000000000\": 404, \"POST /api/v1/mcp/\": 404}"
+    },
+    {
+      "name": "A user cannot use the operator controls on another account",
+      "passed": true,
+      "detail": "HTTP 404"
+    },
+    {
+      "name": "A user changes the agent's voice through MCP, and the other user's voice does not change",
+      "passed": true,
+      "detail": "clinic voice: ara; unknown voice: 'Unknown voice. The voices are: eve, ara, leo, rex, sal.'"
+    },
+    {
+      "name": "When a voicemail box answers, the agent leaves the given message, ends the call, and reports voicemail",
+      "passed": true,
+      "detail": "answered_by voicemail, 20 s; agent said: 'Hello, this is the assistant of Riverside Dental with a reminder of your cleaning on Thursday at nine. To change it, call us and give the reference 1 9 7. Goodb'"
+    },
+    {
+      "name": "When a call screener answers, the agent gives the name and reason, waits, and then does the task with the person",
+      "passed": true,
+      "detail": "answered_by person, screener True, 69 s, price 140; agent said: 'this is an ai assistant calling for dana reyes, about the bike you advertised. hi sam, i\u2019m calling for dana reyes about the bike in your ad. is it still for sale? thanks. i heard one hundred forty dollars. is that correc'"
+    },
+    {
+      "name": "A call that a person answered reports that a person answered",
+      "passed": true,
+      "detail": "answered_by person"
+    },
+    {
+      "name": "A user at the free allowance cannot start another call",
+      "passed": true,
+      "detail": "used 2.6 min of 1; refusal: 'The free allowance of 1 call minutes is used. No more calls can be made or answered on this account.'"
+    },
+    {
+      "name": "The operator restores the allowance and the user can call again",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "A call to a user at the free allowance is not answered and uses no call time",
+      "passed": true,
+      "detail": "caller saw: completed, 0 s"
+    },
+    {
+      "name": "A key the user revoked is refused",
+      "passed": true,
+      "detail": "HTTP 401"
+    }
+  ],
+  "run_id": "1120011114",
+  "base_url": "http://localhost:8000",
+  "started_at": "2026-11-20T01:11:14.755204+00:00",
+  "confirmation_code": "RD-4279",
+  "cancellation_fee": 35,
+  "signup_open": true,
+  "accounts": [
+    {
+      "name": "Riverside Dental",
+      "email": "verify-1120011114-riverside@example.com",
+      "organization_id": 500001,
+      "phone_number": "+12088864742",
+      "caller_id": null
+    },
+    {
+      "name": "Maria Lopez",
+      "email": "verify-1120011114-maria@example.com",
+      "organization_id": 500002,
+      "phone_number": null,
+      "caller_id": "+12085050523"
+    }
+  ],
+  "outbound_call": {
+    "call_id": 43,
+    "direction": "outbound",
+    "status": "completed",
+    "started_at": "2026-11-20T01:11:38.101332+00:00",
+    "duration_seconds": 154,
+    "to": "+12088864742",
+    "from": "+12085050523",
+    "disposition": "user_hangup",
+    "answered_by": "person",
+    "task": "Call Riverside Dental and book a teeth cleaning for Maria Lopez, who is a new patient. She prefers Wednesday morning. If Wednesday morning is not possible, take the earliest morning appointment this week; she cannot come in the afternoon. Before you finish, get these answers: the day and time booked, the confirmation code, what a new patient must bring, and the fee for a late cancellation.",
+    "result": {
+      "task_completed": true,
+      "outcome_summary": "Riverside Dental booked Maria Lopez for a new-patient teeth cleaning Thursday at 9:00 a.m. this week; Wednesday morning was unavailable. The confirmation code is RD4279. She needs to bring a photo ID and insurance card, and cancellations with less than 24 hours\u2019 notice incur a $35 fee.",
+      "follow_up_needed": "Maria should bring a photo ID and her insurance card to the appointment."
+    },
+    "transcript": "[2026-11-20T01:11:40.936+00:00] user: Riverside Dental. This is the front desk. How can I help you?\n[2026-11-20T01:11:46.246+00:00] assistant: Hi, I\u2019m calling for Maria Lopez to book a new-patient teeth cleaning, preferably Wednesday morning. Do you have an opening then?\n[2026-11-20T01:11:55.575+00:00] user: We're closed Wednesday mornings for staff training. We have a cleaning opening Tuesday at two thirty or Thursday at nine. Which works better for Maria?\n[2026-11-20T01:12:04.967+00:00] assistant: Thursday morning works for Maria. Was that nine o\u2019clock?\n[2026-11-20T01:12:10.175+00:00] user: Yes. Thursday at nine o'clock.\nIs that correct?\n[2026-11-20T01:12:13.888+00:00] assistant: Yes, Thursday at nine o\u2019clock is correct. Is that appointment still available?\n[2026-11-20T01:12:20.535+00:00] user: Yes. It's still available.\nBefore I book it, may I have Maria's full name?\n[2026-11-20T01:12:25.690+00:00] assistant: Maria Lopez.\n[2026-11-20T01:12:29.175+00:00] user: Thank you. What is Maria's date of birth?\n[2026-11-20T01:12:32.491+00:00] assistant: March fourteenth, nineteen eighty-eight.\n[2026-11-20T01:12:37.334+00:00] user: I heard March one four one nine eight eight. Is that correct?\n[2026-11-20T01:12:41.372+00:00] assistant: Yes, that\u2019s correct.\n[2026-11-20T01:12:44.456+00:00] user: Thank you. Shall I book Maria for Thursday at nine o'clock\n[2026-11-20T01:12:48.652+00:00] assistant: Yes, please book her for Thursday at nine o\u2019clock.\n[2026-11-20T01:12:55.335+00:00] user: Maria is booked for Thursday at nine o'clock. Her confirmation code is r d four two seven nine. Could you repeat that code back to me?\n[2026-11-20T01:13:04.693+00:00] assistant: I heard R, D, four, two, seven, nine. Is that correct?\n[2026-11-20T01:13:11.816+00:00] user: Yes. That's correct.\nSince Maria is a new patient, she'll need to bring a photo ID and her insurance card. Cancellations with less than twenty four hours notice cost thirty five dollars. Is that clear?\n[2026-11-20T01:13:24.454+00:00] assistant: Yes. I heard the cancellation fee is three, five dollars for less than two, four hours\u2019 notice. Is that correct?\n[2026-11-20T01:13:33.335+00:00] user: Yes. That's correct.\nI've noted Maria Lopez for a new patient cleaning Thursday at nine o'clock. Is there anything else I can help with\n[2026-11-20T01:13:42.096+00:00] assistant: Just to confirm, Thursday at nine is the appointment for this week, and she needs to bring a photo ID and her insurance card. Is that right?\n[2026-11-20T01:13:51.656+00:00] user: Yes. That's right.\nThursday at nine o'clock this week. She should bring a photo ID and her insurance card. Does she need anything else?\n[2026-11-20T01:14:00.259+00:00] assistant: That covers everything. Thank you for your help.\n[2026-11-20T01:14:05.902+00:00] user: Thank you for calling Riverside Dental. Goodbye.\n[2026-11-20T01:14:09.900+00:00] assistant: Thank you, goodbye.\n"
+  },
+  "inbound_call": {
+    "call_id": 44,
+    "direction": "inbound",
+    "status": "completed",
+    "started_at": "2026-11-20T01:11:38.759245+00:00",
+    "duration_seconds": 151,
+    "to": "+12088864742",
+    "from": "+12085050523",
+    "disposition": "end_call",
+    "result": {
+      "caller_name": "",
+      "call_summary": "The caller booked a new-patient teeth cleaning for Maria Lopez on Thursday at 9 a.m. this week. The assistant confirmed the appointment, provided confirmation code RD4279, and advised that Maria bring a photo ID and insurance card and that cancellations with less than 24 hours\u2019 notice incur a $35 fee. No callback number or message was left."
+    },
+    "transcript": "[2026-11-20T01:11:40.122+00:00] assistant: Riverside Dental, this is the front desk. How can I help you?\n[2026-11-20T01:11:46.859+00:00] user: Hi. I'm calling from Maria Lopez to book a new patient teeth cleaning, preferably Wednesday morning. Do you have an opening then?\n[2026-11-20T01:11:55.083+00:00] assistant: We\u2019re closed Wednesday mornings for staff training. We have a cleaning opening Tuesday at two thirty or Thursday at nine. Which works better for Maria?\n[2026-11-20T01:12:05.494+00:00] user: Thursday morning works for Maria. Was that nine o'clock?\n[2026-11-20T01:12:09.723+00:00] assistant: Yes, Thursday at nine o\u2019clock. Is that correct?\n[2026-11-20T01:12:14.294+00:00] user: Yes. Thursday at nine o'clock is correct. Is that appointment still available?\n[2026-11-20T01:12:19.644+00:00] assistant: Yes, it\u2019s still available. Before I book it, may I have Maria\u2019s full name?\n[2026-11-20T01:12:26.215+00:00] user: Maria Lopez.\n[2026-11-20T01:12:28.525+00:00] assistant: Thank you. What is Maria\u2019s date of birth?\n[2026-11-20T01:12:33.014+00:00] user: March fourteenth nineteen eighty eight.\n[2026-11-20T01:12:36.486+00:00] assistant: I heard March one four, one nine eight eight. Is that correct?\n[2026-11-20T01:12:42.134+00:00] user: Yes. That's correct.\n[2026-11-20T01:12:43.887+00:00] assistant: Thank you. Shall I book Maria for Thursday at nine o\u2019clock?\n[2026-11-20T01:12:49.095+00:00] user: Yes. Please book her for Thursday at nine o'clock.\n[2026-11-20T01:12:54.728+00:00] assistant: Maria is booked for Thursday at nine o\u2019clock. Her confirmation code is R, D, four, two, seven, nine. Could you repeat that code back to me?\n[2026-11-20T01:13:05.255+00:00] user: I heard r d four two seven nine. Is that correct?\n[2026-11-20T01:13:11.369+00:00] assistant: Yes, that\u2019s correct. Since Maria is a new patient, she\u2019ll need to bring a photo ID and her insurance card. Cancellations with less than twenty-four hours\u2019 notice cost thirty-five dollars. Is that clear?\n[2026-11-20T01:13:24.934+00:00] user: Yes. I heard the cancellation fee is three five dollars for less than two four hours notice. Is that correct?\n[2026-11-20T01:13:32.930+00:00] assistant: Yes, that\u2019s correct. I\u2019ve noted Maria Lopez for a new-patient cleaning Thursday at nine o\u2019clock. Is there anything else I can help with?\n[2026-11-20T01:13:42.695+00:00] user: Just to confirm, Thursday at nine is the appointment for this week, and she needs to bring a photo ID and her insurance card. Is that right?\n[2026-11-20T01:13:51.210+00:00] assistant: Yes, that\u2019s right: Thursday at nine o\u2019clock this week. She should bring a photo ID and her insurance card. Does she need anything else?\n[2026-11-20T01:14:00.855+00:00] user: That covers everything. Thank you for your help.\n[2026-11-20T01:14:05.331+00:00] assistant: Thank you for calling Riverside Dental\u2014goodbye!\n"
+  },
+  "voicemail_call": {
+    "call_id": 45,
+    "direction": "outbound",
+    "status": "completed",
+    "started_at": "2026-11-20T01:14:28.986711+00:00",
+    "duration_seconds": 20,
+    "to": "+12085050523",
+    "from": "+12088864742",
+    "disposition": "voicemail_detected",
+    "answered_by": "voicemail",
+    "voicemail_message_left": true,
+    "task": "Remind Sam Carter of the cleaning appointment on Thursday at 9 am.",
+    "result": {},
+    "transcript": "[2026-11-20T01:14:32.891+00:00] user: Hi. You have reached Sam Carter. I cannot take your call right now. Please leave a message after the tone.\n[2026-11-20T01:14:39.443+00:00] assistant: Hello, this is the assistant of Riverside Dental with a reminder of your cleaning on Thursday at nine. To change it, call us and give the reference 1 9 7. Goodbye.\n"
+  },
+  "screened_call": {
+    "call_id": 46,
+    "direction": "outbound",
+    "status": "completed",
+    "started_at": "2026-11-20T01:15:00.201110+00:00",
+    "duration_seconds": 69,
+    "to": "+12085050523",
+    "from": "+12088864742",
+    "disposition": "user_hangup",
+    "answered_by": "person",
+    "call_screener_detected": true,
+    "task": "Ask Sam Carter if the bike in his advertisement is still for sale, and what the price is. Bring back both answers.",
+    "result": {},
+    "transcript": "[2026-11-20T01:15:02.926+00:00] user: Hi. Before I try to connect you, please say your name and the reason for your call.\n[2026-11-20T01:15:07.769+00:00] assistant: This is an AI assistant calling for Dana Reyes, about the bike you advertised.\n[2026-11-20T01:15:16.407+00:00] user: Thank you. Please stay on the line.\nHello. This is Sam Carter speaking.\nGo ahead.\n[2026-11-20T01:15:27.756+00:00] assistant: Hi Sam, I\u2019m calling for Dana Reyes about the bike in your ad. Is it still for sale?\n[2026-11-20T01:15:40.327+00:00] user: Yes. The bike is still for sale.\nThe price is one hundred forty dollars. That is all I can tell you. Goodbye.\n[2026-11-20T01:15:48.958+00:00] assistant: Thanks. I heard one hundred forty dollars. Is that correct?\n[2026-11-20T01:16:03.558+00:00] assistant: Sam, are you still there?\n"
+  },
+  "quota": {
+    "before": {
+      "caller_id": "+12085050523",
+      "caller_id_status": "verified",
+      "outbound_calls_from": "+12085050523",
+      "phone_number": null,
+      "phone_number_status": "This account has no number for inbound calls. The operator adds one on request.",
+      "free_minutes_total": 10.0,
+      "free_minutes_used": 2.6,
+      "free_minutes_remaining": 7.4,
+      "calls_in_last_24_hours": 1,
+      "daily_call_limit": 20,
+      "max_call_minutes": 10.0,
+      "can_call": true,
+      "blocked_reason": null,
+      "test_period": true,
+      "voice": "eve",
+      "voice_options": [
+        "eve",
+        "ara",
+        "leo",
+        "rex",
+        "sal"
+      ]
+    },
+    "blocked_status": {
+      "caller_id": "+12085050523",
+      "caller_id_status": "verified",
+      "outbound_calls_from": "+12085050523",
+      "phone_number": null,
+      "phone_number_status": "This account has no number for inbound calls. The operator adds one on request.",
+      "free_minutes_total": 1.0,
+      "free_minutes_used": 2.6,
+      "free_minutes_remaining": 0.0,
+      "calls_in_last_24_hours": 1,
+      "daily_call_limit": 20,
+      "max_call_minutes": 10.0,
+      "can_call": false,
+      "blocked_reason": "The free allowance of 1 call minutes is used. No more calls can be made or answered on this account.",
+      "test_period": true,
+      "voice": "eve",
+      "voice_options": [
+        "eve",
+        "ara",
+        "leo",
+        "rex",
+        "sal"
+      ]
+    },
+    "refusal": "The free allowance of 1 call minutes is used. No more calls can be made or answered on this account.",
+    "call_to_blocked_account": {
+      "call_id": 47,
+      "direction": "outbound",
+      "status": "completed",
+      "started_at": "2026-11-20T01:16:17.934165+00:00",
+      "duration_seconds": 0,
+      "to": "+12088864742",
+      "from": "+12085050523",
+      "disposition": "busy",
+      "task": "Ask if the clinic is open on Friday.",
+      "result": {},
+      "transcript": "",
+      "next_step": "The call ended. If it was answered, the transcript appears within a minute; ask again once."
+    },
+    "clinic_after": {
+      "caller_id": null,
+      "caller_id_status": "Not set. Use start_caller_id_verification with a phone number the user owns. Outbound calls then show that number.",
+      "outbound_calls_from": "+12088864742",
+      "phone_number": "+12088864742",
+      "phone_number_status": "ready",
+      "free_minutes_total": 1.0,
+      "free_minutes_used": 4.0,
+      "free_minutes_remaining": 0.0,
+      "calls_in_last_24_hours": 4,
+      "daily_call_limit": 20,
+      "max_call_minutes": 10.0,
+      "can_call": false,
+      "blocked_reason": "The free allowance of 1 call minutes is used. No more calls can be made or answered on this account.",
+      "test_period": true,
+      "voice": "ara",
+      "voice_options": [
+        "eve",
+        "ara",
+        "leo",
+        "rex",
+        "sal"
+      ]
+    }
+  },
+  "finished_at": "2026-11-20T01:18:21.894805+00:00"
+}

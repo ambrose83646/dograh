@@ -58,6 +58,7 @@ The first build takes about 10 minutes.
 | `PLATFORM_MAX_CALL_SECONDS` | `600` | Longest single call. |
 | `PLATFORM_DAILY_CALL_LIMIT` | `20` | Calls for each account in 24 hours. |
 | `PLATFORM_ALLOWED_PREFIXES` | `+1` | Number prefixes that users can call. |
+| `PLATFORM_LLM_MODEL` | `gpt-4.1` | OpenAI model that holds the conversation. Tested: `gpt-4.1` and `gpt-6-sol`. `gpt-6-luna` ends calls too early. An account gets a new value on its next use. |
 | `PLATFORM_STT_MODEL` | `flux-general-multi` | Deepgram speech recognition model. |
 | `PLATFORM_TTS_VOICE` | `eve` | Grok voice: `eve`, `ara`, `leo`, `rex`, or `sal`. Used when `PLATFORM_XAI_API_KEY` is set. |
 | `PLATFORM_CALLER_ID_DAILY_ATTEMPTS` | `3` | Caller ID checks for each account in 24 hours. Each check is a phone call. |

@@ -24,6 +24,8 @@ class PlatformSettings:
     deepgram_api_key: str
     # Optional. When set, speech uses xAI (Grok) voices; otherwise Deepgram.
     xai_api_key: str
+    # OpenAI chat model that holds the conversation on every account.
+    llm_model: str
     tts_voice: str
     stt_model: str
     # How many caller ID verification calls one account may start in 24 hours.
@@ -63,6 +65,7 @@ def get_platform_settings() -> PlatformSettings:
         openai_api_key=os.getenv("PLATFORM_OPENAI_API_KEY", ""),
         deepgram_api_key=os.getenv("PLATFORM_DEEPGRAM_API_KEY", ""),
         xai_api_key=os.getenv("PLATFORM_XAI_API_KEY", ""),
+        llm_model=os.getenv("PLATFORM_LLM_MODEL", "") or "gpt-4.1",
         tts_voice=os.getenv("PLATFORM_TTS_VOICE", ""),
         stt_model=os.getenv("PLATFORM_STT_MODEL", "flux-general-multi"),
         caller_id_daily_attempts=int(

@@ -214,7 +214,7 @@ async def _provision_models(organization_id: int, settings: PlatformSettings) ->
         configuration={
             "version": 3,
             "mode": "pipeline",
-            "llm": _on(openai),
+            "llm": _on(openai, model=settings.llm_model),
             "stt": _on(deepgram, model=settings.stt_model, language="multi"),
             "tts": tts,
             "embeddings": _on(openai),
@@ -248,10 +248,27 @@ async def _create_agent(
 
 
 async def upgrade_outbound_agent(organization_id: int, account: dict) -> dict:
-    """Republish an older account's outbound agent with the current settings."""
+    """Bring an older account to the current model and outbound agent."""
+    settings = get_platform_settings()
+    if account.get("llm_model") != settings.llm_model:
+        # The operator changed the model, or the account predates the setting.
+        row = await db_client.get_named_model_configuration(
+            organization_id, account["model_configuration_uuid"]
+        )
+        configuration = dict(row.configuration)
+        llm = dict(configuration["llm"])
+        llm["settings"] = {**(llm.get("settings") or {}), "model": settings.llm_model}
+        configuration["llm"] = llm
+        await db_client.update_named_model_configuration(
+            organization_id,
+            account["model_configuration_uuid"],
+            changes={"configuration": configuration},
+        )
+        account = await update_platform_account(
+            organization_id, llm_model=settings.llm_model
+        )
     if account.get("outbound_agent_version") == OUTBOUND_AGENT_VERSION:
         return account
-    settings = get_platform_settings()
     await db_client.save_workflow_draft(
         account["outbound_workflow_id"],
         workflow_definition=outbound_agent_definition(),
