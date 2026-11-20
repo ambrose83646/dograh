@@ -425,7 +425,7 @@ async def run(args, report: Report) -> None:
                 "You are the front desk of Riverside Dental, a dental clinic. "
                 "The clinic is open Monday to Thursday, 8 am to 5 pm. It is closed on "
                 "Wednesday mornings for staff training, so never offer a Wednesday morning. "
-                "The only free cleaning appointments this week are Tuesday at 2:30 pm and "
+                "The only free cleaning appointments next week are Tuesday at 2:30 pm and "
                 "Thursday at 9:00 am. "
                 "To book, you must first get the patient's full name and date of birth. "
                 "New patients must bring a photo ID and their insurance card. "
@@ -477,7 +477,7 @@ async def run(args, report: Report) -> None:
             task = (
                 "Call Riverside Dental and book a teeth cleaning for Maria Lopez, who is "
                 "a new patient. She prefers Wednesday morning. If Wednesday morning is not "
-                "possible, take the earliest morning appointment this week; she cannot come "
+                "possible, take the earliest morning appointment next week; she cannot come "
                 "in the afternoon. Before you finish, get these answers: the day and time "
                 "booked, the confirmation code, what a new patient must bring, and the fee "
                 "for a late cancellation."
@@ -767,6 +767,24 @@ async def run(args, report: Report) -> None:
                 f"answered_by {screened.get('answered_by')}, screener "
                 f"{screened.get('call_screener_detected')}, {screened.get('duration_seconds')} s, "
                 f"price {price}; agent said: {sc_said[:220]!r}",
+            )
+            # Sam's side ends the call right after the price. The result must
+            # not depend on the agent reaching its own closing step.
+            for _ in range(4):
+                if (screened.get("result") or {}).get("outcome_summary"):
+                    break
+                await asyncio.sleep(10)
+                screened = await clinic_ai.call(
+                    "get_call_result", call_id=screened_call["call_id"]
+                )
+            sc_summary = str(
+                (screened.get("result") or {}).get("outcome_summary") or ""
+            )
+            report.check(
+                "When the other person ends the call first, the assistant still gets a result summary with the answer",
+                str(price) in sc_summary.replace(",", "")
+                or f"hundred {price_words}" in sc_summary.lower().replace(" and ", " "),
+                f"ended by {screened.get('disposition')}; summary: {sc_summary[:200]!r}",
             )
             await phone.hang_up()
             report.check(
