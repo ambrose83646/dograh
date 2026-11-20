@@ -465,11 +465,26 @@ async def run(args, report: Report) -> None:
             malformed = await maria_ai.refusal(
                 "place_call", phone_number="2025550143", task="Say hello."
             )
+            # Numbers reserved for fiction, in the United Kingdom and in the
+            # premium-rate 900 range. The service must refuse both at any time.
+            abroad = await maria_ai.refusal(
+                "place_call", phone_number="+442079460958", task="Say hello."
+            )
+            premium = await maria_ai.refusal(
+                "place_call", phone_number="+19005550143", task="Say hello."
+            )
             after_refusals = await maria_ai.call("list_calls", limit=50)
             report.check(
                 "Calls to an unapproved number, the user's own number, and a malformed number are refused and start nothing",
                 all([unapproved, own, malformed]) and after_refusals == [],
                 f"unapproved: {unapproved!r}",
+            )
+            report.check(
+                "Calls to a number outside the United States and Canada, and to a premium-rate number, are refused and start nothing",
+                "+1" in (abroad or "")
+                and "United States and Canada" in (premium or "")
+                and after_refusals == [],
+                f"abroad: {abroad!r}; premium: {premium!r}",
             )
 
             # --- Maria's assistant places the call. No clinic assistant is ---
