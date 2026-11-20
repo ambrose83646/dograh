@@ -33,6 +33,10 @@ class PlatformSettings:
     caller_id_daily_attempts: int
     free_seconds: int
     billing_url: str
+    # Where this service asks the billing system for a minute pack, and the
+    # secret that signs the request. Empty: no request is sent.
+    billing_webhook_url: str
+    billing_webhook_secret: str
     sms_from: str
     otp_daily_per_number: int
     otp_hourly_per_address: int
@@ -77,6 +81,8 @@ def get_platform_settings() -> PlatformSettings:
         ),
         free_seconds=int(os.getenv("PLATFORM_FREE_SECONDS", "600")),
         billing_url=os.getenv("PLATFORM_BILLING_URL", ""),
+        billing_webhook_url=os.getenv("PLATFORM_BILLING_WEBHOOK_URL", ""),
+        billing_webhook_secret=os.getenv("PLATFORM_BILLING_WEBHOOK_SECRET", ""),
         sms_from=os.getenv("PLATFORM_SMS_FROM", ""),
         otp_daily_per_number=int(os.getenv("PLATFORM_OTP_DAILY_PER_NUMBER", "6")),
         otp_hourly_per_address=int(os.getenv("PLATFORM_OTP_HOURLY_PER_ADDRESS", "20")),

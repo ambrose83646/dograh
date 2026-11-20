@@ -135,6 +135,10 @@ DEFAULT_USER_TURN_STOP_TIMEOUT = 5.0
 EXTERNAL_TURN_USER_STOP_TIMEOUT = 30.0
 
 
+# Tasks that outlive the function that started them.
+_background_tasks: set[asyncio.Task] = set()
+
+
 def _create_answer_supervisor(
     voicemail_config,
     *,
@@ -741,9 +745,27 @@ async def _run_pipeline_impl(
         allowance = await get_allowance_status(
             workflow.organization_id, exclude_current_run=True
         )
-        max_call_duration_seconds = max(
-            1, min(max_call_duration_seconds, allowance.remaining_seconds)
-        )
+        if allowance.pack_available:
+            # More minutes are bought when these run low, so the call is not
+            # cut at the minutes that remain now.
+            from api.services.platform import packs
+
+            pack_watch = asyncio.create_task(
+                packs.watch_call(
+                    workflow.organization_id,
+                    workflow_run_id,
+                    max(
+                        0,
+                        allowance.remaining_seconds - packs.REQUEST_BELOW_SECONDS + 1,
+                    ),
+                )
+            )
+            _background_tasks.add(pack_watch)
+            pack_watch.add_done_callback(_background_tasks.discard)
+        else:
+            max_call_duration_seconds = max(
+                1, min(max_call_duration_seconds, allowance.remaining_seconds)
+            )
 
     # Resolve model overrides from the version onto global org config (skip
     # when the caller already resolved it).

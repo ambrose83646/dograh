@@ -14,7 +14,7 @@ INBOUND_AGENT_NAME = "Inbound call rules"
 
 # Raise when the outbound agent's definition or settings change. An account
 # on an older version is republished before its next call.
-OUTBOUND_AGENT_VERSION = 4
+OUTBOUND_AGENT_VERSION = 5
 
 DEFAULT_INBOUND_RULES = (
     "Answer politely, say the owner of this number is not available, and take a "
@@ -209,6 +209,8 @@ def outbound_agent_configurations(max_call_seconds: int) -> dict:
             "screening_message": {"text": "{{screening_introduction}}"},
             # Many businesses answer with a menu that takes spoken answers.
             "ivr_action": "continue",
+            # A hold queue is not a reason to end the call: the agent waits.
+            "screening_timeout_action": "continue",
         },
         # The agent can press keypad keys to get through a phone menu.
         "keypad_enabled": True,

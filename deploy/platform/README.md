@@ -58,7 +58,9 @@ The first build takes about 10 minutes.
 | `PLATFORM_SMS_FROM` | empty | Sender of the sign-in codes: a phone number of the main Twilio account, or a Messaging Service SID (`MG…`). It must be registered for text messages (A2P 10DLC). Do not use a number from the pool. Empty: phone sign-in is off. |
 | `PLATFORM_OTP_DAILY_PER_NUMBER` | `6` | Sign-in codes that one phone number can get in 24 hours. |
 | `PLATFORM_OTP_HOURLY_PER_ADDRESS` | `20` | Sign-in codes that one client address can request in one hour. |
-| `PLATFORM_BILLING_URL` | empty | Page where a user chooses a monthly plan. The agent gets this address when the minutes are used. |
+| `PLATFORM_BILLING_URL` | empty | Page where a user starts the monthly plan and sets the limit of minute packs. The agent gets this address when the minutes are low or used. |
+| `PLATFORM_BILLING_WEBHOOK_URL` | empty | Address of the billing system. The service sends `pack_needed` there when an account has fewer than 5 minutes. Empty: nothing is sent. |
+| `PLATFORM_BILLING_WEBHOOK_SECRET` | empty | Signs each `pack_needed` request (HMAC SHA-256 of the body, header `X-Platform-Signature`). |
 | `PLATFORM_MAX_CALL_SECONDS` | `600` | Longest single call. |
 | `PLATFORM_DAILY_CALL_LIMIT` | `20` | Calls for each account in 24 hours. |
 | `PLATFORM_ALLOWED_PREFIXES` | `+1` | Number prefixes that users can call. |

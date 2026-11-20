@@ -107,6 +107,14 @@ class AnswerSupervisorConfig(BaseModel):
             "Disconnect when a phone menu answers, or let the agent talk to it."
         ),
     )
+    screening_timeout_action: Literal["hangup", "continue"] = Field(
+        default="hangup",
+        description=(
+            "When the screening wait expires: disconnect, or let the agent "
+            "continue. A hold queue says the same words as a call screener "
+            "('please stay on the line') and can last for minutes."
+        ),
+    )
     voicemail_message: AnswerMessage = Field(
         default_factory=AnswerMessage,
         description="Text or recording to play when voicemail_action is leave_message.",

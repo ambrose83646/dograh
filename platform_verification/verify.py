@@ -15,6 +15,8 @@ phone that plays Maria's own phone. See README.md.
 import argparse
 import asyncio
 import base64
+import hashlib
+import hmac
 import json
 import os
 import random
@@ -57,6 +59,84 @@ def spoken_digits(text: str) -> str:
     """
     words = re.findall(r"[a-z]+|\d", text.lower())
     return "".join(_DIGIT_WORDS.get(w, w if w.isdigit() else "") for w in words)
+
+
+# A line that keeps a caller on hold for about 100 seconds.
+HOLD_SCRIPT = (
+    "<Say>Thank you for calling Bright Bikes. All of our staff are with "
+    "other customers. Please stay on the line.</Say>"
+    + '<Pause length="6"/><Say>Your call is important to us. Someone '
+    "will be with you in less than two minutes. Please stay on the "
+    "line.</Say>" * 12
+)
+HOLD_TASK = (
+    "Call Bright Bikes and ask if the shop is open on Saturday. If you are put "
+    "on hold, wait on the line for up to three minutes until a person answers."
+)
+
+
+class BillingHook:
+    """Plays the billing system: receives the pack requests of the service.
+
+    It listens only when the run has a port for it (a local service). On a
+    deployed service the requests go to the real billing system, and the run
+    reads the open request from the operator view only.
+    """
+
+    def __init__(self, secret: str):
+        self.secret = secret
+        self.received: list[dict] = []
+        self.runner = None
+
+    @classmethod
+    async def start(cls, args) -> "BillingHook":
+        hook = cls(args.billing_hook_secret)
+        if args.billing_hook_port:
+            from aiohttp import web
+
+            async def receive(request):
+                body = await request.read()
+                expected = (
+                    "sha256="
+                    + hmac.new(hook.secret.encode(), body, hashlib.sha256).hexdigest()
+                )
+                hook.received.append(
+                    {
+                        **json.loads(body),
+                        "signed": hmac.compare_digest(
+                            expected, request.headers.get("X-Platform-Signature", "")
+                        ),
+                    }
+                )
+                return web.json_response({"ok": True})
+
+            app = web.Application()
+            app.router.add_post("/hook", receive)
+            hook.runner = web.AppRunner(app)
+            await hook.runner.setup()
+            await web.TCPSite(hook.runner, "127.0.0.1", args.billing_hook_port).start()
+        return hook
+
+    def ok(self, expected_ids: list) -> bool:
+        """Exactly one signed request for each expected id, and no others."""
+        if self.runner is None:
+            return True
+        return [h["request_id"] for h in self.received] == expected_ids and all(
+            h["signed"] and h["event"] == "pack_needed" for h in self.received
+        )
+
+    def describe(self) -> str:
+        if self.runner is None:
+            return "billing requests go to the real billing system (not read here)"
+        return (
+            f"billing system received {len(self.received)} request(s), all signed: "
+            f"{all(h['signed'] for h in self.received)}, remaining seconds in them: "
+            f"{[h['remaining_seconds'] for h in self.received]}"
+        )
+
+    async def stop(self) -> None:
+        if self.runner is not None:
+            await self.runner.cleanup()
 
 
 def jwt_expiry(token: str) -> datetime:
@@ -977,6 +1057,51 @@ async def run(args, report: Report) -> None:
                 f"{voicemail.get('duration_seconds')} s; agent said: {vm_said[:160]!r}",
             )
 
+            # --- A voicemail box answers and the client gave no message -------
+            # The task holds a private detail that must come after an identity
+            # check. The service must write a message that fits the task, asks
+            # for a reply, promises no second call, and keeps the detail out.
+            await phone.answer_with_script(
+                '<Pause length="1"/><Say>Hi, you have reached Sam Carter. I can not '
+                "take your call right now. Please leave a message after the tone."
+                '</Say><Pause length="40"/>'
+            )
+            written_call = await clinic_ai.call(
+                "place_call",
+                phone_number=phone.number,
+                task=(
+                    "FIRST confirm that you speak with Sam Carter before you share "
+                    "anything. Then tell him that the invoice of 1,840 dollars for "
+                    "his crown is overdue, and ask when he can pay it."
+                ),
+                on_behalf_of="Riverside Dental",
+            )
+            written = await wait_for_call(clinic_ai, written_call["call_id"], 150)
+            report.evidence["voicemail_written_call"] = written
+            written_said = " ".join(
+                text
+                for role, text in transcript_turns(written.get("transcript", ""))
+                if role == "assistant"
+            ).lower()
+            report.check(
+                "With no voicemail message from the client, the service leaves a "
+                "message written from the task: it names the caller and the "
+                "person, asks for a reply, and keeps the private details out",
+                written.get("answered_by") == "voicemail"
+                and written.get("voicemail_message_left") is True
+                and "riverside dental" in written_said
+                and "sam" in written_said
+                and any(w in written_said for w in ("contact", "call", "reach"))
+                and "call again" not in written_said
+                and not any(
+                    w in written_said
+                    for w in ("1,840", "1840", "eighteen", "invoice", "overdue", "crown")
+                )
+                and 0 < written.get("duration_seconds", 0) <= 60,
+                f"answered_by {written.get('answered_by')}, "
+                f"{written.get('duration_seconds')} s; agent said: {written_said[:300]!r}",
+            )  # fmt: skip
+
             # --- A call screener answers, then the person picks up ------------
             # The test phone asks for name and reason, holds, and then a
             # "person" comes on the line and gives a price that is random for
@@ -1272,8 +1397,7 @@ async def run(args, report: Report) -> None:
                 and bool(plan_refusal)
                 and "starter" in plan_refusal.lower()
                 and "renew" in plan_refusal.lower()
-                and "larger plan at https://" in plan_refusal
-                and "immediately" in plan_refusal
+                and "more minutes at https://" in plan_refusal
                 and renewed["can_call"] is True
                 and renewed["minutes_used"] == 0,
                 f"refusal: {plan_refusal!r}; after renewal used {renewed['minutes_used']}",
@@ -1330,21 +1454,11 @@ async def run(args, report: Report) -> None:
             left_seconds = 35
             (await clinic_plan(used_seconds + left_seconds)).raise_for_status()
             low = await clinic_ai.call("get_account_status")
-            await phone.answer_with_script(
-                "<Say>Thank you for calling Bright Bikes. All of our staff are with "
-                "other customers. Please stay on the line.</Say>"
-                + '<Pause length="6"/><Say>Your call is important to us. Someone '
-                "will be with you in less than two minutes. Please stay on the "
-                "line.</Say>" * 12
-            )
+            await phone.answer_with_script(HOLD_SCRIPT)
             short_call = await clinic_ai.call(
                 "place_call",
                 phone_number=phone.number,
-                task=(
-                    "Call Bright Bikes and ask if the shop is open on Saturday. "
-                    "If you are put on hold, wait on the line for up to three "
-                    "minutes until a person answers."
-                ),
+                task=HOLD_TASK,
                 on_behalf_of="Sam Carter",
                 call_reason="to ask about opening hours",
             )
@@ -1374,7 +1488,7 @@ async def run(args, report: Report) -> None:
                 left_seconds - 15 <= cut_seconds <= left_seconds + 15
                 and after_cut["can_call"] is False
                 and bool(cut_refusal)
-                and "larger plan" in cut_refusal,
+                and "more minutes at https://" in cut_refusal,
                 f"{left_seconds} s were left (to the nearest 3 s); the call ran "
                 f"{cut_seconds} s; the hold script is 100 s long; after it "
                 f"minutes_remaining {after_cut['minutes_remaining']}; refusal: {cut_refusal!r}",
@@ -1383,6 +1497,201 @@ async def run(args, report: Report) -> None:
                 "low": low, "short_call": short_call, "cut": cut,
                 "after_cut": after_cut, "refusal": cut_refusal,
             }  # fmt: skip
+
+            # --- Automatic minute packs ----------------------------------------
+            # The billing system charges the user; this service only asks for
+            # a pack and records a paid one. Ways this can fail, written
+            # before the feature:
+            # - No request when fewer than 5 minutes remain, or a request when
+            #   more remain.
+            # - During a call the minutes go below 5 and no request is sent
+            #   until the call is over.
+            # - One low state sends many requests: the user pays many times.
+            # - A request is not signed, so anybody can make the site charge.
+            # - One payment reported two times adds two packs.
+            # - A user adds a pack to their own account.
+            # - A call is cut at the minutes that remain, though a pack can
+            #   still come.
+            # - Requests continue above the limit of packs.
+            # - Unused pack minutes are lost at the renewal, or pack minutes
+            #   that were used come back at the renewal.
+            hooks = await BillingHook.start(args)
+            pack_url = plan_url(clinic).removesuffix("/plan") + "/packs"
+            pack_period = now - timedelta(hours=2)
+
+            async def pack_plan(included: int, limit: int = 2, start=pack_period):
+                answer = await http.put(
+                    plan_url(clinic), headers=operator,
+                    json={
+                        "name": "Monthly", "included_seconds": included,
+                        "period_start": start.isoformat(),
+                        "period_end": (now + timedelta(days=30)).isoformat(),
+                        "pack_limit": limit,
+                    },
+                )  # fmt: skip
+                answer.raise_for_status()
+                return answer.json()
+
+            async def pack_state() -> dict:
+                """Operator view. A repeat of the same plan changes nothing."""
+                return await pack_plan(pack_state.included)
+
+            async def set_remaining(seconds: int) -> dict:
+                used = (await pack_plan(10**6))["used_seconds"]
+                packs_now = (await pack_plan(10**6))["pack_seconds"]
+                pack_state.included = used - packs_now + seconds
+                return await pack_plan(pack_state.included)
+
+            # 1. 320 seconds remain: no request. A real call of about 100
+            #    seconds takes the minutes below 5 after about 20 seconds.
+            await set_remaining(320)
+            calm = await clinic_ai.call("get_account_status")
+            await phone.answer_with_script(HOLD_SCRIPT)
+            long_call = await clinic_ai.call(
+                "place_call", phone_number=phone.number, task=HOLD_TASK,
+                on_behalf_of="Sam Carter", call_reason="to ask about opening hours",
+            )  # fmt: skip
+            before_low = (await pack_state())["pack_request"]
+            request_during_call = None
+            for _ in range(24):
+                await asyncio.sleep(5)
+                progress = await clinic_ai.call(
+                    "get_call_result", call_id=long_call["call_id"]
+                )
+                state = await pack_state()
+                if state["pack_request"] and request_during_call is None:
+                    request_during_call = progress["status"]
+                if progress["status"] in ("completed", "failed"):
+                    break
+            await phone.hang_up()
+            for _ in range(3):
+                await clinic_ai.call("get_account_status")
+            first = (await pack_state())["pack_request"] or {}
+            report.check(
+                "With more than 5 minutes left no minute pack is requested; a "
+                "call that takes the minutes below 5 requests one pack while "
+                "the call is in progress, and later status requests do not "
+                "request it again",
+                before_low is None
+                and calm["automatic_packs"] == {"limit": 2, "added_this_period": 0}
+                and request_during_call == "in_progress"
+                and first.get("after_packs") == 0
+                and hooks.ok(expected_ids=[first.get("id")]),
+                f"request before the call: {before_low}; request seen while the "
+                f"call was {request_during_call}; call ran "
+                f"{progress.get('duration_seconds')} s; {hooks.describe()}",
+            )
+
+            # 2. The billing system reports the payment, and reports it again.
+            by_user = await http.post(
+                pack_url, headers=clinic["auth"],
+                json={"seconds": 60, "reference": "pay-user"},
+            )  # fmt: skip
+            before_pack = await pack_state()
+            paid = await http.post(
+                pack_url, headers=operator, json={"seconds": 60, "reference": "pay-1"}
+            )
+            paid_again = await http.post(
+                pack_url, headers=operator, json={"seconds": 60, "reference": "pay-1"}
+            )
+            # Still fewer than 5 minutes: the service asks for a second pack.
+            await set_remaining(250)
+            await clinic_ai.call("get_account_status")
+            await clinic_ai.call("get_account_status")
+            second = (await pack_state())["pack_request"] or {}
+            report.check(
+                "A paid pack adds its minutes one time, a user cannot add a "
+                "pack, and the next low state requests the next pack",
+                by_user.status_code == 404
+                and paid.json()["added"] is True
+                and paid_again.json()["added"] is False
+                and paid_again.json()["remaining_seconds"]
+                == before_pack["remaining_seconds"] + 60
+                and paid_again.json()["packs_added"] == 1
+                and second.get("after_packs") == 1
+                and second.get("id") not in (None, first.get("id"))
+                and hooks.ok(expected_ids=[first.get("id"), second.get("id")]),
+                f"user {by_user.status_code}; remaining {before_pack['remaining_seconds']} s "
+                f"-> {paid_again.json()['remaining_seconds']} s after the same payment "
+                f"two times; {hooks.describe()}",
+            )
+
+            # 3. 40 seconds remain and one more pack can come: a call of about
+            #    100 seconds is not cut. The payment does not arrive.
+            await set_remaining(40)
+            await phone.answer_with_script(HOLD_SCRIPT)
+            uncut_call = await clinic_ai.call(
+                "place_call", phone_number=phone.number, task=HOLD_TASK,
+                on_behalf_of="Sam Carter", call_reason="to ask about opening hours",
+            )  # fmt: skip
+            uncut = await wait_for_call(clinic_ai, uncut_call["call_id"], 200)
+            await phone.hang_up()
+            unpaid_refusal = await clinic_ai.refusal(
+                "place_call", phone_number=phone.number, task="Ask the opening hours."
+            )
+            # The second payment arrives. It only covers the minutes that the
+            # call used above the plan, and the limit of 2 packs is reached.
+            (
+                await http.post(
+                    pack_url, headers=operator,
+                    json={"seconds": 60, "reference": "pay-2"},
+                )
+            ).raise_for_status()  # fmt: skip
+            await set_remaining(100)
+            at_limit = await clinic_ai.call("get_account_status")
+            await set_remaining(0)
+            limit_refusal = await clinic_ai.refusal(
+                "place_call", phone_number=phone.number, task="Ask the opening hours."
+            )
+            limit_state = await pack_state()
+            report.check(
+                "A call is not cut at the remaining minutes while a pack can "
+                "still come; with no payment the next call is refused; at the "
+                "limit of packs no more are requested and the refusal names "
+                "the limit",
+                uncut_call["max_minutes_this_call"] > 5
+                and (uncut.get("duration_seconds") or 0) >= 70
+                and uncut.get("answered_by") == "hold_line"
+                and "payment" in (unpaid_refusal or "")
+                and limit_state["packs_added"] == 2
+                and limit_state["pack_request"] is None
+                and "limit of 2 automatic minute packs" in (at_limit["minutes_note"] or "")
+                and "limit of 2 automatic minute packs" in (limit_refusal or "")
+                and "https://" in (limit_refusal or "")
+                and hooks.ok(expected_ids=[first.get("id"), second.get("id")]),
+                f"40 s were left and the hold line call ran "
+                f"{uncut.get('duration_seconds')} s ({uncut.get('answered_by')}); "
+                f"refusal with no payment: {unpaid_refusal!r}; at the limit: "
+                f"{limit_refusal!r}; {hooks.describe()}",
+            )  # fmt: skip
+
+            # 4. Renewal. 120 pack seconds exist; the calls of the old period
+            #    used 50 of them. 70 must pass to the new period.
+            await set_remaining(70)
+            renewal = await pack_plan(600, start=datetime.now(UTC))
+            renewal_again = await pack_plan(600, start=datetime.now(UTC))
+            after_renewal = await clinic_ai.call("get_account_status")
+            ended = await http.delete(plan_url(clinic), headers=operator)
+            report.check(
+                "At the renewal the unused pack minutes stay and the used "
+                "pack minutes do not come back",
+                renewal["pack_seconds"] == 70
+                and renewal["packs_added"] == 0
+                and renewal["remaining_seconds"] == 670
+                and renewal_again["pack_seconds"] == 70
+                and after_renewal["minutes_total"] == 11.2
+                and ended.status_code == 200,
+                f"pack seconds after the renewal: {renewal['pack_seconds']} "
+                f"(expected 70), after a second renewal: {renewal_again['pack_seconds']}; "
+                f"minutes_total {after_renewal['minutes_total']}",
+            )
+            report.evidence["minute_packs"] = {
+                "requests": [first, second], "hooks": hooks.received,
+                "unpaid_refusal": unpaid_refusal, "limit_refusal": limit_refusal,
+                "at_limit_note": at_limit["minutes_note"], "renewal": renewal,
+                "uncut_call_seconds": uncut.get("duration_seconds"),
+            }  # fmt: skip
+            await hooks.stop()
 
             # Maria keeps an active plan and no free minutes for the real call
             # below: the call-start path must accept the plan too.
@@ -1545,6 +1854,16 @@ def main() -> int:
     )
     parser.add_argument(
         "--twilio-auth-token", default=os.getenv("PLATFORM_TWILIO_AUTH_TOKEN", "")
+    )
+    parser.add_argument(
+        "--billing-hook-port",
+        type=int,
+        default=int(os.getenv("VERIFY_BILLING_HOOK_PORT", "0")),
+        help="Listen here as the billing system. Only for a local service whose "
+        "PLATFORM_BILLING_WEBHOOK_URL is http://127.0.0.1:PORT/hook.",
+    )
+    parser.add_argument(
+        "--billing-hook-secret", default=os.getenv("VERIFY_BILLING_HOOK_SECRET", "")
     )
     parser.add_argument("--out", default="platform_verification/results/latest")
     parser.add_argument("--call-timeout", type=float, default=420)

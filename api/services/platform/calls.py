@@ -7,11 +7,13 @@ through it; ids that arrive from a client are never trusted on their own.
 
 from typing import Any
 
+import httpx
 from fastapi import HTTPException
 from loguru import logger
 
 from api.db import db_client
 from api.services.platform import caller_id as caller_id_service
+from api.services.platform import packs
 from api.services.platform.agent_definitions import (
     DEFAULT_INBOUND_RULES,
     inbound_agent_definition,
@@ -73,6 +75,7 @@ async def get_account_status(organization_id: int) -> dict[str, Any]:
     account = await _ready_account(organization_id)
     account = await caller_id_service.refresh(organization_id, account)
     allowance = await get_allowance_status(organization_id)
+    await packs.request_pack_if_low(organization_id, allowance)
     settings = get_platform_settings()
     phone_number = account.get("phone_number")
     from_id, from_number = _from_number(account)
@@ -110,6 +113,11 @@ async def get_account_status(organization_id: int) -> dict[str, Any]:
         "minutes_remaining": round(allowance.remaining_seconds / 60, 1),
         # None unless under 20% of the minutes remain.
         "minutes_note": allowance.low_minutes_note,
+        # Paid packs of more minutes that are added when the minutes run low.
+        "automatic_packs": {
+            "limit": allowance.pack_limit,
+            "added_this_period": allowance.packs_added,
+        },
         "calls_in_last_24_hours": allowance.calls_last_24h,
         "daily_call_limit": allowance.daily_call_limit,
         "max_call_minutes": round(settings.max_call_seconds / 60, 1),
@@ -144,6 +152,69 @@ async def update_settings(
         "voice_options": list(VOICES) if current else [],
         "note": "The voice applies to the next call, outbound and inbound.",
     }
+
+
+_VOICEMAIL_INSTRUCTIONS = """You write the message that an AI phone assistant \
+leaves when a voicemail box answers its call. You get the task of the call.
+Write the exact words to speak, and nothing else.
+- Start with: "Hello. This is an AI assistant calling for <the person or \
+business the call is for>."
+- If the task names the person to reach, say that the message is for that person.
+- Give the reason for the call in one short sentence of general words. Other \
+people can hear a voicemail: give no details about health, money, accounts, \
+legal matters or family matters, and no numbers, codes, results or addresses. \
+If the task says to confirm who answers before sharing something, do not share it.
+- Ask the listener to contact the person or business the call is for. Do not \
+promise a second call. Do not give a phone number unless the task says to.
+- End with "Thank you. Goodbye."
+- Plain spoken sentences. At most 60 words. Use the language of the task."""
+
+
+async def _write_voicemail_message(task: str, principal: str, reason: str) -> str:
+    """The words for a voicemail box when the client gave none.
+
+    A message that does not say why the call was made is of no use to the
+    person who hears it, so it is written from the task. The call must not
+    fail or wait long for this: on any error a short message that needs no
+    model is used.
+    """
+    fallback = (
+        f"Hello. This is an AI assistant calling for {principal}"
+        + (f", {reason}" if reason else "")
+        + f". Please contact {principal} when you can. Thank you. Goodbye."
+    )
+    settings = get_platform_settings()
+    if not settings.openai_api_key:
+        return fallback
+    try:
+        async with httpx.AsyncClient(timeout=8) as http:
+            response = await http.post(
+                "https://api.openai.com/v1/chat/completions",
+                headers={"Authorization": f"Bearer {settings.openai_api_key}"},
+                json={
+                    "model": settings.llm_model,
+                    "messages": [
+                        {"role": "system", "content": _VOICEMAIL_INSTRUCTIONS},
+                        {
+                            "role": "user",
+                            "content": (
+                                f"The call is for: {principal}\n"
+                                f"Reason given for the call: {reason or 'none'}\n"
+                                f"Task of the call:\n{task}"
+                            ),
+                        },
+                    ],
+                },
+            )
+            response.raise_for_status()
+            text = response.json()["choices"][0]["message"]["content"]
+        text = " ".join((text or "").split()).strip('"')
+        if len(text) < 20:
+            return fallback
+        return text[:MAX_VOICEMAIL_CHARS]
+    except Exception as e:
+        logger.warning(f"Voicemail message not written ({type(e).__name__})")
+        return fallback
 
 
 async def place_call(
@@ -197,6 +268,7 @@ async def place_call(
     # Checked again inside start_outbound_call; this early check refuses
     # without leaving a failed call record behind.
     allowance = await get_allowance_status(organization_id)
+    await packs.request_pack_if_low(organization_id, allowance)
     if allowance.blocked_code is not None:
         raise HTTPException(status_code=402, detail=allowance.blocked_message)
 
@@ -224,9 +296,7 @@ async def place_call(
     context["screening_introduction"] = introduction
     context["voicemail_message"] = (voicemail_message or "").strip()[
         :MAX_VOICEMAIL_CHARS
-    ] or (
-        f"Hello. {introduction} Sorry I missed you. We will call again later. Goodbye."
-    )
+    ] or await _write_voicemail_message(task, principal, reason)
 
     # The public agent route owns Dograh's one outbound dial path (concurrency
     # slot, quota, provider call). It is reused as-is so platform calls cannot
@@ -262,7 +332,14 @@ async def place_call(
         # Measured before this call; the call ends when they are used.
         "minutes_remaining": round(allowance.remaining_seconds / 60, 1),
         "max_minutes_this_call": round(
-            min(get_platform_settings().max_call_seconds, allowance.remaining_seconds)
+            (
+                get_platform_settings().max_call_seconds
+                if allowance.pack_available
+                else min(
+                    get_platform_settings().max_call_seconds,
+                    allowance.remaining_seconds,
+                )
+            )
             / 60,
             1,
         ),
@@ -287,6 +364,9 @@ def _answered_by(gathered: dict[str, Any]) -> dict[str, Any]:
         answered_by = "voicemail"
     elif "IVR" in subtypes:
         answered_by = "phone_menu"
+    elif final.get("reason") == "screening_timeout":
+        # A recording asked to wait and no person spoke in the first seconds.
+        answered_by = "hold_line"
     elif final.get("action") == "release":
         answered_by = "person"
     elif "SCREENER" in subtypes or "SCREENING_WAIT" in subtypes:

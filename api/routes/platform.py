@@ -177,6 +177,8 @@ class PlanRequest(BaseModel):
     included_seconds: int = Field(ge=0)
     period_start: AwareDatetime
     period_end: AwareDatetime
+    # Minute packs that billing may add in this period. 0: none.
+    pack_limit: int = Field(default=0, ge=0, le=100)
 
     @model_validator(mode="after")
     def _period_has_length(self) -> "PlanRequest":
@@ -197,6 +199,24 @@ async def set_account_plan(organization_id: int, request: PlanRequest) -> dict:
         request.included_seconds,
         request.period_start,
         request.period_end,
+        request.pack_limit,
+    )
+
+
+class PackRequest(BaseModel):
+    seconds: int = Field(gt=0, le=36000)
+    # The payment that paid for the pack. One reference adds one pack.
+    reference: str = Field(min_length=1, max_length=200)
+
+
+@router.post(
+    "/operator/accounts/{organization_id}/packs",
+    dependencies=[Depends(_require_operator)],
+)
+async def add_account_pack(organization_id: int, request: PackRequest) -> dict:
+    """Billing calls this after the user paid for a minute pack."""
+    return await operator.add_account_pack(
+        organization_id, request.seconds, request.reference
     )
 
 

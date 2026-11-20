@@ -47,12 +47,13 @@ Rules:
 - Call only numbers the user asked you to call. Never place sales, survey, or
   bulk calls.
 - Each account starts with free call minutes. They do not renew. After them
-  the user needs a monthly plan, which gives minutes for each period.
+  the user needs the monthly plan, which gives minutes for each period. When
+  fewer than 5 minutes remain, a paid pack of more minutes is added
+  automatically, up to a limit that the user sets on the billing page.
   get_account_status and each place_call result show the minutes that are
-  left. A call ends when the minutes are used. When `minutes_note` has text,
-  few minutes are left: tell the user what it says. When the minutes are
-  used, calls are refused and the refusal says what the user must do. Give
-  the user that message, with the page address if it has one.
+  left. When `minutes_note` has text, tell the user what it says. When a call
+  is refused for minutes, the refusal says what the user must do: give the
+  user that message, with the page address if it has one.
 - The voice agent tells people it is an AI assistant if they ask.
 """
 
@@ -137,8 +138,9 @@ async def place_call(
         Field(
             description=(
                 "The exact words to leave if a voicemail box answers. Say who "
-                "calls, why, and how to reply. Leave empty for a short "
-                "standard message."
+                "calls, why, and how to reply. You know the user and the "
+                "task, so write it yourself for each call. If it is empty, "
+                "the service writes a short general message from the task."
             )
         ),
     ] = None,
@@ -181,7 +183,8 @@ async def get_call_result(
     check it against `transcript`, which is the record of what was said.
     For an outbound call, `answered_by` is "person", "voicemail",
     "call_screener" (the screener answered and the person did not pick up),
-    or "phone_menu"; `keys_pressed` lists the keys the agent pressed in a
+    "phone_menu", or "hold_line" (a recording said to wait; the transcript
+    shows if a person answered later); `keys_pressed` lists the keys the agent pressed in a
     menu, in order. With "voicemail" the task was not done: tell the user,
     and say if a message was left (`voicemail_message_left`).
     Works for outbound calls and for inbound calls to the user's number.

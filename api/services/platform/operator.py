@@ -11,7 +11,7 @@ from typing import Any
 from fastapi import HTTPException
 
 from api.db import db_client
-from api.services.platform import twilio_accounts
+from api.services.platform import packs, twilio_accounts
 from api.services.platform.allowance import get_allowance_status
 from api.services.platform.provisioning import (
     get_platform_account,
@@ -54,6 +54,7 @@ async def set_account_plan(
     included_seconds: int,
     period_start: datetime,
     period_end: datetime,
+    pack_limit: int = 0,
 ) -> dict[str, Any]:
     """Give the account a plan for one paid period.
 
@@ -61,22 +62,26 @@ async def set_account_plan(
     Only calls that start in the period count against ``included_seconds``.
     """
     await _existing_account(organization_id)
-    await update_platform_account(
-        organization_id,
-        plan={
-            "name": name,
-            "included_seconds": included_seconds,
-            "period_start": period_start.isoformat(),
-            "period_end": period_end.isoformat(),
-        },
+    await packs.set_plan(
+        organization_id, name, included_seconds, period_start, period_end, pack_limit
     )
     return await _allowance_summary(organization_id)
+
+
+async def add_account_pack(
+    organization_id: int, seconds: int, reference: str
+) -> dict[str, Any]:
+    """Record a pack that the user paid for. ``reference`` names the payment;
+    a repeat with the same reference adds nothing."""
+    await _existing_account(organization_id)
+    added = await packs.add_pack(organization_id, seconds, reference)
+    return {**await _allowance_summary(organization_id), "added": added}
 
 
 async def clear_account_plan(organization_id: int) -> dict[str, Any]:
     """End the account's plan now. The free allowance applies again."""
     await _existing_account(organization_id)
-    await update_platform_account(organization_id, plan=None)
+    await packs.clear_plan(organization_id)
     return await _allowance_summary(organization_id)
 
 
@@ -89,6 +94,13 @@ async def _allowance_summary(organization_id: int) -> dict[str, Any]:
         "allowed_seconds": allowance.allowed_seconds,
         "used_seconds": allowance.used_seconds,
         "remaining_seconds": allowance.remaining_seconds,
+        "pack_seconds": allowance.pack_seconds,
+        "pack_limit": allowance.pack_limit,
+        "packs_added": allowance.packs_added,
+        # The open request to the billing system for a pack, if any.
+        "pack_request": (await get_platform_account(organization_id)).get(
+            "pack_request"
+        ),
     }
 
 
