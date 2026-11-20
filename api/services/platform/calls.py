@@ -13,7 +13,7 @@ from loguru import logger
 
 from api.db import db_client
 from api.services.platform import caller_id as caller_id_service
-from api.services.platform import packs
+from api.services.platform import conference, packs
 from api.services.platform.agent_definitions import (
     DEFAULT_INBOUND_RULES,
     inbound_agent_definition,
@@ -42,6 +42,17 @@ MAX_RULES_CHARS = 6000
 MAX_NAME_CHARS = 120
 MAX_REASON_CHARS = 200
 MAX_VOICEMAIL_CHARS = 600
+BRING_USER_INSTRUCTIONS = (
+    "You can phone your client and connect them with the other person, with "
+    "the bring_user_on_line tool. Use it when the other person will continue "
+    "only with your client in person (an identity check, or a decision or a "
+    "payment that only your client can make), or asks to speak with your "
+    "client. Do not use it for a question that you can answer from the task "
+    "or the background. First say that you will get your client on the line "
+    "and ask the other person to hold; say this in the same turn in which "
+    "you use the tool. While the two talk, you cannot speak. When your "
+    "client leaves, you get what was said and you continue the call."
+)
 MAX_GREETING_CHARS = 300
 
 
@@ -226,6 +237,7 @@ async def place_call(
     on_behalf_of: str | None = None,
     call_reason: str | None = None,
     voicemail_message: str | None = None,
+    allow_user_to_join: bool = True,
     api_key_id: int | None = None,
     api_key_created_by: int | None = None,
 ) -> dict[str, Any]:
@@ -284,6 +296,9 @@ async def place_call(
     }
     if background and background.strip():
         context["background"] = background.strip()
+    if allow_user_to_join and await conference.available(organization_id, phone_number):
+        context["bring_user"] = True
+        context["bring_user_instructions"] = BRING_USER_INSTRUCTIONS
     if on_behalf_of and on_behalf_of.strip():
         context["principal_name"] = on_behalf_of.strip()[:MAX_NAME_CHARS]
     # Spoken by the answer handling, before the agent's own conversation:
@@ -441,6 +456,22 @@ async def get_call_result(organization_id: int, call_id: int) -> dict[str, Any]:
         raise HTTPException(status_code=404, detail=f"Call {call_id} not found")
 
     result = _summarize(run, account)
+    direct_talk = [
+        {
+            "result": talk.get("status"),
+            "user_joined": bool(talk.get("user_joined")),
+            "seconds": talk.get("direct_talk_seconds", 0),
+            "assistant_listened_to_the_end": talk.get(
+                "assistant_listened_to_the_end", False
+            ),
+            "lines": talk.get("lines") or [],
+        }
+        for talk in (run.gathered_context or {}).get("direct_talk") or []
+        if isinstance(talk, dict)
+    ]
+    if direct_talk:
+        # The user joined the call, or the agent tried to get them.
+        result["direct_talk"] = direct_talk
     result["result"] = (run.gathered_context or {}).get("extracted_variables") or {}
     result["transcript"] = ""
     if run.transcript_url:

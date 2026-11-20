@@ -108,6 +108,10 @@ from api.services.workflow.prompt_variables import (
     resolve_call_variables,
     update_call_context,
 )
+from api.services.workflow.tools.bring_user import (
+    BRING_USER_CONTEXT_KEY,
+    BRING_USER_FUNCTION_NAME,
+)
 from api.services.workflow.tools.keypad import (
     KEYPAD_CONTEXT_KEY,
     KEYPAD_FUNCTION_NAME,
@@ -170,9 +174,14 @@ class PipecatEngine:
         defer_final_extraction: bool = False,
         prompt_variables: PromptVariablesConfiguration | None = None,
         keypad_enabled: bool = False,
+        bring_user_call_seconds: int | None = None,
     ):
         self._call_worker = task
         self._keypad_enabled = keypad_enabled
+        # Set when the agent can bring the account's user into the call: the
+        # longest that such a call can run.
+        self._bring_user_call_seconds = bring_user_call_seconds
+        self._bring_user_attempts = 0
         self._keys_pressed_count = 0
         self._is_realtime = is_realtime
         # LLM used for out-of-band inference (variable extraction, context
@@ -665,6 +674,112 @@ class PipecatEngine:
             LISTEN_FUNCTION_NAME, agent.bind_tool(self, keep_listening_func)
         )
 
+    def _register_bring_user_function(self, agent: AgentRuntime) -> None:
+        """Let the agent connect the account's user with the other party."""
+
+        async def bring_user_func(function_call_params: FunctionCallParams) -> None:
+            from api.services.platform import conference
+
+            monitor = self.call_monitor
+            limit = self._bring_user_call_seconds
+            started = monitor._start_time or time.monotonic()
+            seconds_left = limit - (time.monotonic() - started) - 30
+            if self._bring_user_attempts >= 2 or seconds_left < 60:
+                await function_call_params.result_callback(
+                    {
+                        "status": "not_available",
+                        "next": "Your client cannot be brought on the line "
+                        "now. Tell the other person, and offer to take a "
+                        "message for your client.",
+                    }
+                )
+                return
+            self._bring_user_attempts += 1
+            logger.info("LLM Function Call EXECUTED: bring_user_on_line")
+            previous_limit = monitor.max_call_duration_seconds
+            monitor.max_call_duration_seconds = max(previous_limit, limit)
+            # The agent hears silence during the direct talk: that is not an
+            # idle caller.
+            monitor.suspend()
+            try:
+                result = await conference.bring_in_user(
+                    workflow_run_id=self._workflow_run_id,
+                    organization_id=await self._get_organization_id(),
+                    called_number=self._call_context_vars.get("called_number"),
+                    summary=str(function_call_params.arguments.get("summary") or ""),
+                    max_seconds=seconds_left,
+                )
+            finally:
+                monitor.resume()
+            status = result["status"]
+            logger.info(f"bring_user_on_line: {status}")
+            if not result.get("user_joined"):
+                monitor.max_call_duration_seconds = previous_limit
+            lines = result.pop("direct_talk", None)
+            self._gathered_context.setdefault(BRING_USER_CONTEXT_KEY, []).append(
+                {**result, "lines": lines or []}
+            )
+            if lines is not None:
+                result["what_was_said"] = [
+                    ("Your client: " if line["speaker"] == "user" else "Other person: ")
+                    + line["text"]
+                    for line in lines
+                ]
+            if status == "call_ended":
+                await function_call_params.result_callback(
+                    result, properties=FunctionCallResultProperties(run_llm=False)
+                )
+                return
+            if status == "assistant_told_to_leave":
+                # The client sent the assistant away: it does not speak again.
+                # The call ends after this handler returns; inside it, the
+                # end of the call would wait for this tool.
+                async def end_call() -> None:
+                    await self.end_call_with_reason(EndTaskReason.END_CALL.value)
+
+                await function_call_params.result_callback(
+                    result,
+                    properties=FunctionCallResultProperties(
+                        run_llm=False, on_context_updated=end_call
+                    ),
+                )
+                return
+            result["next"] = {
+                "user_left": (
+                    "Your client has left the call. The other person is still "
+                    "on the line and you speak with them again. Read "
+                    "what_was_said: it counts as part of this call. If the "
+                    "task is now done, confirm the result in one sentence and "
+                    "move to the closing step. If not, continue the task."
+                ),
+                "time_limit": (
+                    "The time limit of this call is reached and your client "
+                    "is off the line. Tell the other person that the call "
+                    "must end now, and move to the closing step."
+                ),
+                "user_not_reached": (
+                    "Your client did not join. Tell the other person that "
+                    "you could not reach your client. Ask what your client "
+                    "must do, or take a message, and continue the task as "
+                    "far as you can."
+                ),
+            }.get(
+                status,
+                "Your client could not be called. Tell the other person, and "
+                "offer to take a message for your client.",
+            )
+            await function_call_params.result_callback(result)
+
+        agent.llm.register_function(
+            BRING_USER_FUNCTION_NAME,
+            # The tool runs as long as the direct talk; it has its own limit.
+            agent.bind_tool(
+                self,
+                bring_user_func,
+                timeout_secs=self._bring_user_call_seconds + 120,
+            ),
+        )
+
     async def _register_knowledge_base_function(
         self, document_uuids: list[str], *, agent: AgentRuntime | None = None
     ) -> None:
@@ -1095,6 +1210,8 @@ class PipecatEngine:
             )
         if self._keypad_enabled and not node.is_end:
             self._register_keypad_function(agent)
+        if self._bring_user_call_seconds and not node.is_end:
+            self._register_bring_user_function(agent)
         prompt = compose_system_prompt_for_node(
             node=node,
             workflow=agent.workflow,
@@ -1106,6 +1223,7 @@ class PipecatEngine:
             node=node,
             custom_tool_manager=manager,
             keypad_enabled=self._keypad_enabled,
+            bring_user_enabled=bool(self._bring_user_call_seconds),
         )
         agent.tools = ToolsSchema(standard_tools=functions)
         agent.system_prompt = prompt.text
@@ -1166,6 +1284,7 @@ class PipecatEngine:
                     node=target,
                     custom_tool_manager=manager,
                     keypad_enabled=self._keypad_enabled,
+                    bring_user_enabled=bool(self._bring_user_call_seconds),
                 )
                 agent.llm.prewarm_prompt_cache(
                     node_id=target.id,

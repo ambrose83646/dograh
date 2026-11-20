@@ -1,0 +1,223 @@
+{
+  "passed": true,
+  "checks": [
+    {
+      "name": "Maria has a verified phone, and place_call lets her assistant turn the join feature off",
+      "passed": true,
+      "detail": "caller ID +12085050523"
+    },
+    {
+      "name": "The agent phones the user's verified number from the service line, and the user joins with key 1",
+      "passed": true,
+      "detail": "calls to the user's phone: [{'from': '+12088864742', 'status': 'completed', 'seconds': 64}]"
+    },
+    {
+      "name": "The user and the other party talk directly: each side's words are in the audio of the correct channel",
+      "passed": true,
+      "detail": "13 lines in 62 s: other_party: Hello, Maria. / other_party: This is Dana at card services. / other_party: Please tell me the last four digits of the damaged card. / user: Hello, Dana. / user: This is Maria Lopez. / user: The last four digits are 3553. / other_party: Thank you. / other_party: That is correct. / other_party: The new card ships on Tuesday. / other_party: The reference number of the order is 2979 / use"
+    },
+    {
+      "name": "The agent heard the direct talk: its result has the reference and the day, which were said only there",
+      "passed": true,
+      "detail": "summary: 'A replacement was requested for Maria Lopez\u2019s damaged card. Dana at Riverside Bank card services verified Maria\u2019s identity and confirmed the replacement card ships Tuesday; the order reference is 2979.'"
+    },
+    {
+      "name": "The agent took no part in the direct talk: the words were not spoken to it, and it did not answer them",
+      "passed": true,
+      "detail": "agent heard: 'am sorry. I cannot order a card with an assistant. I must speak with Maria Lopez herself. to check her identity. Can you get her on the line? I will hold. Yes. That is all correct. Thank you. Goodbye.'"
+    },
+    {
+      "name": "When the user hangs up, the agent continues with the other party and closes the call",
+      "passed": true,
+      "detail": "137 s; agent after the talk: 's tuesday, and i have the reference as two, nine, seven, nine. is that correct? dana, are you still thank you. maria\u2019s replacement card ships tuesday, and the confirmed order reference is two, nine, seven, nine. goodbye.'"
+    },
+    {
+      "name": "A voicemail box on the user's phone does not join the call; the other party waits less than a minute and the agent returns",
+      "passed": true,
+      "detail": "user_not_reached; calls to the user's phone: [{'from': '+12088864742', 'status': 'completed', 'seconds': 44}]"
+    },
+    {
+      "name": "After the user did not join, the agent takes the message and the result tells the user what to do",
+      "passed": true,
+      "detail": "result: 'False I called Riverside Bank card services to request a replacement for Maria Lopez\u2019s damaged card. Dana said she must speak with Maria to verify her identity, but Maria did not answer when I tried to bring her onto the call. Dana asked that Maria call card s'"
+    },
+    {
+      "name": "After \"assistant, leave the call\" the agent stops listening: the words that follow are not in the call record",
+      "passed": true,
+      "detail": "lines: 'Hello, Dana. / This is Maria Lopez. / Assistant, / leave the call.'"
+    },
+    {
+      "name": "The talk continues without the agent, and the call ends when the user hangs up; the agent does not speak again",
+      "passed": true,
+      "detail": "direct talk 40 s, call 79 s"
+    }
+  ],
+  "run_id": "1120194136",
+  "base_url": "http://localhost:8000",
+  "started_at": "2026-11-20T19:41:36.949477+00:00",
+  "card_digits": "3553",
+  "reference": "2979",
+  "ship_day": "Tuesday",
+  "callback_number": "5555350",
+  "secret_word": "butterfly",
+  "joined_call": {
+    "call_id": 130,
+    "direction": "outbound",
+    "status": "completed",
+    "started_at": "2026-11-20T19:42:03.523466+00:00",
+    "duration_seconds": 137,
+    "to": "+12088864742",
+    "from": "+12085050523",
+    "disposition": "end_call",
+    "answered_by": "person",
+    "task": "Call the card services of Riverside Bank for Maria Lopez. Her card was damaged. Ask them to send a replacement card, and bring back the day on which it ships and the reference number of the order.",
+    "direct_talk": [
+      {
+        "result": "user_left",
+        "user_joined": true,
+        "seconds": 62,
+        "assistant_listened_to_the_end": true,
+        "lines": [
+          {
+            "speaker": "other_party",
+            "text": "Hello, Maria."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This is Dana at card services."
+          },
+          {
+            "speaker": "other_party",
+            "text": "Please tell me the last four digits of the damaged card."
+          },
+          {
+            "speaker": "user",
+            "text": "Hello, Dana."
+          },
+          {
+            "speaker": "user",
+            "text": "This is Maria Lopez."
+          },
+          {
+            "speaker": "user",
+            "text": "The last four digits are 3553."
+          },
+          {
+            "speaker": "other_party",
+            "text": "Thank you."
+          },
+          {
+            "speaker": "other_party",
+            "text": "That is correct."
+          },
+          {
+            "speaker": "other_party",
+            "text": "The new card ships on Tuesday."
+          },
+          {
+            "speaker": "other_party",
+            "text": "The reference number of the order is 2979"
+          },
+          {
+            "speaker": "user",
+            "text": "Thank you, Dana."
+          },
+          {
+            "speaker": "user",
+            "text": "That is all I need."
+          },
+          {
+            "speaker": "user",
+            "text": "Goodbye."
+          }
+        ]
+      }
+    ],
+    "result": {
+      "task_completed": true,
+      "outcome_summary": "A replacement was requested for Maria Lopez\u2019s damaged card. Dana at Riverside Bank card services verified Maria\u2019s identity and confirmed the replacement card ships Tuesday; the order reference is 2979.",
+      "follow_up_needed": ""
+    },
+    "transcript": "[2026-11-20T19:42:07.302+00:00] user: Riverside Bank card services. This is Dana speaking.\nHow can I help you?\n[2026-11-20T19:42:14.453+00:00] assistant: Hi, I\u2019m an AI assistant calling for Maria Lopez because her card was damaged, and I\u2019d like to request a replacement. Can you help\n[2026-11-20T19:42:23.270+00:00] user: I am sorry. I cannot order a card with an assistant.\nI must speak with Maria Lopez herself.\nto check her identity. Can you get her on the line?\nI will hold.\n[2026-11-20T19:42:34.740+00:00] assistant: I\u2019ll get Maria on the line now. Please hold.\n[2026-11-20T19:43:47.141+00:00] assistant: Thank you, Dana. The replacement card ships Tuesday, and I have the reference as two, nine, seven, nine. Is that correct?\n[2026-11-20T19:44:07.419+00:00] assistant: Dana, are you still\n[2026-11-20T19:44:08.261+00:00] user: Yes. That is all correct.\nThank you. Goodbye.\n[2026-11-20T19:44:12.421+00:00] assistant: Thank you. Maria\u2019s replacement card ships Tuesday, and the confirmed order reference is two, nine, seven, nine. Goodbye.\n"
+  },
+  "joined_call_user_leg": [
+    {
+      "from": "+12088864742",
+      "status": "completed",
+      "seconds": 64
+    }
+  ],
+  "not_joined_call": {
+    "call_id": 131,
+    "direction": "outbound",
+    "status": "completed",
+    "started_at": "2026-11-20T19:44:39.073547+00:00",
+    "duration_seconds": 130,
+    "to": "+12088864742",
+    "from": "+12085050523",
+    "disposition": "end_call",
+    "answered_by": "person",
+    "task": "Call the card services of Riverside Bank for Maria Lopez. Her card was damaged. Ask them to send a replacement card, and bring back the day on which it ships and the reference number of the order.",
+    "direct_talk": [
+      {
+        "result": "user_not_reached",
+        "user_joined": false,
+        "seconds": 0,
+        "assistant_listened_to_the_end": false,
+        "lines": []
+      }
+    ],
+    "result": {
+      "task_completed": false,
+      "outcome_summary": "I called Riverside Bank card services to request a replacement for Maria Lopez\u2019s damaged card. Dana said she must speak with Maria to verify her identity, but Maria did not answer when I tried to bring her onto the call. Dana asked that Maria call card services at 555-5350 before Friday; no replacement was ordered.",
+      "follow_up_needed": "Maria must call card services at 555-5350 before Friday to verify her identity and request the replacement."
+    },
+    "transcript": "[2026-11-20T19:44:42.599+00:00] user: Riverside Bank card services. This is Dana speaking.\nHow can I help you?\n[2026-11-20T19:44:49.700+00:00] assistant: Hi, I\u2019m calling for Maria Lopez because her card was damaged, and I\u2019d like to request a replacement. Can you help with that?\n[2026-11-20T19:44:58.759+00:00] user: I am sorry. I cannot order a card with an assistant.\nI must speak with Maria Lopez herself.\nto check her identity. Can you get her on the line?\nI will hold.\n[2026-11-20T19:45:56.864+00:00] assistant: I\u2019m sorry, I couldn\u2019t reach Maria. Does she need to call card services herself to request the replacement? I\u2019m sorry, I couldn\u2019t reach Maria. Does she need to call card services herself to request the replacement?\n[2026-11-20T19:46:20.584+00:00] assistant: Dana, are you still there?\n[2026-11-20T19:46:24.279+00:00] user: Then please tell her to call card services at five five five five three five zero before Friday.\n[2026-11-20T19:46:32.144+00:00] assistant: I\u2019ll pass that on. Is five five five five three five zero the correct number?\n[2026-11-20T19:46:44.759+00:00] user: Thank you. Goodbye.\n[2026-11-20T19:46:47.905+00:00] assistant: Thank you, Dana. Goodbye.\n"
+  },
+  "sent_away_call": {
+    "call_id": 132,
+    "direction": "outbound",
+    "status": "completed",
+    "started_at": "2026-11-20T19:47:01.053421+00:00",
+    "duration_seconds": 79,
+    "to": "+12088864742",
+    "from": "+12085050523",
+    "disposition": "end_call",
+    "answered_by": "person",
+    "task": "Call the card services of Riverside Bank for Maria Lopez. Her card was damaged. Ask them to send a replacement card, and bring back the day on which it ships and the reference number of the order.",
+    "direct_talk": [
+      {
+        "result": "assistant_told_to_leave",
+        "user_joined": true,
+        "seconds": 40,
+        "assistant_listened_to_the_end": false,
+        "lines": [
+          {
+            "speaker": "user",
+            "text": "Hello, Dana."
+          },
+          {
+            "speaker": "user",
+            "text": "This is Maria Lopez."
+          },
+          {
+            "speaker": "user",
+            "text": "Assistant,"
+          },
+          {
+            "speaker": "user",
+            "text": "leave the call."
+          }
+        ]
+      }
+    ],
+    "result": {
+      "task_completed": false,
+      "outcome_summary": "Maria Lopez requested a replacement for her damaged Riverside Bank card. Dana said she could not order it through an assistant and needed to speak with Maria directly to verify her identity. Maria joined the call and asked the assistant to leave; no card order was confirmed.",
+      "follow_up_needed": "Maria needs to speak directly with Dana to verify her identity and request the replacement card; the result of their conversation is unknown."
+    },
+    "transcript": "[2026-11-20T19:47:04.617+00:00] user: Riverside Bank card services. This is Dana speaking.\nHow can I help you?\n[2026-11-20T19:47:11.046+00:00] assistant: Hi, I\u2019m calling for Maria Lopez because her card was damaged and she needs a replacement. Can you help that?\n[2026-11-20T19:47:20.739+00:00] user: I am sorry. I cannot order a card with an assistant.\nI must speak with Maria Lopez herself.\nto check her identity. Can you get her on the line?\nI will hold.\n[2026-11-20T19:47:32.451+00:00] assistant: I\u2019ll get Maria on the line now. Please hold.\n"
+  },
+  "seconds": 417,
+  "finished_at": "2026-11-20T19:48:34.267970+00:00"
+}

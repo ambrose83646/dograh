@@ -1,12 +1,21 @@
 """Account endpoints for the shared calling platform (platform mode only)."""
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Request, Response
+from fastapi import (
+    APIRouter,
+    Depends,
+    Form,
+    Header,
+    HTTPException,
+    Request,
+    Response,
+    WebSocket,
+)
 from pydantic import AwareDatetime, BaseModel, Field, model_validator
 
 from api.constants import ENABLE_SIGNUP
 from api.db.models import UserModel
 from api.services.auth.depends import get_user_with_selected_organization
-from api.services.platform import caller_id, calls, operator, phone_auth
+from api.services.platform import caller_id, calls, conference, operator, phone_auth
 from api.services.platform.settings import get_platform_settings
 
 router = APIRouter(prefix="/platform")
@@ -262,3 +271,41 @@ async def set_account_suspended(organization_id: int, request: SuspendRequest) -
 )
 async def close_account(organization_id: int) -> dict:
     return await operator.close_account(organization_id)
+
+
+# --- The call to a user who joins their own call ----------------------------
+# Twilio makes these requests. The token in the path is a secret of one
+# attempt and stops working when the attempt is over.
+
+
+def _twiml(body: str) -> Response:
+    return Response(content=body, media_type="application/xml")
+
+
+@router.post("/conference/{token}/user", dependencies=[Depends(_require_platform_mode)])
+async def conference_user_answered(token: str) -> Response:
+    from api.utils.common import get_backend_endpoints
+
+    backend, _ = await get_backend_endpoints()
+    return _twiml(conference.user_answer_twiml(token, backend))
+
+
+@router.post("/conference/{token}/join", dependencies=[Depends(_require_platform_mode)])
+async def conference_user_pressed(token: str, Digits: str = Form("")) -> Response:
+    from api.utils.common import get_backend_endpoints
+
+    _, wss_backend = await get_backend_endpoints()
+    return _twiml(conference.user_join_twiml(token, Digits, wss_backend))
+
+
+@router.post(
+    "/conference/{token}/status", dependencies=[Depends(_require_platform_mode)]
+)
+async def conference_user_call_completed(token: str) -> Response:
+    conference.user_call_completed(token)
+    return Response(status_code=204)
+
+
+@router.websocket("/conference/{token}/media")
+async def conference_user_media(websocket: WebSocket, token: str) -> None:
+    await conference.user_media(token, websocket)

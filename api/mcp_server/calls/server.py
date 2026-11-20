@@ -144,6 +144,18 @@ async def place_call(
             )
         ),
     ] = None,
+    allow_user_to_join: Annotated[
+        bool,
+        Field(
+            description=(
+                "True: when the other party will continue only with the user "
+                "in person, the agent phones the user's verified number and "
+                "connects the two. The user presses 1 to join. Tell the user "
+                "before the call that their phone can ring. False: the agent "
+                "never phones the user."
+            )
+        ),
+    ] = True,
 ) -> dict:
     """Start a phone call. A voice agent phones the number and carries out the task.
 
@@ -157,6 +169,14 @@ async def place_call(
     menu asks for to reach the right department or person; put numbers the
     menu can ask for (account number, extension) in the task or background.
     get_call_result reports this in `answered_by` and `keys_pressed`.
+
+    The agent can bring the user into the call (allow_user_to_join). The user
+    and the other party then talk directly. The agent does not speak; it
+    listens and writes down what is said, until the user says "assistant,
+    leave the call". When the user hangs up, the agent continues the call.
+    The time counts as call minutes. get_call_result gives the words in
+    `direct_talk`; `user_joined` false means the user did not answer or did
+    not press 1.
     """
     return await calls.place_call(
         await _organization_id(),
@@ -166,6 +186,7 @@ async def place_call(
         on_behalf_of=on_behalf_of,
         call_reason=call_reason,
         voicemail_message=voicemail_message,
+        allow_user_to_join=allow_user_to_join,
     )
 
 

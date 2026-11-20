@@ -27,9 +27,14 @@ Ways this can fail, and what happens:
   platform deployment runs one web process.
 - Audio that the far end says while the digits play (about 0.5 s per digit plus
   the reconnect) is not heard.
+
+The stream can also give the call's audio to another listener (``on_audio``):
+the platform uses it to connect the call with the account's user for a direct
+talk (``api.services.platform.conference``). The pipeline then gets silence.
 """
 
 import asyncio
+import base64
 import json
 from typing import Any, Awaitable, Callable
 
@@ -74,6 +79,12 @@ class ResumableTwilioStream:
         self._digits_seconds = 0.0
         self._resumed = asyncio.Event()
         self._released: list[asyncio.Event] = []
+        # While set, the far end's audio goes here and the pipeline gets silence.
+        self.on_audio: Callable[[str], None] | None = None
+        # Called one time when the far end is gone.
+        self.on_gone: Callable[[], None] | None = None
+        # While set, nothing from the pipeline reaches the call.
+        self.pipeline_muted = False
 
     # --- pipeline side -----------------------------------------------------
 
@@ -93,9 +104,12 @@ class ResumableTwilioStream:
         while True:
             message = await self._ws.receive()
             if message["type"] != "websocket.disconnect":
+                if self.on_audio is not None and message.get("text"):
+                    return self._divert(message)
                 return message
             waiting = self._next_socket
             if waiting is None:
+                self._report_gone()
                 return message
             try:
                 self._ws, self._stream_sid = await asyncio.wait_for(
@@ -107,12 +121,51 @@ class ResumableTwilioStream:
                     f"[run {self._workflow_run_id}] the call did not come back "
                     "after a key press"
                 )
+                self._report_gone()
                 return message
             self._next_socket = None
             self._resumed.set()
 
-    async def send_text(self, data: str) -> None:
+    def _report_gone(self) -> None:
+        on_gone, self.on_gone = self.on_gone, None
+        if on_gone is not None:
+            on_gone()
+
+    def _divert(self, message: dict[str, Any]) -> dict[str, Any]:
+        try:
+            event = json.loads(message["text"])
+            if event.get("event") != "media":
+                return message
+            payload = event["media"]["payload"]
+            self.on_audio(payload)
+            event["media"]["payload"] = base64.b64encode(
+                b"\xff" * (len(payload) * 3 // 4 - payload.count("="))
+            ).decode()
+            return {**message, "text": json.dumps(event)}
+        except Exception as e:
+            logger.warning(f"[run {self._workflow_run_id}] audio not diverted: {e}")
+            return message
+
+    async def send_audio(self, payload: str) -> None:
+        """Send mu-law audio (base64) to the far end, not from the pipeline."""
+        await self._send_event({"event": "media", "media": {"payload": payload}})
+
+    async def clear_audio(self) -> None:
+        """Drop the audio that the far end has not heard yet."""
+        await self._send_event({"event": "clear"})
+
+    async def _send_event(self, event: dict[str, Any]) -> None:
         if self._next_socket is not None:
+            return
+        try:
+            await self._ws.send_text(
+                json.dumps({**event, "streamSid": self._stream_sid})
+            )
+        except Exception as e:
+            logger.debug(f"[run {self._workflow_run_id}] audio not sent: {e}")
+
+    async def send_text(self, data: str) -> None:
+        if self._next_socket is not None or self.pipeline_muted:
             return
         if self._stream_sid != self._first_stream_sid:
             data = data.replace(self._first_stream_sid, self._stream_sid)
@@ -174,6 +227,10 @@ async def run_with_native_keys(
     finally:
         _streams.pop(stream._workflow_run_id, None)
         stream._finish()
+
+
+def stream_for_run(workflow_run_id: int) -> ResumableTwilioStream | None:
+    return _streams.get(workflow_run_id)
 
 
 def presser_for_run(workflow_run_id: int) -> Callable[[str], Awaitable[None]] | None:

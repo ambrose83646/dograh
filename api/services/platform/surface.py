@@ -33,7 +33,11 @@ _ALLOWED: tuple[tuple[frozenset[str] | None, re.Pattern[str]], ...] = tuple(
         ({"POST"}, rf"{_API}/telephony/inbound/fallback"),
     )
 )
-_ALLOWED_WEBSOCKETS = re.compile(rf"{_API}/telephony/ws/\d+/\d+/\d+(/[^/]+)?")
+_ALLOWED_WEBSOCKETS = re.compile(
+    rf"{_API}/telephony/ws/\d+/\d+/\d+(/[^/]+)?"
+    # The call of a user who joins their own call. The path holds a secret.
+    rf"|{_API}/platform/conference/[\w-]+/media"
+)
 
 
 def is_platform_path_allowed(scope_type: str, method: str, path: str) -> bool:

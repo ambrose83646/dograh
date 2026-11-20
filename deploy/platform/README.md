@@ -56,6 +56,7 @@ The first build takes about 10 minutes.
 | `ENABLE_CALL_RECORDING_UPLOAD` | `false` | `true` stores the audio of each call. The agent gives no recording notice, so check the consent law first. |
 | `PLATFORM_FREE_SECONDS` | `600` | Free call time for each new account. It does not renew. After it, the account needs a monthly plan. |
 | `PLATFORM_SMS_FROM` | empty | Sender of the sign-in codes: a phone number of the main Twilio account, or a Messaging Service SID (`MG…`). It must be registered for text messages (A2P 10DLC). Do not use a number from the pool. Empty: phone sign-in is off. |
+| `PLATFORM_CONFERENCE_FROM` | empty | A phone number of the main Twilio account. The agent uses it to phone a user and connect them with the other party of their call. Do not use a number from the pool. Empty: the agent cannot bring the user into a call. |
 | `PLATFORM_OTP_DAILY_PER_NUMBER` | `6` | Sign-in codes that one phone number can get in 24 hours. |
 | `PLATFORM_OTP_HOURLY_PER_ADDRESS` | `20` | Sign-in codes that one client address can request in one hour. |
 | `PLATFORM_BILLING_URL` | empty | Page where a user starts the monthly plan and sets the limit of minute packs. The agent gets this address when the minutes are low or used. |

@@ -88,3 +88,20 @@ The exit code is 0 only when every check passes.
 - `report.md`: the same as a table, with both transcripts.
 
 Access keys and passwords are not written to either file.
+
+## The user joins a call (`conference.py`)
+
+`conference.py` checks that the agent can bring the user into a call. It
+places three real calls. In each call a scripted bank asks for the user:
+
+1. The user's phone answers and presses 1. The two talk; the service writes
+   down each side. The user hangs up and the agent finishes the call.
+2. A voicemail box answers the user's phone. It does not join. The agent
+   returns in less than a minute and takes a message.
+3. The user says "assistant, leave the call". The record stops there, and the
+   call ends when the user hangs up.
+
+It needs the same environment as `verify.py`, and also `VERIFY_BANK_PHONE`
+(the second test number; it must be in the main Twilio account) and
+`VERIFY_LINE_NUMBER` (the service's `PLATFORM_CONFERENCE_FROM`). The run
+takes about ten minutes and uses about six minutes of call time.

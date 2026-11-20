@@ -62,6 +62,36 @@ async def send_text(to: str, body: str) -> None:
     )
 
 
+async def create_call(
+    *, to: str, from_: str, url: str, status_callback: str, timeout: int
+) -> str:
+    """Phone ``to`` from a number of the main account. Returns the call SID."""
+    body = await _request(
+        "POST",
+        f"/Accounts/{get_platform_settings().twilio_account_sid}/Calls.json",
+        data={
+            "To": to,
+            "From": from_,
+            "Url": url,
+            "Method": "POST",
+            "Timeout": str(timeout),
+            "StatusCallback": status_callback,
+            "StatusCallbackEvent": "completed",
+            "StatusCallbackMethod": "POST",
+        },
+    )
+    return str(body["sid"])
+
+
+async def end_call(call_sid: str) -> None:
+    """End a call of the main account. A call that is over stays as it is."""
+    await _request(
+        "POST",
+        f"/Accounts/{get_platform_settings().twilio_account_sid}/Calls/{call_sid}.json",
+        data={"Status": "completed"},
+    )
+
+
 async def create_subaccount(friendly_name: str) -> tuple[str, str]:
     """Create a subaccount. Returns its (account_sid, auth_token)."""
     body = await _request(

@@ -739,12 +739,26 @@ async def _run_pipeline_impl(
 
     # Platform mode: the start-of-call check only refuses an account with no
     # minutes left. A call must also stop when the minutes run out during it.
+    bring_user_call_seconds = None
     if get_platform_settings().enabled:
         from api.services.platform.allowance import get_allowance_status
 
         allowance = await get_allowance_status(
             workflow.organization_id, exclude_current_run=True
         )
+        if (
+            run_configs.get("bring_user_enabled")
+            and merged_call_context_vars.get("bring_user") is True
+        ):
+            from api.services.platform.conference import MAX_CALL_SECONDS
+
+            # A call that the user joins can run longer than other calls, but
+            # not longer than the minutes that are left.
+            bring_user_call_seconds = (
+                MAX_CALL_SECONDS
+                if allowance.pack_available
+                else max(1, min(MAX_CALL_SECONDS, allowance.remaining_seconds))
+            )
         if allowance.pack_available:
             # More minutes are bought when these run low, so the call is not
             # cut at the minutes that remain now.
@@ -986,6 +1000,7 @@ async def _run_pipeline_impl(
         # Voice calls hand final extraction to the completion worker after hangup.
         defer_final_extraction=True,
         keypad_enabled=bool(run_configs.get("keypad_enabled")),
+        bring_user_call_seconds=bring_user_call_seconds,
     )
 
     # Create pipeline components

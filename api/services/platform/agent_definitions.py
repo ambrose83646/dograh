@@ -14,7 +14,7 @@ INBOUND_AGENT_NAME = "Inbound call rules"
 
 # Raise when the outbound agent's definition or settings change. An account
 # on an older version is republished before its next call.
-OUTBOUND_AGENT_VERSION = 5
+OUTBOUND_AGENT_VERSION = 6
 
 DEFAULT_INBOUND_RULES = (
     "Answer politely, say the owner of this number is not available, and take a "
@@ -56,6 +56,9 @@ If a recording or an automated menu answers, get through it to reach the person 
 - If the menu accepts spoken answers only, say the answer in one or two words.
 - Never press keys when a person is talking to you.
 - Hold music or "please hold" means wait: use the keep_listening tool and say nothing.
+
+## Getting your client on the line
+{{{{bring_user_instructions | You cannot get your client on the line on this call. If the other person asks for your client, say so and offer to take a message.}}}}
 
 ## Ending the call
 Before you end, check the task: if it asks you to bring back an answer you do not have yet, ask for it now.
@@ -214,6 +217,9 @@ def outbound_agent_configurations(max_call_seconds: int) -> dict:
         },
         # The agent can press keypad keys to get through a phone menu.
         "keypad_enabled": True,
+        # The agent can bring the account's user into the call. Each call
+        # says if it is permitted (``bring_user`` in the call's context).
+        "bring_user_enabled": True,
     }
 
 

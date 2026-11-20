@@ -20,6 +20,7 @@ from api.services.workflow.prompt_variables import (
     clock_source_labels,
     prompt_templates,
 )
+from api.services.workflow.tools.bring_user import get_bring_user_tool
 from api.services.workflow.tools.keypad import get_keypad_tool, get_listen_tool
 from api.services.workflow.tools.knowledge_base import get_knowledge_base_tool
 
@@ -125,6 +126,7 @@ async def compose_functions_for_node(
     custom_tool_manager: Optional["CustomToolManager"] = None,
     custom_tool_schemas: list | None = None,
     keypad_enabled: bool = False,
+    bring_user_enabled: bool = False,
 ) -> list[dict]:
     """Compose the function/tool schemas for a workflow node.
 
@@ -163,8 +165,13 @@ async def compose_functions_for_node(
         functions.extend(custom_tool_schemas)
 
     # Keypad tones for phone menus. An end node only says goodbye.
+    tools = []
     if keypad_enabled and not node.is_end:
-        for tool in (get_keypad_tool(), get_listen_tool()):
+        tools += [get_keypad_tool(), get_listen_tool()]
+    if bring_user_enabled and not node.is_end:
+        tools.append(get_bring_user_tool())
+    if tools:
+        for tool in tools:
             functions.append(
                 get_function_schema(
                     tool["name"],

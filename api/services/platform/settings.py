@@ -38,6 +38,10 @@ class PlatformSettings:
     billing_webhook_url: str
     billing_webhook_secret: str
     sms_from: str
+    # A phone number of the main Twilio account that phones a user to bring
+    # them into their own call. Not a pool number: a pool number moves to an
+    # account's subaccount. Empty: the agent cannot bring the user in.
+    conference_from: str
     otp_daily_per_number: int
     otp_hourly_per_address: int
     max_call_seconds: int
@@ -84,6 +88,7 @@ def get_platform_settings() -> PlatformSettings:
         billing_webhook_url=os.getenv("PLATFORM_BILLING_WEBHOOK_URL", ""),
         billing_webhook_secret=os.getenv("PLATFORM_BILLING_WEBHOOK_SECRET", ""),
         sms_from=os.getenv("PLATFORM_SMS_FROM", ""),
+        conference_from=os.getenv("PLATFORM_CONFERENCE_FROM", "").strip(),
         otp_daily_per_number=int(os.getenv("PLATFORM_OTP_DAILY_PER_NUMBER", "6")),
         otp_hourly_per_address=int(os.getenv("PLATFORM_OTP_HOURLY_PER_ADDRESS", "20")),
         max_call_seconds=int(os.getenv("PLATFORM_MAX_CALL_SECONDS", "600")),
