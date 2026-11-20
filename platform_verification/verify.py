@@ -870,9 +870,11 @@ async def run(args, report: Report) -> None:
             inbound_summary = next(
                 (c for c in clinic_calls if c["direction"] == "inbound"), None
             )
+            # The clinic's side of the call can end a few seconds after the
+            # caller's side: wait for it, as an assistant does.
             inbound = (
-                await clinic_ai.call(
-                    "get_call_result", call_id=inbound_summary["call_id"]
+                await wait_for_call(
+                    clinic_ai, int(inbound_summary["call_id"]), args.call_timeout
                 )
                 if inbound_summary
                 else {}
@@ -987,6 +989,7 @@ async def run(args, report: Report) -> None:
                     "on_behalf_of",
                     "call_reason",
                     "voicemail_message",
+                    "allow_user_to_join",
                 }
                 and set(closed.values()) == {404},
                 json.dumps(closed),
