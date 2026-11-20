@@ -11,9 +11,9 @@ form lists MCP servers for Grok Bot, Grok, and Cursor. The fields marked
 | Organization Name | **operator** |
 | Organization Handle | **operator** (lower case, no spaces) |
 | Website URL | `https://app.danadial.com/` |
-| Logotype URL | `https://raw.githubusercontent.com/ambrose83646/dograh/main/deploy/platform/marketplace/logo.svg` |
+| Logotype URL | `https://raw.githubusercontent.com/ambrose83646/dograh/cd0f59b8d59c936889028534d302e2e9dfdb61a7/deploy/platform/marketplace/logo.svg` |
 | Where do you want to be listed? | Grok Bot |
-| MCP Server URL | `https://app.danadial.com/mcp` |
+| MCP Server URL | `https://app.danadial.com/mcp/` |
 
 ## Brief Description
 
@@ -28,7 +28,7 @@ form lists MCP servers for Grok Bot, Grok, and Cursor. The fields marked
 > 1. Go to https://app.danadial.com/ and sign in with the reviewer account:
 >    REVIEWER_EMAIL / REVIEWER_PASSWORD.
 > 2. Select "Create an access key" and copy the key.
-> 3. Add the MCP server https://app.danadial.com/mcp (Streamable HTTP) with the
+> 3. Add the MCP server https://app.danadial.com/mcp/ (Streamable HTTP) with the
 >    header `Authorization: Bearer <key>`.
 > 4. Ask: "Which number do my calls show and how many call minutes do I have?"
 >    The assistant calls `get_account_status`. The reviewer account has a
