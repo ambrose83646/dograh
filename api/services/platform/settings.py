@@ -32,6 +32,7 @@ class PlatformSettings:
     # Each attempt makes Twilio phone the number the user typed.
     caller_id_daily_attempts: int
     free_seconds: int
+    billing_url: str
     max_call_seconds: int
     daily_call_limit: int
     # E.164 prefixes users may dial, e.g. "+1". Empty means no restriction.
@@ -72,6 +73,7 @@ def get_platform_settings() -> PlatformSettings:
             os.getenv("PLATFORM_CALLER_ID_DAILY_ATTEMPTS", "3")
         ),
         free_seconds=int(os.getenv("PLATFORM_FREE_SECONDS", "600")),
+        billing_url=os.getenv("PLATFORM_BILLING_URL", ""),
         max_call_seconds=int(os.getenv("PLATFORM_MAX_CALL_SECONDS", "600")),
         daily_call_limit=int(os.getenv("PLATFORM_DAILY_CALL_LIMIT", "20")),
         allowed_prefixes=_csv("PLATFORM_ALLOWED_PREFIXES"),

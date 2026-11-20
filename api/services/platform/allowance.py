@@ -1,4 +1,10 @@
-"""Free call allowance and abuse limits for platform accounts.
+"""Call allowance and abuse limits for platform accounts.
+
+An account starts with free minutes that never renew. A monthly plan, set by
+the operator's billing system, gives minutes for one period; only calls that
+started in the period count against it. When the period is over and no new
+one is set, the account is measured against its free minutes again, which its
+earlier calls have normally used.
 
 Usage is measured, not ledgered: the seconds an organization has used are the
 recorded durations of its own runs, so there is no counter that can drift from
@@ -7,29 +13,33 @@ what actually happened and nothing a tenant can reset.
 
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
+from typing import Any
 
 from api.db import db_client
 from api.services.platform.settings import get_platform_settings
 
 ALLOWANCE_EXHAUSTED_CODE = "free_allowance_used"
+PLAN_EXHAUSTED_CODE = "plan_allowance_used"
 DAILY_LIMIT_CODE = "daily_call_limit_reached"
 
 
 @dataclass(frozen=True)
 class AllowanceStatus:
-    free_seconds: int
+    allowed_seconds: int
     used_seconds: int
     calls_last_24h: int
     daily_call_limit: int
+    plan_name: str | None = None
+    period_end: datetime | None = None
 
     @property
     def remaining_seconds(self) -> int:
-        return max(0, self.free_seconds - self.used_seconds)
+        return max(0, self.allowed_seconds - self.used_seconds)
 
     @property
     def blocked_code(self) -> str | None:
         if self.remaining_seconds <= 0:
-            return ALLOWANCE_EXHAUSTED_CODE
+            return PLAN_EXHAUSTED_CODE if self.plan_name else ALLOWANCE_EXHAUSTED_CODE
         if self.calls_last_24h >= self.daily_call_limit:
             return DAILY_LIMIT_CODE
         return None
@@ -38,9 +48,19 @@ class AllowanceStatus:
     def blocked_message(self) -> str | None:
         code = self.blocked_code
         if code == ALLOWANCE_EXHAUSTED_CODE:
+            billing_url = get_platform_settings().billing_url
+            where = f" at {billing_url}" if billing_url else ""
             return (
-                f"The free allowance of {self.free_seconds // 60} call minutes "
-                f"is used. No more calls can be made or answered on this account."
+                f"The {self.allowed_seconds // 60} free call minutes are used. "
+                f"The user must choose a monthly plan{where} before this "
+                f"account can make or answer more calls."
+            )
+        if code == PLAN_EXHAUSTED_CODE:
+            return (
+                f"The {self.allowed_seconds // 60} call minutes of the "
+                f"{self.plan_name} plan are used for this period. The minutes "
+                f"renew on {self.period_end:%B %-d, %Y}. Until then this "
+                f"account cannot make or answer calls."
             )
         if code == DAILY_LIMIT_CODE:
             return (
@@ -48,6 +68,18 @@ class AllowanceStatus:
                 f"calls in 24 hours. Try again later."
             )
         return None
+
+
+def active_plan(account: dict[str, Any]) -> dict[str, Any] | None:
+    """The account's plan when the current time is inside its period."""
+    plan = account.get("plan")
+    if not isinstance(plan, dict):
+        return None
+    start = datetime.fromisoformat(plan["period_start"])
+    end = datetime.fromisoformat(plan["period_end"])
+    if not start <= datetime.now(UTC) < end:
+        return None
+    return {**plan, "period_start": start, "period_end": end}
 
 
 async def get_allowance_status(
@@ -64,19 +96,28 @@ async def get_allowance_status(
     from api.services.platform.provisioning import get_platform_account
 
     account = await get_platform_account(organization_id)
-    # The operator can grant or reduce one account's allowance.
-    free_seconds = account.get("free_seconds")
-    if not isinstance(free_seconds, int) or free_seconds < 0:
-        free_seconds = settings.free_seconds
-    used = await db_client.get_platform_call_seconds(organization_id)
+    plan = active_plan(account)
+    if plan:
+        allowed_seconds = plan["included_seconds"]
+        used = await db_client.get_platform_call_seconds(
+            organization_id, since=plan["period_start"]
+        )
+    else:
+        # The operator can grant or reduce one account's free allowance.
+        allowed_seconds = account.get("free_seconds")
+        if not isinstance(allowed_seconds, int) or allowed_seconds < 0:
+            allowed_seconds = settings.free_seconds
+        used = await db_client.get_platform_call_seconds(organization_id)
     recent = await db_client.count_platform_runs_since(
         organization_id, datetime.now(UTC) - timedelta(hours=24)
     )
     if exclude_current_run:
         recent = max(0, recent - 1)
     return AllowanceStatus(
-        free_seconds=free_seconds,
+        allowed_seconds=allowed_seconds,
         used_seconds=int(round(used)),
         calls_last_24h=recent,
         daily_call_limit=settings.daily_call_limit,
+        plan_name=plan["name"] if plan else None,
+        period_end=plan["period_end"] if plan else None,
     )

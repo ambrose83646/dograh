@@ -170,7 +170,7 @@ async function showAccount() {
   $("caller-id-text").textContent = account.caller_id
     ? "Your calls show " + account.caller_id + ". To change it, check a different number."
     : "Your assistant calls from your own phone number. Enter it here. We call you, and you enter a code on the keypad.";
-  $("minutes").textContent = account.free_minutes_remaining + " of " + account.free_minutes_total;
+  $("minutes").textContent = account.minutes_remaining + " of " + account.minutes_total;
   $("mcp-url").textContent = account.mcp_url;
   const note = $("status-note");
   const message = account.blocked_reason

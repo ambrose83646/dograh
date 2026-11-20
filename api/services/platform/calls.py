@@ -100,9 +100,14 @@ async def get_account_status(organization_id: int) -> dict[str, Any]:
             else "This account has no number for inbound calls. The operator "
             "adds one on request."
         ),
-        "free_minutes_total": round(allowance.free_seconds / 60, 1),
-        "free_minutes_used": round(allowance.used_seconds / 60, 1),
-        "free_minutes_remaining": round(allowance.remaining_seconds / 60, 1),
+        # None: the account is on its free minutes, which do not renew.
+        "plan": allowance.plan_name,
+        "plan_period_end": (
+            allowance.period_end.isoformat() if allowance.period_end else None
+        ),
+        "minutes_total": round(allowance.allowed_seconds / 60, 1),
+        "minutes_used": round(allowance.used_seconds / 60, 1),
+        "minutes_remaining": round(allowance.remaining_seconds / 60, 1),
         "calls_in_last_24_hours": allowance.calls_last_24h,
         "daily_call_limit": allowance.daily_call_limit,
         "max_call_minutes": round(settings.max_call_seconds / 60, 1),

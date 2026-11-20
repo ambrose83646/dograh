@@ -5,6 +5,7 @@ provider accounts. Tenants never reach them.
 """
 
 import hmac
+from datetime import datetime
 from typing import Any
 
 from fastapi import HTTPException
@@ -44,10 +45,48 @@ async def set_account_allowance(
     """Set one account's allowance in seconds; None returns it to the default."""
     await _existing_account(organization_id)
     await update_platform_account(organization_id, free_seconds=free_seconds)
+    return await _allowance_summary(organization_id)
+
+
+async def set_account_plan(
+    organization_id: int,
+    name: str,
+    included_seconds: int,
+    period_start: datetime,
+    period_end: datetime,
+) -> dict[str, Any]:
+    """Give the account a plan for one paid period.
+
+    The billing system calls this for the first payment and for each renewal.
+    Only calls that start in the period count against ``included_seconds``.
+    """
+    await _existing_account(organization_id)
+    await update_platform_account(
+        organization_id,
+        plan={
+            "name": name,
+            "included_seconds": included_seconds,
+            "period_start": period_start.isoformat(),
+            "period_end": period_end.isoformat(),
+        },
+    )
+    return await _allowance_summary(organization_id)
+
+
+async def clear_account_plan(organization_id: int) -> dict[str, Any]:
+    """End the account's plan now. The free allowance applies again."""
+    await _existing_account(organization_id)
+    await update_platform_account(organization_id, plan=None)
+    return await _allowance_summary(organization_id)
+
+
+async def _allowance_summary(organization_id: int) -> dict[str, Any]:
     allowance = await get_allowance_status(organization_id)
     return {
         "organization_id": organization_id,
-        "free_seconds": allowance.free_seconds,
+        "plan": allowance.plan_name,
+        "plan_period_end": allowance.period_end,
+        "allowed_seconds": allowance.allowed_seconds,
         "used_seconds": allowance.used_seconds,
         "remaining_seconds": allowance.remaining_seconds,
     }

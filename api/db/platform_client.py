@@ -141,8 +141,13 @@ class PlatformClient(BaseDBClient):
             )
             await session.commit()
 
-    async def get_platform_call_seconds(self, organization_id: int) -> float:
-        """Total recorded call seconds across every run the organization owns."""
+    async def get_platform_call_seconds(
+        self, organization_id: int, since: datetime | None = None
+    ) -> float:
+        """Recorded call seconds of the organization's runs, all or from ``since``."""
+        conditions = [WorkflowModel.organization_id == organization_id]
+        if since is not None:
+            conditions.append(WorkflowRunModel.created_at >= since)
         async with self.async_session() as session:
             total = await session.scalar(
                 select(
@@ -159,7 +164,7 @@ class PlatformClient(BaseDBClient):
                     )
                 )
                 .join(WorkflowModel, WorkflowRunModel.workflow_id == WorkflowModel.id)
-                .where(WorkflowModel.organization_id == organization_id)
+                .where(*conditions)
             )
             return float(total or 0.0)
 

@@ -1,7 +1,7 @@
 """Account endpoints for the shared calling platform (platform mode only)."""
 
 from fastapi import APIRouter, Depends, Header, HTTPException
-from pydantic import BaseModel, Field
+from pydantic import AwareDatetime, BaseModel, Field, model_validator
 
 from api.constants import ENABLE_SIGNUP
 from api.db.models import UserModel
@@ -103,6 +103,42 @@ async def set_account_allowance(
     organization_id: int, request: AllowanceRequest
 ) -> dict:
     return await operator.set_account_allowance(organization_id, request.free_seconds)
+
+
+class PlanRequest(BaseModel):
+    name: str = Field(min_length=1, max_length=60)
+    included_seconds: int = Field(ge=0)
+    period_start: AwareDatetime
+    period_end: AwareDatetime
+
+    @model_validator(mode="after")
+    def _period_has_length(self) -> "PlanRequest":
+        if self.period_end <= self.period_start:
+            raise ValueError("period_end must be after period_start")
+        return self
+
+
+@router.put(
+    "/operator/accounts/{organization_id}/plan",
+    dependencies=[Depends(_require_operator)],
+)
+async def set_account_plan(organization_id: int, request: PlanRequest) -> dict:
+    """Billing calls this for the first payment and for each renewal."""
+    return await operator.set_account_plan(
+        organization_id,
+        request.name,
+        request.included_seconds,
+        request.period_start,
+        request.period_end,
+    )
+
+
+@router.delete(
+    "/operator/accounts/{organization_id}/plan",
+    dependencies=[Depends(_require_operator)],
+)
+async def clear_account_plan(organization_id: int) -> dict:
+    return await operator.clear_account_plan(organization_id)
 
 
 @router.post(

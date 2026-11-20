@@ -21,7 +21,7 @@ import re
 import sys
 import time
 import urllib.parse
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import httpx
@@ -329,11 +329,11 @@ async def run(args, report: Report) -> None:
                 and maria_status["phone_number"] is None
                 and maria_status["caller_id"] is None
                 and maria_status["can_call"] is False
-                and maria_status["free_minutes_used"] == 0,
+                and maria_status["minutes_used"] == 0,
                 f"accounts {clinic['organization_id']} and {maria['organization_id']}; "
                 f"subaccounts ...{clinic_subs[0]['sid'][-6:] if clinic_subs else '?'} and "
                 f"...{maria_subs[0]['sid'][-6:] if maria_subs else '?'}; "
-                f"{maria_status['free_minutes_total']} free minutes each",
+                f"{maria_status['minutes_total']} free minutes each",
             )
             maria["subaccount_sid"] = maria_subs[0]["sid"]
             clinic["subaccount_sid"] = clinic_subs[0]["sid"]
@@ -828,19 +828,134 @@ async def run(args, report: Report) -> None:
             restored = await http.put(
                 allowance_url(maria), headers=operator, json={"free_seconds": None}
             )
+            restored_status = await maria_ai.call("get_account_status")
             report.check(
                 "A user at the free allowance cannot start another call",
-                before["free_minutes_used"] >= 1.0
+                before["minutes_used"] >= 1.0
                 and blocked_status["can_call"] is False
-                and blocked_status["free_minutes_remaining"] == 0
+                and blocked_status["minutes_remaining"] == 0
+                and blocked_status["plan"] is None
                 and bool(blocked)
-                and "allowance" in blocked.lower(),
-                f"used {before['free_minutes_used']} min of 1; refusal: {blocked!r}",
+                and "monthly plan" in blocked.lower(),
+                f"used {before['minutes_used']} min of 1; refusal: {blocked!r}",
+            )
+            # --- Monthly plans -------------------------------------------------
+            # Maria has used her free minutes (allowance of one minute, more
+            # than one minute of calls in this run). Ways a plan can go wrong:
+            # 1. a plan does not unblock an account whose free minutes are used
+            # 2. calls from before the period count against the period
+            # 3. a plan with all its minutes used still allows calls
+            # 4. a renewal does not start the count again
+            # 5. a plan whose period is over still allows calls
+            # 6. an account gets its free minutes again when the plan ends
+            # 7. a user gives a plan to their own account
+            # 8. a period that ends before it starts is accepted
+            (await http.put(
+                allowance_url(maria), headers=operator, json={"free_seconds": 60}
+            )).raise_for_status()
+
+            def plan_url(account: dict) -> str:
+                return f"/api/v1/platform/operator/accounts/{account['organization_id']}/plan"
+
+            async def set_plan(seconds: int, start: datetime, end: datetime):
+                return await http.put(
+                    plan_url(maria), headers=operator,
+                    json={
+                        "name": "Starter", "included_seconds": seconds,
+                        "period_start": start.isoformat(), "period_end": end.isoformat(),
+                    },
+                )  # fmt: skip
+
+            now = datetime.now(UTC)
+            by_tenant = await http.put(
+                plan_url(maria), headers=maria["auth"],
+                json={
+                    "name": "Starter", "included_seconds": 6000,
+                    "period_start": now.isoformat(),
+                    "period_end": (now + timedelta(days=30)).isoformat(),
+                },
+            )  # fmt: skip
+            backwards = await set_plan(6000, now, now - timedelta(days=1))
+            still_blocked = await maria_ai.call("get_account_status")
+            report.check(
+                "A user cannot give a plan to their own account, and a period "
+                "that ends before it starts is refused",
+                by_tenant.status_code == 404
+                and backwards.status_code == 422
+                and still_blocked["can_call"] is False
+                and still_blocked["plan"] is None,
+                f"tenant {by_tenant.status_code}, backwards {backwards.status_code}",
+            )
+
+            # The period starts now: the calls from before it must not count.
+            (await set_plan(6000, now, now + timedelta(days=30))).raise_for_status()
+            on_plan = await maria_ai.call("get_account_status")
+            report.check(
+                "A monthly plan unblocks a user whose free minutes are used, "
+                "and earlier calls do not count against the plan",
+                on_plan["can_call"] is True
+                and on_plan["plan"] == "Starter"
+                and on_plan["minutes_total"] == 100
+                and on_plan["minutes_used"] == 0
+                and on_plan["plan_period_end"] is not None,
+                f"status {({k: on_plan[k] for k in ('plan', 'minutes_total', 'minutes_used', 'can_call')})}",
+            )
+
+            # The period covers this run's calls and holds one minute.
+            (await set_plan(
+                60, now - timedelta(hours=2), now + timedelta(days=30)
+            )).raise_for_status()
+            plan_used = await maria_ai.call("get_account_status")
+            plan_refusal = await maria_ai.refusal(
+                "place_call", phone_number=clinic["phone_number"], task=task
+            )
+            # Renewal: the same plan, a new period that starts now.
+            (await set_plan(60, datetime.now(UTC), now + timedelta(days=60))).raise_for_status()
+            renewed = await maria_ai.call("get_account_status")
+            report.check(
+                "A plan with its minutes used blocks calls until the renewal "
+                "starts the count again",
+                plan_used["can_call"] is False
+                and plan_used["minutes_remaining"] == 0
+                and bool(plan_refusal)
+                and "starter" in plan_refusal.lower()
+                and "renew" in plan_refusal.lower()
+                and renewed["can_call"] is True
+                and renewed["minutes_used"] == 0,
+                f"refusal: {plan_refusal!r}; after renewal used {renewed['minutes_used']}",
+            )
+
+            # The period is over and nobody renewed. The free minutes are
+            # already used, so the account must be blocked, not free again.
+            (await set_plan(
+                6000, now - timedelta(days=30), now - timedelta(minutes=1)
+            )).raise_for_status()
+            lapsed = await maria_ai.call("get_account_status")
+            lapsed_refusal = await maria_ai.refusal(
+                "place_call", phone_number=clinic["phone_number"], task=task
             )
             report.check(
+                "When a plan period is over without a renewal the user cannot "
+                "call and does not get the free minutes again",
+                lapsed["can_call"] is False
+                and lapsed["plan"] is None
+                and bool(lapsed_refusal)
+                and "monthly plan" in lapsed_refusal.lower(),
+                f"refusal: {lapsed_refusal!r}",
+            )
+            report.evidence["plans"] = {
+                "on_plan": on_plan, "plan_used": plan_used, "plan_refusal": plan_refusal,
+                "renewed": renewed, "lapsed": lapsed, "lapsed_refusal": lapsed_refusal,
+            }  # fmt: skip
+
+            # Maria keeps an active plan and no free minutes for the real call
+            # below: the call-start path must accept the plan too.
+            (await set_plan(
+                6000, datetime.now(UTC), datetime.now(UTC) + timedelta(days=30)
+            )).raise_for_status()
+            report.check(
                 "The operator restores the allowance and the user can call again",
-                restored.status_code == 200
-                and (await maria_ai.call("get_account_status"))["can_call"] is True,
+                restored.status_code == 200 and restored_status["can_call"] is True,
             )
 
             # An account at its limit must not cost the operator inbound
@@ -863,6 +978,18 @@ async def run(args, report: Report) -> None:
                 on_behalf_of="Maria Lopez",
             )
             callback = await wait_for_call(maria_ai, to_blocked["call_id"], 120)
+            ended_plan = await http.delete(plan_url(maria), headers=operator)
+            report.check(
+                "A user on a plan, with the free minutes used, places a real "
+                "call; the operator can end the plan",
+                bool(to_blocked.get("call_id"))
+                and ended_plan.status_code == 200
+                and (await maria_ai.call("get_account_status"))["plan"] is None,
+                f"call {to_blocked.get('call_id')}, end plan {ended_plan.status_code}",
+            )
+            (await http.put(
+                allowance_url(maria), headers=operator, json={"free_seconds": None}
+            )).raise_for_status()
             clinic_after = await clinic_ai.call("get_account_status")
             clinic_calls_after = await clinic_ai.call("list_calls", limit=50)
             answered = {
@@ -874,10 +1001,10 @@ async def run(args, report: Report) -> None:
             }  # fmt: skip
             report.check(
                 "A call to a user at the free allowance is not answered and uses no call time",
-                clinic_before["free_minutes_used"] >= 1.0
+                clinic_before["minutes_used"] >= 1.0
                 and answered == answered_before
-                and clinic_after["free_minutes_used"]
-                == clinic_before["free_minutes_used"]
+                and clinic_after["minutes_used"]
+                == clinic_before["minutes_used"]
                 and callback.get("duration_seconds", 0) == 0,
                 f"caller saw: {callback.get('status')}, {callback.get('duration_seconds')} s",
             )

@@ -54,7 +54,8 @@ The first build takes about 10 minutes.
 | --- | --- | --- |
 | `ENABLE_SIGNUP` | `false` | `true` opens registration to the public. |
 | `ENABLE_CALL_RECORDING_UPLOAD` | `false` | `true` stores the audio of each call. The agent gives no recording notice, so check the consent law first. |
-| `PLATFORM_FREE_SECONDS` | `600` | Free call time for each account. |
+| `PLATFORM_FREE_SECONDS` | `600` | Free call time for each new account. It does not renew. After it, the account needs a monthly plan. |
+| `PLATFORM_BILLING_URL` | empty | Page where a user chooses a monthly plan. The agent gets this address when the minutes are used. |
 | `PLATFORM_MAX_CALL_SECONDS` | `600` | Longest single call. |
 | `PLATFORM_DAILY_CALL_LIMIT` | `20` | Calls for each account in 24 hours. |
 | `PLATFORM_ALLOWED_PREFIXES` | `+1` | Number prefixes that users can call. |

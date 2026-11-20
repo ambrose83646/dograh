@@ -46,8 +46,10 @@ the first choice is not possible.
 Rules:
 - Call only numbers the user asked you to call. Never place sales, survey, or
   bulk calls.
-- Each account has a free allowance of call minutes. get_account_status shows
-  what is left. When it is used, calls are refused.
+- Each account starts with free call minutes. They do not renew. After them
+  the user needs a monthly plan, which gives minutes for each period.
+  get_account_status shows the plan and what is left. When the minutes are
+  used, calls are refused and the refusal says what the user must do.
 - The voice agent tells people it is an AI assistant if they ask.
 """
 
