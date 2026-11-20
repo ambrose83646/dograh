@@ -21,6 +21,8 @@ from api.services.platform.settings import get_platform_settings
 ALLOWANCE_EXHAUSTED_CODE = "free_allowance_used"
 PLAN_EXHAUSTED_CODE = "plan_allowance_used"
 DAILY_LIMIT_CODE = "daily_call_limit_reached"
+# The assistant gets a warning below one fifth of the minutes.
+LOW_MINUTES_DIVISOR = 5
 
 
 @dataclass(frozen=True)
@@ -56,10 +58,14 @@ class AllowanceStatus:
                 f"account can make or answer more calls."
             )
         if code == PLAN_EXHAUSTED_CODE:
+            billing_url = get_platform_settings().billing_url
+            where = f" at {billing_url}" if billing_url else ""
             return (
                 f"The {self.allowed_seconds // 60} call minutes of the "
                 f"{self.plan_name} plan are used for this period. The minutes "
-                f"renew on {self.period_end:%B %-d, %Y}. Until then this "
+                f"renew on {self.period_end:%B %-d, %Y}. To call before that "
+                f"date, the user can change to a larger plan{where}; the "
+                f"larger plan gives its minutes immediately. Until then this "
                 f"account cannot make or answer calls."
             )
         if code == DAILY_LIMIT_CODE:
@@ -68,6 +74,29 @@ class AllowanceStatus:
                 f"calls in 24 hours. Try again later."
             )
         return None
+
+    @property
+    def low_minutes_note(self) -> str | None:
+        """Words for the assistant when under 20% of the minutes remain."""
+        if self.remaining_seconds <= 0:
+            return None
+        if self.remaining_seconds * LOW_MINUTES_DIVISOR >= self.allowed_seconds:
+            return None
+        billing_url = get_platform_settings().billing_url
+        where = f" at {billing_url}" if billing_url else ""
+        left = f"{self.remaining_seconds / 60:.1f} of {self.allowed_seconds // 60}"
+        if self.plan_name:
+            return (
+                f"Less than 20% of the call minutes of this period remain: "
+                f"{left}. Tell the user. A call ends when the minutes are "
+                f"used. The minutes renew on {self.period_end:%B %-d, %Y}; a "
+                f"larger plan{where} gives its minutes immediately."
+            )
+        return (
+            f"Less than 20% of the free call minutes remain: {left}. Tell the "
+            f"user. A call ends when the minutes are used. They do not renew; "
+            f"after them the user must choose a monthly plan{where}."
+        )
 
 
 def active_plan(account: dict[str, Any]) -> dict[str, Any] | None:

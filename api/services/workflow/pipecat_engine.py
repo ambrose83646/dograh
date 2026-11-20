@@ -20,6 +20,7 @@ from pipecat.frames.frames import (
     CancelFrame,
     EndFrame,
     FunctionCallResultProperties,
+    OutputDTMFFrame,
     SpeechBoundaryFrame,
 )
 from pipecat.pipeline.worker import PipelineWorker
@@ -66,6 +67,10 @@ import time
 from loguru import logger
 
 from api.services.managed_model_services import MPS_CORRELATION_ID_CONTEXT_KEY
+from api.services.telephony.providers.twilio.native_keys import (
+    KeyPressFailed,
+    presser_for_run,
+)
 from api.services.workflow import pipecat_engine_callbacks as engine_callbacks
 from api.services.workflow.answer_handling import ANSWER_TERMINAL_REASONS, handle_answer
 from api.services.workflow.conversation_history import (
@@ -102,6 +107,14 @@ from api.services.workflow.prompt_variables import (
     prompt_templates,
     resolve_call_variables,
     update_call_context,
+)
+from api.services.workflow.tools.keypad import (
+    KEYPAD_CONTEXT_KEY,
+    KEYPAD_FUNCTION_NAME,
+    LISTEN_FUNCTION_NAME,
+    MAX_KEYS_PER_CALL,
+    KeypadError,
+    normalize_keys,
 )
 from api.services.workflow.tools.knowledge_base import (
     retrieve_from_knowledge_base,
@@ -156,8 +169,11 @@ class PipecatEngine:
         call_dispositions: Sequence[CallDispositionOption] | None = None,
         defer_final_extraction: bool = False,
         prompt_variables: PromptVariablesConfiguration | None = None,
+        keypad_enabled: bool = False,
     ):
         self._call_worker = task
+        self._keypad_enabled = keypad_enabled
+        self._keys_pressed_count = 0
         self._is_realtime = is_realtime
         # LLM used for out-of-band inference (variable extraction, context
         # summarization). Falls back to the pipeline LLM when not provided.
@@ -574,6 +590,79 @@ class PipecatEngine:
             name,
             transition_func,
             is_node_transition=True,
+        )
+
+    def _register_keypad_function(self, agent: AgentRuntime) -> None:
+        """Let the agent press phone keys to get through an automated menu."""
+
+        async def press_keys_func(function_call_params: FunctionCallParams) -> None:
+            raw = function_call_params.arguments.get("keys")
+            # The model listens to the menu after the press; a spoken answer
+            # to the tool result would talk over the menu's next prompt.
+            listen = FunctionCallResultProperties(run_llm=False)
+            try:
+                keys = normalize_keys(raw)
+                if self._keys_pressed_count + len(keys) > MAX_KEYS_PER_CALL:
+                    raise KeypadError(
+                        "The key press limit of this call is reached. Nothing "
+                        "was pressed. If the menu cannot be passed, end the call."
+                    )
+                if self.call_worker is None:
+                    raise KeypadError("The call is not connected. Nothing was pressed.")
+            except KeypadError as e:
+                logger.info(f"press_keys refused ({raw!r}): {e}")
+                await function_call_params.result_callback(
+                    {"status": "error", "error": str(e)}
+                )
+                return
+            self._keys_pressed_count += len(keys)
+            logger.info(f"LLM Function Call EXECUTED: press_keys {keys}")
+            # Twilio menus and carrier menus take presses as signalling, not
+            # as tones in the audio, so the carrier sends them where it can.
+            native_press = presser_for_run(self._workflow_run_id)
+            if native_press is not None:
+                try:
+                    await native_press(keys)
+                except KeyPressFailed as e:
+                    logger.warning(f"press_keys {keys} failed: {e}")
+                    await function_call_params.result_callback(
+                        {
+                            "status": "error",
+                            "error": "The keys could not be pressed. Try one "
+                            "more time; if it fails again, end the call.",
+                        }
+                    )
+                    return
+            else:
+                await self.call_worker.queue_frame(OutputDTMFFrame.from_string(keys))
+            self._gathered_context.setdefault(KEYPAD_CONTEXT_KEY, []).append(keys)
+            await function_call_params.result_callback(
+                {
+                    "status": "pressed",
+                    "keys": keys,
+                    "next": (
+                        "This request is answered. Do not press again unless "
+                        "the menu asks for keys again. Listen: if the "
+                        "recording confirms or says to wait, use "
+                        f"{LISTEN_FUNCTION_NAME}; if a person speaks, talk."
+                    ),
+                },
+                properties=listen,
+            )
+
+        async def keep_listening_func(
+            function_call_params: FunctionCallParams,
+        ) -> None:
+            await function_call_params.result_callback(
+                {"status": "listening"},
+                properties=FunctionCallResultProperties(run_llm=False),
+            )
+
+        agent.llm.register_function(
+            KEYPAD_FUNCTION_NAME, agent.bind_tool(self, press_keys_func)
+        )
+        agent.llm.register_function(
+            LISTEN_FUNCTION_NAME, agent.bind_tool(self, keep_listening_func)
         )
 
     async def _register_knowledge_base_function(
@@ -1004,6 +1093,8 @@ class PipecatEngine:
             await self._register_knowledge_base_function(
                 node.document_uuids, agent=agent
             )
+        if self._keypad_enabled and not node.is_end:
+            self._register_keypad_function(agent)
         prompt = compose_system_prompt_for_node(
             node=node,
             workflow=agent.workflow,
@@ -1012,7 +1103,9 @@ class PipecatEngine:
             prompt_variables=agent.prompt_variables,
         )
         functions = await compose_functions_for_node(
-            node=node, custom_tool_manager=manager
+            node=node,
+            custom_tool_manager=manager,
+            keypad_enabled=self._keypad_enabled,
         )
         agent.tools = ToolsSchema(standard_tools=functions)
         agent.system_prompt = prompt.text
@@ -1070,7 +1163,9 @@ class PipecatEngine:
                     prompt_variables=agent.prompt_variables,
                 )
                 functions = await compose_functions_for_node(
-                    node=target, custom_tool_manager=manager
+                    node=target,
+                    custom_tool_manager=manager,
+                    keypad_enabled=self._keypad_enabled,
                 )
                 agent.llm.prewarm_prompt_cache(
                     node_id=target.id,

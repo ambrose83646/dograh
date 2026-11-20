@@ -14,6 +14,7 @@ phone that plays Maria's own phone. See README.md.
 
 import argparse
 import asyncio
+import base64
 import json
 import os
 import random
@@ -22,6 +23,7 @@ import sys
 import time
 import urllib.parse
 from datetime import UTC, datetime, timedelta
+from email.utils import parsedate_to_datetime
 from pathlib import Path
 
 import httpx
@@ -55,6 +57,13 @@ def spoken_digits(text: str) -> str:
     """
     words = re.findall(r"[a-z]+|\d", text.lower())
     return "".join(_DIGIT_WORDS.get(w, w if w.isdigit() else "") for w in words)
+
+
+def jwt_expiry(token: str) -> datetime:
+    """The end time inside a JWT, read without the signing secret."""
+    body = token.split(".")[1]
+    claims = json.loads(base64.urlsafe_b64decode(body + "=" * (-len(body) % 4)))
+    return datetime.fromtimestamp(claims["exp"], UTC)
 
 
 def transcript_turns(transcript: str) -> list[tuple[str, str]]:
@@ -215,6 +224,64 @@ class TestPhone:
             + urllib.parse.quote(f"<Response>{twiml_body}</Response>")
         )
 
+    async def answer_with_menu(
+        self, steps: list[tuple[str, str, list[str]]], after: str
+    ) -> None:
+        """Answer the next call with a phone menu that takes keys only.
+
+        Each step is ``(words, right_keys, wrong_keys)``. The menu says the
+        words and waits for keys. Only the right keys go to the next step; a
+        listed wrong key ends the call, other keys and silence repeat the step.
+        So the call gets to ``after`` only if Twilio heard every right key.
+        """
+
+        def echo(body: str) -> str:
+            return "https://twimlets.com/echo?Twiml=" + urllib.parse.quote(
+                f"<Response>{body}</Response>", safe=""
+            )
+
+        closed = echo("<Say>That line is closed. Goodbye.</Say><Hangup/>")
+        url = echo(after)
+        for words, right, wrong in reversed(steps):
+            options = {right: url, **{key: closed for key in wrong}}
+            url = "https://twimlets.com/menu?" + urllib.parse.urlencode(
+                {"Message": words, **{f"Options[{k}]": v for k, v in options.items()}}
+            )
+        await self._set_voice_url(url)
+
+    async def keys_heard(self, since: float) -> list[str]:
+        """Key entries that Twilio heard on the newest call to this phone.
+
+        This is the menu's side of the call, independent of what the service
+        says it pressed. Twilio redacts the digits, so only the count is known.
+        """
+        found = await self.twilio.get(
+            f"/Accounts/{self.account_sid}/Calls.json",
+            params={"To": self.number, "PageSize": 5},
+        )
+        found.raise_for_status()
+        calls = [
+            c
+            for c in found.json()["calls"]
+            if c["direction"] == "inbound"
+            and parsedate_to_datetime(c["date_created"]).timestamp() >= since - 5
+        ]
+        if not calls:
+            return []
+        events = await self.twilio.get(
+            f"/Accounts/{self.account_sid}/Calls/{calls[0]['sid']}/Events.json",
+            params={"PageSize": 50},
+        )
+        events.raise_for_status()
+        heard = []
+        for event in reversed(events.json().get("events", [])):
+            digits = ((event.get("request") or {}).get("parameters") or {}).get(
+                "digits"
+            )
+            if digits:
+                heard.append(digits)
+        return heard
+
     async def hang_up(self) -> None:
         await self._set_voice_url("")
 
@@ -236,7 +303,11 @@ class TestPhone:
         deadline = time.monotonic() + wait
         while True:
             fresh = {s: b for s, b in (await self.texts()).items() if s not in seen}
-            codes = [m.group(1) for b in fresh.values() if (m := re.search(r"\b(\d{6})\b", b))]
+            codes = [
+                m.group(1)
+                for b in fresh.values()
+                if (m := re.search(r"\b(\d{6})\b", b))
+            ]
             if codes or time.monotonic() > deadline:
                 return codes
             await asyncio.sleep(3)
@@ -426,6 +497,45 @@ async def run(args, report: Report) -> None:
                 and len({code, guess_code, again_code}) == 3,
                 f"guesses {guesses}, right code after them {after_guesses.status_code}, "
                 f"same account {same_account}",
+            )
+            # --- Sign-out ------------------------------------------------------
+            # Ways this can fail, written before the feature:
+            # - The sign-in answer does not say when the token ends, or says a
+            #   time that is not the token's real end.
+            # - Sign-out answers 204 but the token still works.
+            # - Sign-out of one session ends the user's other session too.
+            # - A request with no token gets 204.
+            account_url = "/api/v1/platform/account"
+            logout_url = "/api/v1/platform/auth/logout"
+            second = signed_in.json() if signed_in.status_code == 200 else {}
+            second_auth = {"Authorization": f"Bearer {second.get('token')}"}
+            try:
+                lifetime_days = (
+                    datetime.fromisoformat(second["expires_at"]) - datetime.now(UTC)
+                ).total_seconds() / 86400
+                token_end = jwt_expiry(second["token"])
+                same_end = datetime.fromisoformat(second["expires_at"]) == token_end
+            except Exception:
+                lifetime_days, same_end = 0.0, False
+            before_out = await http.get(account_url, headers=second_auth)
+            no_token = await http.post(logout_url)
+            signed_out = await http.post(logout_url, headers=second_auth)
+            after_out = await http.get(account_url, headers=second_auth)
+            other_session = await http.get(account_url, headers=maria["auth"])
+            report.check(
+                "The sign-in answer gives the real end of the token; sign-out "
+                "stops that token at once and leaves the user's other session",
+                same_end
+                and lifetime_days > 1
+                and before_out.status_code == 200
+                and no_token.status_code == 401
+                and signed_out.status_code == 204
+                and after_out.status_code == 401
+                and other_session.status_code == 200,
+                f"token lifetime {lifetime_days:.1f} days, same as in the token: {same_end}; "
+                f"before {before_out.status_code}, sign-out {signed_out.status_code}, "
+                f"after {after_out.status_code}, other session {other_session.status_code}, "
+                f"no token {no_token.status_code}",
             )
             clinic_ai = Assistant(mcp_url, clinic["api_key"])
             maria_ai = Assistant(mcp_url, maria["api_key"])
@@ -936,6 +1046,109 @@ async def run(args, report: Report) -> None:
                 or f"hundred {price_words}" in sc_summary.lower().replace(" and ", " "),
                 f"ended by {screened.get('disposition')}; summary: {sc_summary[:200]!r}",
             )
+            # --- A phone menu that takes keys only answers ----------------------
+            # Ways this can fail, written before the feature:
+            # - The agent talks to the menu and never presses a key.
+            # - The far end does not hear the tones, or hears a different key.
+            # - A number with the same digit twice loses or doubles a digit.
+            # - The agent presses the first option it hears, not the one the
+            #   task needs. The right option is random and never the first.
+            # - The keys go into the audio as tones, which a menu does not take
+            #   as presses (this happened: Twilio heard nothing).
+            # - The audio does not come back after a press.
+            # - The agent presses keys but does not listen afterwards, so the
+            #   answer of the person behind the menu is not in the result.
+            # - The record of the call does not show which keys were pressed.
+            departments = ["the pharmacy", "billing", "appointments", "medical records"]
+            random.shuffle(departments)
+            if departments[0] == "appointments":
+                departments[0], departments[2] = departments[2], departments[0]
+            option = str(departments.index("appointments") + 1)
+            double = str(random.randint(1, 9))
+            member = f"{random.randint(1, 9)}{double}{double}{random.randint(10, 99)}"
+            slot_day, slot_hour = random.choice(
+                [("Tuesday", "ten"), ("Wednesday", "eleven"), ("Friday", "two")]
+            )
+            wrong_options = [
+                str(i) for i in range(1, len(departments) + 1) if str(i) != option
+            ]
+            await phone.answer_with_menu(
+                [
+                    (
+                        "Thank you for calling Lakeside Medical Group. Please listen "
+                        "to all options. "
+                        + " ".join(
+                            f"For {d}, press {i}."
+                            for i, d in enumerate(departments, start=1)
+                        ),
+                        option,
+                        wrong_options,
+                    ),
+                    (
+                        "Please enter the patient's five digit member number.",
+                        member,
+                        [],
+                    ),
+                ],
+                after=(
+                    '<Say>Thank you. One moment please.</Say><Pause length="3"/>'
+                    '<Say voice="man">Appointments desk, this is Robin. How can I '
+                    'help you?</Say><Pause length="12"/>'
+                    f'<Say voice="man">Okay. The next opening for a check-up is '
+                    f"{slot_day} at {slot_hour} o'clock. I have put the patient "
+                    'down for that time. Goodbye.</Say><Pause length="15"/>'
+                ),
+            )
+            menu_started = time.time()
+            menu_call = await clinic_ai.call(
+                "place_call",
+                phone_number=phone.number,
+                task=(
+                    "Call Lakeside Medical Group and ask the appointments desk for "
+                    "the next opening for a check-up for the patient Sam Carter. "
+                    "Bring back the day and the time."
+                ),
+                background=f"Sam Carter's member number is {member}.",
+                on_behalf_of="Sam Carter",
+                call_reason="to book a check-up",
+            )
+            menu = await wait_for_call(clinic_ai, menu_call["call_id"], 200)
+            for _ in range(4):
+                if (menu.get("result") or {}).get("outcome_summary"):
+                    break
+                await asyncio.sleep(10)
+                menu = await clinic_ai.call(
+                    "get_call_result", call_id=menu_call["call_id"]
+                )
+            report.evidence["menu_call"] = menu
+            heard = await phone.keys_heard(menu_started)
+            report.evidence["menu_keys_heard_by_twilio"] = heard
+            menu_summary = str((menu.get("result") or {}).get("outcome_summary") or "")
+            menu_heard = " ".join(
+                t
+                for r, t in transcript_turns(menu.get("transcript", ""))
+                if r == "user"
+            ).lower()
+            pressed = [str(k).rstrip("#") for k in menu.get("keys_pressed") or []]
+            report.check(
+                "The agent gets through a two-step phone menu that takes keys only: the menu lets the call through only on the right option and the full member number",
+                "robin" in menu_heard and len(heard) >= 2,
+                f"menu wanted {[option, member]}; reached the desk: {'robin' in menu_heard}; "
+                f"key entries Twilio heard: {len(heard)}; service reports {menu.get('keys_pressed')}",
+            )
+            report.check(
+                "Behind the menu the agent brings back the answer of the desk, and the call record lists the keys it pressed",
+                slot_day.lower() in menu_summary.lower()
+                and menu.get("answered_by") == "phone_menu"
+                and pressed == [option, member],
+                f"answered_by {menu.get('answered_by')}, keys {menu.get('keys_pressed')}, "
+                f"{menu.get('duration_seconds')} s; summary: {menu_summary[:200]!r}",
+            )
+            report.check(
+                "The agent presses no keys on calls that a person, a voicemail box, or a call screener answers",
+                not any(c.get("keys_pressed") for c in (outbound, voicemail, screened)),
+                f"keys: {[c.get('keys_pressed') for c in (outbound, voicemail, screened)]}",
+            )
             await phone.hang_up()
             report.check(
                 "A call that a person answered reports that a person answered",
@@ -985,9 +1198,11 @@ async def run(args, report: Report) -> None:
             # 6. an account gets its free minutes again when the plan ends
             # 7. a user gives a plan to their own account
             # 8. a period that ends before it starts is accepted
-            (await http.put(
-                allowance_url(maria), headers=operator, json={"free_seconds": 60}
-            )).raise_for_status()
+            (
+                await http.put(
+                    allowance_url(maria), headers=operator, json={"free_seconds": 60}
+                )
+            ).raise_for_status()
 
             def plan_url(account: dict) -> str:
                 return f"/api/v1/platform/operator/accounts/{account['organization_id']}/plan"
@@ -1033,19 +1248,21 @@ async def run(args, report: Report) -> None:
                 and on_plan["minutes_total"] == 100
                 and on_plan["minutes_used"] == 0
                 and on_plan["plan_period_end"] is not None,
-                f"status {({k: on_plan[k] for k in ('plan', 'minutes_total', 'minutes_used', 'can_call')})}",
+                f"status { ({k: on_plan[k] for k in ('plan', 'minutes_total', 'minutes_used', 'can_call')}) }",
             )
 
             # The period covers this run's calls and holds one minute.
-            (await set_plan(
-                60, now - timedelta(hours=2), now + timedelta(days=30)
-            )).raise_for_status()
+            (
+                await set_plan(60, now - timedelta(hours=2), now + timedelta(days=30))
+            ).raise_for_status()
             plan_used = await maria_ai.call("get_account_status")
             plan_refusal = await maria_ai.refusal(
                 "place_call", phone_number=clinic["phone_number"], task=task
             )
             # Renewal: the same plan, a new period that starts now.
-            (await set_plan(60, datetime.now(UTC), now + timedelta(days=60))).raise_for_status()
+            (
+                await set_plan(60, datetime.now(UTC), now + timedelta(days=60))
+            ).raise_for_status()
             renewed = await maria_ai.call("get_account_status")
             report.check(
                 "A plan with its minutes used blocks calls until the renewal "
@@ -1055,6 +1272,8 @@ async def run(args, report: Report) -> None:
                 and bool(plan_refusal)
                 and "starter" in plan_refusal.lower()
                 and "renew" in plan_refusal.lower()
+                and "larger plan at https://" in plan_refusal
+                and "immediately" in plan_refusal
                 and renewed["can_call"] is True
                 and renewed["minutes_used"] == 0,
                 f"refusal: {plan_refusal!r}; after renewal used {renewed['minutes_used']}",
@@ -1062,9 +1281,11 @@ async def run(args, report: Report) -> None:
 
             # The period is over and nobody renewed. The free minutes are
             # already used, so the account must be blocked, not free again.
-            (await set_plan(
-                6000, now - timedelta(days=30), now - timedelta(minutes=1)
-            )).raise_for_status()
+            (
+                await set_plan(
+                    6000, now - timedelta(days=30), now - timedelta(minutes=1)
+                )
+            ).raise_for_status()
             lapsed = await maria_ai.call("get_account_status")
             lapsed_refusal = await maria_ai.refusal(
                 "place_call", phone_number=clinic["phone_number"], task=task
@@ -1083,11 +1304,93 @@ async def run(args, report: Report) -> None:
                 "renewed": renewed, "lapsed": lapsed, "lapsed_refusal": lapsed_refusal,
             }  # fmt: skip
 
+            # --- Few minutes left ----------------------------------------------
+            # Ways this can fail, written before the feature:
+            # - The assistant gets no warning before the minutes are used.
+            # - The warning shows when many minutes are left.
+            # - A call that starts with half a minute left runs to the normal
+            #   limit of the service, and the operator pays for it.
+            # - The call is cut much earlier than the minutes that are left.
+            # - After that call the account can still call.
+            # The clinic gets a plan that covers this run's calls and has
+            # about 35 seconds more than those calls used.
+            def clinic_plan(seconds: int):
+                return http.put(
+                    plan_url(clinic), headers=operator,
+                    json={
+                        "name": "Starter", "included_seconds": seconds,
+                        "period_start": (now - timedelta(hours=2)).isoformat(),
+                        "period_end": (now + timedelta(days=30)).isoformat(),
+                    },
+                )  # fmt: skip
+
+            (await clinic_plan(60000)).raise_for_status()
+            roomy = await clinic_ai.call("get_account_status")
+            used_seconds = round(roomy["minutes_used"] * 60)
+            left_seconds = 35
+            (await clinic_plan(used_seconds + left_seconds)).raise_for_status()
+            low = await clinic_ai.call("get_account_status")
+            await phone.answer_with_script(
+                "<Say>Thank you for calling Bright Bikes. All of our staff are with "
+                "other customers. Please stay on the line.</Say>"
+                + '<Pause length="6"/><Say>Your call is important to us. Someone '
+                "will be with you in less than two minutes. Please stay on the "
+                "line.</Say>" * 12
+            )
+            short_call = await clinic_ai.call(
+                "place_call",
+                phone_number=phone.number,
+                task=(
+                    "Call Bright Bikes and ask if the shop is open on Saturday. "
+                    "If you are put on hold, wait on the line for up to three "
+                    "minutes until a person answers."
+                ),
+                on_behalf_of="Sam Carter",
+                call_reason="to ask about opening hours",
+            )
+            cut = await wait_for_call(clinic_ai, short_call["call_id"], 200)
+            await phone.hang_up()
+            after_cut = await clinic_ai.call("get_account_status")
+            cut_refusal = await clinic_ai.refusal(
+                "place_call", phone_number=phone.number, task="Ask the opening hours."
+            )
+            (await http.delete(plan_url(clinic), headers=operator)).raise_for_status()
+            report.check(
+                "The assistant is warned when less than 20% of the minutes "
+                "remain, and not when many remain",
+                roomy["minutes_note"] is None
+                and "20%" in (low["minutes_note"] or "")
+                and "https://" in (low["minutes_note"] or "")
+                and "20%" in (short_call.get("minutes_note") or "")
+                and 0 < short_call.get("max_minutes_this_call", 0) <= 0.7,
+                f"note: {low['minutes_note']!r}; place_call said minutes_remaining "
+                f"{short_call.get('minutes_remaining')}, max_minutes_this_call "
+                f"{short_call.get('max_minutes_this_call')}",
+            )
+            cut_seconds = cut.get("duration_seconds") or 0
+            report.check(
+                "A call that starts with about half a minute left ends when the "
+                "minutes are used, and the next call is refused",
+                left_seconds - 15 <= cut_seconds <= left_seconds + 15
+                and after_cut["can_call"] is False
+                and bool(cut_refusal)
+                and "larger plan" in cut_refusal,
+                f"{left_seconds} s were left (to the nearest 3 s); the call ran "
+                f"{cut_seconds} s; the hold script is 100 s long; after it "
+                f"minutes_remaining {after_cut['minutes_remaining']}; refusal: {cut_refusal!r}",
+            )
+            report.evidence["few_minutes"] = {
+                "low": low, "short_call": short_call, "cut": cut,
+                "after_cut": after_cut, "refusal": cut_refusal,
+            }  # fmt: skip
+
             # Maria keeps an active plan and no free minutes for the real call
             # below: the call-start path must accept the plan too.
-            (await set_plan(
-                6000, datetime.now(UTC), datetime.now(UTC) + timedelta(days=30)
-            )).raise_for_status()
+            (
+                await set_plan(
+                    6000, datetime.now(UTC), datetime.now(UTC) + timedelta(days=30)
+                )
+            ).raise_for_status()
             report.check(
                 "The operator restores the allowance and the user can call again",
                 restored.status_code == 200 and restored_status["can_call"] is True,
@@ -1122,9 +1425,11 @@ async def run(args, report: Report) -> None:
                 and (await maria_ai.call("get_account_status"))["plan"] is None,
                 f"call {to_blocked.get('call_id')}, end plan {ended_plan.status_code}",
             )
-            (await http.put(
-                allowance_url(maria), headers=operator, json={"free_seconds": None}
-            )).raise_for_status()
+            (
+                await http.put(
+                    allowance_url(maria), headers=operator, json={"free_seconds": None}
+                )
+            ).raise_for_status()
             clinic_after = await clinic_ai.call("get_account_status")
             clinic_calls_after = await clinic_ai.call("list_calls", limit=50)
             answered = {
@@ -1138,8 +1443,7 @@ async def run(args, report: Report) -> None:
                 "A call to a user at the free allowance is not answered and uses no call time",
                 clinic_before["minutes_used"] >= 1.0
                 and answered == answered_before
-                and clinic_after["minutes_used"]
-                == clinic_before["minutes_used"]
+                and clinic_after["minutes_used"] == clinic_before["minutes_used"]
                 and callback.get("duration_seconds", 0) == 0,
                 f"caller saw: {callback.get('status')}, {callback.get('duration_seconds')} s",
             )
@@ -1203,6 +1507,7 @@ def write_report(report: Report, out_dir: Path) -> None:
         ("Inbound call, as the clinic's assistant read it afterwards", "inbound_call"),
         ("Call answered by a voicemail box", "voicemail_call"),
         ("Call answered by a call screener, then a person", "screened_call"),
+        ("Call answered by a phone menu that takes keys only", "menu_call"),
     ):
         call = report.evidence.get(key) or {}
         lines += ["", f"## {title}", "", f"Call {call.get('call_id')}: {call.get('status')}, "

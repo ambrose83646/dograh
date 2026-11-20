@@ -10,6 +10,7 @@ from api.enums import PostHogEvent
 from api.services.auth.stack_auth import stackauth
 from api.services.mps_billing import ensure_signup_grant
 from api.services.organization_bootstrap import ensure_organization_bootstrapped
+from api.services.platform.settings import get_platform_settings
 from api.services.posthog_client import capture_event, set_person_properties
 from api.services.posthog_tenant import identify_account, tenant_groups
 from api.utils.auth import decode_jwt_token
@@ -307,6 +308,12 @@ async def _handle_oss_auth(authorization: str | None) -> UserModel:
 
     try:
         payload = decode_jwt_token(token)
+        if get_platform_settings().enabled:
+            # Local import: the platform services sit above this module.
+            from api.services.platform import phone_auth
+
+            if await phone_auth.is_revoked(token):
+                raise HTTPException(status_code=401, detail="Signed out")
         user = await db_client.get_user_by_id(int(payload["sub"]))
         if user is None:
             raise HTTPException(status_code=401, detail="User not found")

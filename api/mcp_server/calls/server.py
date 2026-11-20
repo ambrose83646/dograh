@@ -48,8 +48,11 @@ Rules:
   bulk calls.
 - Each account starts with free call minutes. They do not renew. After them
   the user needs a monthly plan, which gives minutes for each period.
-  get_account_status shows the plan and what is left. When the minutes are
-  used, calls are refused and the refusal says what the user must do.
+  get_account_status and each place_call result show the minutes that are
+  left. A call ends when the minutes are used. When `minutes_note` has text,
+  few minutes are left: tell the user what it says. When the minutes are
+  used, calls are refused and the refusal says what the user must do. Give
+  the user that message, with the page address if it has one.
 - The voice agent tells people it is an AI assistant if they ask.
 """
 
@@ -148,7 +151,10 @@ async def place_call(
     The service detects what answers. A person: the agent does the task. A
     voicemail box: it leaves voicemail_message and ends the call. A call
     screener that asks who calls: it gives the name and call_reason, then
-    waits for the person. get_call_result reports this in `answered_by`.
+    waits for the person. An automated phone menu: it presses the keys the
+    menu asks for to reach the right department or person; put numbers the
+    menu can ask for (account number, extension) in the task or background.
+    get_call_result reports this in `answered_by` and `keys_pressed`.
     """
     return await calls.place_call(
         await _organization_id(),
@@ -175,7 +181,8 @@ async def get_call_result(
     check it against `transcript`, which is the record of what was said.
     For an outbound call, `answered_by` is "person", "voicemail",
     "call_screener" (the screener answered and the person did not pick up),
-    or "phone_menu". With "voicemail" the task was not done: tell the user,
+    or "phone_menu"; `keys_pressed` lists the keys the agent pressed in a
+    menu, in order. With "voicemail" the task was not done: tell the user,
     and say if a message was left (`voicemail_message_left`).
     Works for outbound calls and for inbound calls to the user's number.
     """

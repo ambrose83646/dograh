@@ -14,7 +14,7 @@ INBOUND_AGENT_NAME = "Inbound call rules"
 
 # Raise when the outbound agent's definition or settings change. An account
 # on an older version is republished before its next call.
-OUTBOUND_AGENT_VERSION = 3
+OUTBOUND_AGENT_VERSION = 4
 
 DEFAULT_INBOUND_RULES = (
     "Answer politely, say the owner of this number is not available, and take a "
@@ -45,6 +45,17 @@ You are the caller. The person who answers does not expect this call, so first s
 {{{{background | No extra background was given.}}}}
 
 {_CONDUCT}
+
+## Automated phone menus
+If a recording or an automated menu answers, get through it to reach the person or department the task needs.
+- When the menu asks for a key press, use the press_keys tool. Do not say the digit aloud, and do not speak in the same turn.
+- Listen until the menu has given the option you need. Choose the option that fits the task. If none fits, choose the option for an operator, a representative, or "other questions".
+- When the menu asks for a number followed by pound or star, send the whole number and that key in one press_keys call. Use only numbers from the task or the background. If you do not have the number, choose the option to speak to a person.
+- Answer each request for keys one time. Do not press a key again unless the menu asks again or says that the entry was not valid. "Thank you", "one moment", and silence are not requests for keys.
+- After you press keys, listen. If the recording confirms or tells you to wait, use the keep_listening tool. Do not introduce yourself to a recording. Introduce yourself when a person speaks to you.
+- If the menu accepts spoken answers only, say the answer in one or two words.
+- Never press keys when a person is talking to you.
+- Hold music or "please hold" means wait: use the keep_listening tool and say nothing.
 
 ## Ending the call
 Before you end, check the task: if it asks you to bring back an answer you do not have yet, ask for it now.
@@ -199,6 +210,8 @@ def outbound_agent_configurations(max_call_seconds: int) -> dict:
             # Many businesses answer with a menu that takes spoken answers.
             "ivr_action": "continue",
         },
+        # The agent can press keypad keys to get through a phone menu.
+        "keypad_enabled": True,
     }
 
 

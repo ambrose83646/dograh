@@ -12,6 +12,7 @@ import hashlib
 import hmac
 import re
 import secrets
+from datetime import UTC, datetime
 from typing import Any
 
 import redis.asyncio as aioredis
@@ -25,7 +26,7 @@ from api.services.organization_bootstrap import ensure_organization_bootstrapped
 from api.services.platform import twilio_accounts
 from api.services.platform.destinations import assert_destination_allowed
 from api.services.platform.settings import get_platform_settings
-from api.utils.auth import create_jwt_token
+from api.utils.auth import create_jwt_token, decode_jwt_token
 
 CODE_TTL_SECONDS = 600
 RESEND_AFTER_SECONDS = 60
@@ -143,8 +144,12 @@ async def verify(phone_number: str, code: str, *, operator: bool) -> dict[str, A
         # The unique provider id makes this safe when two requests race.
         user, _ = await db_client.get_or_create_user_by_provider_id(provider_id)
     organization_id = await _ensure_organization(user)
+    token = create_jwt_token(user.id, "")
     return {
-        "token": create_jwt_token(user.id, ""),
+        "token": token,
+        "expires_at": datetime.fromtimestamp(
+            decode_jwt_token(token)["exp"], UTC
+        ).isoformat(),
         "user": {
             "id": user.id,
             "email": None,
@@ -153,6 +158,25 @@ async def verify(phone_number: str, code: str, *, operator: bool) -> dict[str, A
             "provider_id": provider_id,
         },
     }
+
+
+def _revoked_key(token: str) -> str:
+    return "auth:revoked:" + hashlib.sha256(token.encode()).hexdigest()
+
+
+async def revoke(token: str) -> None:
+    """Sign out: the token is refused from now until it would end anyway."""
+    try:
+        expires = int(decode_jwt_token(token)["exp"])
+    except Exception:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+    seconds = expires - int(datetime.now(UTC).timestamp())
+    if seconds > 0:
+        await _store().set(_revoked_key(token), "1", ex=seconds)
+
+
+async def is_revoked(token: str) -> bool:
+    return bool(await _store().exists(_revoked_key(token)))
 
 
 async def _ensure_organization(user: UserModel) -> int:
@@ -186,4 +210,6 @@ async def release(phone_number: str) -> dict[str, Any]:
 
 def sign_in_phone(user: UserModel) -> str | None:
     prefix = provider_id_for("")
-    return user.provider_id[len(prefix) :] if user.provider_id.startswith(prefix) else None
+    return (
+        user.provider_id[len(prefix) :] if user.provider_id.startswith(prefix) else None
+    )

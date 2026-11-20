@@ -38,17 +38,6 @@ def assert_destination_allowed(phone_number: str) -> None:
                 "Example: +14155550123."
             ),
         )
-    if settings.destination_allowlist:
-        permitted = set(settings.destination_allowlist) | set(settings.number_pool)
-        if phone_number not in permitted:
-            raise HTTPException(
-                status_code=403,
-                detail=(
-                    "This service is in a test period and can call approved "
-                    "test numbers only."
-                ),
-            )
-        return
     if phone_number.startswith("+1") and (
         not _NANP.match(phone_number) or phone_number[2:5] in _NANP_BLOCKED_AREA_CODES
     ):
@@ -71,3 +60,15 @@ def assert_destination_allowed(phone_number: str) -> None:
                 + "."
             ),
         )
+    # After the country rules: a number the service never calls gets the
+    # lasting reason, not the reason of the test period.
+    if settings.destination_allowlist:
+        permitted = set(settings.destination_allowlist) | set(settings.number_pool)
+        if phone_number not in permitted:
+            raise HTTPException(
+                status_code=403,
+                detail=(
+                    "This service is in a test period and can call approved "
+                    "test numbers only."
+                ),
+            )

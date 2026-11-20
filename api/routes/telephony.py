@@ -44,6 +44,7 @@ from api.services.telephony.outbound_readiness import (
     OutboundSetupIncompleteError,
     resolve_outbound_configuration_id,
 )
+from api.services.telephony.providers.twilio.native_keys import adopt_reconnect
 from api.services.telephony.transfer_event_protocol import (
     TransferEvent,
     TransferEventType,
@@ -680,6 +681,10 @@ async def _handle_telephony_websocket(
                     f"(org {organization_id}); allowed because TELEPHONY_WS_TOKEN_ENFORCE "
                     f"is off — set it to enforce"
                 )
+
+        # A running Twilio call that pressed keypad keys dials this URL again.
+        if await adopt_reconnect(workflow_run_id, websocket):
+            return
 
         # Get workflow run to determine provider type
         workflow_run = await db_client.get_workflow_run(

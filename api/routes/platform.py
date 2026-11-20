@@ -1,6 +1,6 @@
 """Account endpoints for the shared calling platform (platform mode only)."""
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Request
+from fastapi import APIRouter, Depends, Header, HTTPException, Request, Response
 from pydantic import AwareDatetime, BaseModel, Field, model_validator
 
 from api.constants import ENABLE_SIGNUP
@@ -71,6 +71,15 @@ async def finish_phone_sign_in(
         body.code,
         operator=operator.is_operator_token(x_operator_token),
     )
+
+
+@router.post(
+    "/auth/logout", status_code=204, dependencies=[Depends(_require_platform_mode)]
+)
+async def sign_out(authorization: str = Header(default="")) -> Response:
+    """Revoke the bearer token of this request."""
+    await phone_auth.revoke(authorization.removeprefix("Bearer ").strip())
+    return Response(status_code=204)
 
 
 @router.get("/account", dependencies=[Depends(_require_platform_mode)])

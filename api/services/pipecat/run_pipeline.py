@@ -86,6 +86,7 @@ from api.services.pipecat.worker_runner import (
     run_worker_runner,
 )
 from api.services.pipecat.ws_sender_registry import get_ws_sender
+from api.services.platform.settings import get_platform_settings
 from api.services.telephony import registry as telephony_registry
 from api.services.workflow.answer_classification_service import (
     AnswerClassificationService,
@@ -732,6 +733,18 @@ async def _run_pipeline_impl(
                     term.strip() for term in dictionary.split(",") if term.strip()
                 ]
 
+    # Platform mode: the start-of-call check only refuses an account with no
+    # minutes left. A call must also stop when the minutes run out during it.
+    if get_platform_settings().enabled:
+        from api.services.platform.allowance import get_allowance_status
+
+        allowance = await get_allowance_status(
+            workflow.organization_id, exclude_current_run=True
+        )
+        max_call_duration_seconds = max(
+            1, min(max_call_duration_seconds, allowance.remaining_seconds)
+        )
+
     # Resolve model overrides from the version onto global org config (skip
     # when the caller already resolved it).
     if resolved_user_config is None:
@@ -950,6 +963,7 @@ async def _run_pipeline_impl(
         call_dispositions=call_dispositions,
         # Voice calls hand final extraction to the completion worker after hangup.
         defer_final_extraction=True,
+        keypad_enabled=bool(run_configs.get("keypad_enabled")),
     )
 
     # Create pipeline components
