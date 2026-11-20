@@ -53,6 +53,7 @@ The first build takes about 10 minutes.
 | Variable | Default | Effect |
 | --- | --- | --- |
 | `ENABLE_SIGNUP` | `false` | `true` opens registration to the public. |
+| `ENABLE_CALL_RECORDING_UPLOAD` | `false` | `true` stores the audio of each call. The agent gives no recording notice, so check the consent law first. |
 | `PLATFORM_FREE_SECONDS` | `600` | Free call time for each account. |
 | `PLATFORM_MAX_CALL_SECONDS` | `600` | Longest single call. |
 | `PLATFORM_DAILY_CALL_LIMIT` | `20` | Calls for each account in 24 hours. |

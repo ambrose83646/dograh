@@ -103,6 +103,8 @@ services:
       # Closed until the operator opens registration. The operator can still
       # create accounts with the X-Operator-Token header.
       ENABLE_SIGNUP: "${ENABLE_SIGNUP:-false}"
+      # Calls are not recorded. Transcripts are kept.
+      ENABLE_CALL_RECORDING_UPLOAD: "${ENABLE_CALL_RECORDING_UPLOAD:-false}"
 
       PLATFORM_MODE: "true"
       PLATFORM_TWILIO_ACCOUNT_SID: "${PLATFORM_TWILIO_ACCOUNT_SID:?set in .env}"
