@@ -14,12 +14,12 @@
     {
       "name": "The user and the other party talk directly: each side's words are in the audio of the correct channel",
       "passed": true,
-      "detail": "13 lines in 62 s: other_party: Hello, Maria. / other_party: This is Dana at card services. / other_party: Please tell me the last four digits of the damaged card. / user: Hello, Dana. / user: This is Maria Lopez. / user: The last four digits are 3553. / other_party: Thank you. / other_party: That is correct. / other_party: The new card ships on Tuesday. / other_party: The reference number of the order is 2979 / use"
+      "detail": "13 lines in 62 s: other_party: Hello, Maria. / other_party: This is Dana at card services. / other_party: Please tell me the last four digits of the damaged card. / user: Hello, Dana. / user: This is Maria Lopez. / user: The last four digits are 4382. / other_party: Thank you. / other_party: That is correct. / other_party: The new card ships on Thursday. / other_party: The reference number of the order is 7982 / us"
     },
     {
       "name": "The agent heard the direct talk: its result has the reference and the day, which were said only there",
       "passed": true,
-      "detail": "summary: 'A replacement was requested for Maria Lopez\u2019s damaged card. Dana at Riverside Bank card services verified Maria\u2019s identity and confirmed the replacement card ships Tuesday; the order reference is 2979.'"
+      "detail": "summary: 'Maria Lopez requested a replacement for her damaged Riverside Bank card. Dana verified Maria\u2019s identity and ordered the replacement card, which ships Thursday; the confirmed order reference is 7982.'"
     },
     {
       "name": "The agent took no part in the direct talk: the words were not spoken to it, and it did not answer them",
@@ -29,17 +29,17 @@
     {
       "name": "When the user hangs up, the agent continues with the other party and closes the call",
       "passed": true,
-      "detail": "137 s; agent after the talk: 's tuesday, and i have the reference as two, nine, seven, nine. is that correct? dana, are you still thank you. maria\u2019s replacement card ships tuesday, and the confirmed order reference is two, nine, seven, nine. goodbye.'"
+      "detail": "137 s; agent after the talk: ' heard the order reference as seven, nine, eight, two. is that correct? dana, are you still thank you, dana. maria\u2019s replacement card ships thursday, and the confirmed order reference is seven, nine, eight, two. goodbye.'"
     },
     {
       "name": "A voicemail box on the user's phone does not join the call; the other party waits less than a minute and the agent returns",
       "passed": true,
-      "detail": "user_not_reached; calls to the user's phone: [{'from': '+12088864742', 'status': 'completed', 'seconds': 44}]"
+      "detail": "user_not_reached; calls to the user's phone: [{'from': '+12088864742', 'status': 'completed', 'seconds': 45}]"
     },
     {
       "name": "After the user did not join, the agent takes the message and the result tells the user what to do",
       "passed": true,
-      "detail": "result: 'False I called Riverside Bank card services to request a replacement for Maria Lopez\u2019s damaged card. Dana said she must speak with Maria to verify her identity, but Maria did not answer when I tried to bring her onto the call. Dana asked that Maria call card s'"
+      "detail": "result: 'False The assistant called Riverside Bank card services to request a replacement for Maria Lopez\u2019s damaged card. Dana said she must speak with Maria to verify her identity, but Maria did not answer; Dana instructed her to call card services at 555-6457 before '"
     },
     {
       "name": "After \"assistant, leave the call\" the agent stops listening: the words that follow are not in the call record",
@@ -49,22 +49,42 @@
     {
       "name": "The talk continues without the agent, and the call ends when the user hangs up; the agent does not speak again",
       "passed": true,
-      "detail": "direct talk 40 s, call 79 s"
+      "detail": "direct talk 39 s, call 78 s"
+    },
+    {
+      "name": "During the call, the call result shows the running time and the words so far",
+      "passed": true,
+      "detail": "25 reports; seconds [13, 28, 43] ... [362, 377]"
+    },
+    {
+      "name": "During the direct talk, the call result shows that the user is on the line, and the words of the talk so far",
+      "passed": true,
+      "detail": "23 reports with the user on the line; last at 340 s"
+    },
+    {
+      "name": "A direct talk of more than five minutes is not cut: the words that the other party says after minute five are in the record",
+      "passed": true,
+      "detail": "direct talk 342 s; last words: 'ile. This is step eight. The check is done. The password of the day is sunflower. Goodbye.'"
+    },
+    {
+      "name": "When the other party hangs up, the user's phone is released at once, and the result says that the call ended",
+      "passed": true,
+      "detail": "result call_ended; user's phone call [344] s, direct talk 342 s"
     }
   ],
-  "run_id": "1120194136",
+  "run_id": "1121001716",
   "base_url": "http://localhost:8000",
-  "started_at": "2026-11-20T19:41:36.949477+00:00",
-  "card_digits": "3553",
-  "reference": "2979",
-  "ship_day": "Tuesday",
-  "callback_number": "5555350",
-  "secret_word": "butterfly",
+  "started_at": "2026-11-21T00:17:16.450040+00:00",
+  "card_digits": "4382",
+  "reference": "7982",
+  "ship_day": "Thursday",
+  "callback_number": "5556457",
+  "secret_word": "lighthouse",
   "joined_call": {
-    "call_id": 130,
+    "call_id": 156,
     "direction": "outbound",
     "status": "completed",
-    "started_at": "2026-11-20T19:42:03.523466+00:00",
+    "started_at": "2026-11-21T00:17:45.786969+00:00",
     "duration_seconds": 137,
     "to": "+12088864742",
     "from": "+12085050523",
@@ -100,7 +120,7 @@
           },
           {
             "speaker": "user",
-            "text": "The last four digits are 3553."
+            "text": "The last four digits are 4382."
           },
           {
             "speaker": "other_party",
@@ -112,11 +132,11 @@
           },
           {
             "speaker": "other_party",
-            "text": "The new card ships on Tuesday."
+            "text": "The new card ships on Thursday."
           },
           {
             "speaker": "other_party",
-            "text": "The reference number of the order is 2979"
+            "text": "The reference number of the order is 7982"
           },
           {
             "speaker": "user",
@@ -135,10 +155,10 @@
     ],
     "result": {
       "task_completed": true,
-      "outcome_summary": "A replacement was requested for Maria Lopez\u2019s damaged card. Dana at Riverside Bank card services verified Maria\u2019s identity and confirmed the replacement card ships Tuesday; the order reference is 2979.",
+      "outcome_summary": "Maria Lopez requested a replacement for her damaged Riverside Bank card. Dana verified Maria\u2019s identity and ordered the replacement card, which ships Thursday; the confirmed order reference is 7982.",
       "follow_up_needed": ""
     },
-    "transcript": "[2026-11-20T19:42:07.302+00:00] user: Riverside Bank card services. This is Dana speaking.\nHow can I help you?\n[2026-11-20T19:42:14.453+00:00] assistant: Hi, I\u2019m an AI assistant calling for Maria Lopez because her card was damaged, and I\u2019d like to request a replacement. Can you help\n[2026-11-20T19:42:23.270+00:00] user: I am sorry. I cannot order a card with an assistant.\nI must speak with Maria Lopez herself.\nto check her identity. Can you get her on the line?\nI will hold.\n[2026-11-20T19:42:34.740+00:00] assistant: I\u2019ll get Maria on the line now. Please hold.\n[2026-11-20T19:43:47.141+00:00] assistant: Thank you, Dana. The replacement card ships Tuesday, and I have the reference as two, nine, seven, nine. Is that correct?\n[2026-11-20T19:44:07.419+00:00] assistant: Dana, are you still\n[2026-11-20T19:44:08.261+00:00] user: Yes. That is all correct.\nThank you. Goodbye.\n[2026-11-20T19:44:12.421+00:00] assistant: Thank you. Maria\u2019s replacement card ships Tuesday, and the confirmed order reference is two, nine, seven, nine. Goodbye.\n"
+    "transcript": "[2026-11-21T00:17:50.092+00:00] user: Riverside Bank card services. This is Dana speaking.\nHow can I help you?\n[2026-11-21T00:17:56.006+00:00] assistant: Hi, I\u2019m calling for Maria Lopez because her card was damaged and she needs a replacement. Can you help arrange that?\n[2026-11-21T00:18:05.772+00:00] user: I am sorry. I cannot order a card with an assistant.\nI must speak with Maria Lopez herself.\nto check her identity. Can you get her on the line?\nI will hold.\n[2026-11-21T00:19:30.930+00:00] assistant: Thank you, Dana. The replacement card ships Thursday, and I heard the order reference as seven, nine, eight, two. Is that correct?\n[2026-11-21T00:19:50.089+00:00] assistant: Dana, are you still\n[2026-11-21T00:19:50.732+00:00] user: Yes. That is all correct.\nThank you.\nGoodbye.\n[2026-11-21T00:19:54.614+00:00] assistant: Thank you, Dana. Maria\u2019s replacement card ships Thursday, and the confirmed order reference is seven, nine, eight, two. Goodbye.\n"
   },
   "joined_call_user_leg": [
     {
@@ -148,11 +168,11 @@
     }
   ],
   "not_joined_call": {
-    "call_id": 131,
+    "call_id": 157,
     "direction": "outbound",
     "status": "completed",
-    "started_at": "2026-11-20T19:44:39.073547+00:00",
-    "duration_seconds": 130,
+    "started_at": "2026-11-21T00:20:22.362870+00:00",
+    "duration_seconds": 129,
     "to": "+12088864742",
     "from": "+12085050523",
     "disposition": "end_call",
@@ -169,17 +189,17 @@
     ],
     "result": {
       "task_completed": false,
-      "outcome_summary": "I called Riverside Bank card services to request a replacement for Maria Lopez\u2019s damaged card. Dana said she must speak with Maria to verify her identity, but Maria did not answer when I tried to bring her onto the call. Dana asked that Maria call card services at 555-5350 before Friday; no replacement was ordered.",
-      "follow_up_needed": "Maria must call card services at 555-5350 before Friday to verify her identity and request the replacement."
+      "outcome_summary": "The assistant called Riverside Bank card services to request a replacement for Maria Lopez\u2019s damaged card. Dana said she must speak with Maria to verify her identity, but Maria did not answer; Dana instructed her to call card services at 555-6457 before Friday. No replacement card was ordered.",
+      "follow_up_needed": "Maria must call Riverside Bank card services at 555-6457 before Friday to verify her identity and request the replacement card."
     },
-    "transcript": "[2026-11-20T19:44:42.599+00:00] user: Riverside Bank card services. This is Dana speaking.\nHow can I help you?\n[2026-11-20T19:44:49.700+00:00] assistant: Hi, I\u2019m calling for Maria Lopez because her card was damaged, and I\u2019d like to request a replacement. Can you help with that?\n[2026-11-20T19:44:58.759+00:00] user: I am sorry. I cannot order a card with an assistant.\nI must speak with Maria Lopez herself.\nto check her identity. Can you get her on the line?\nI will hold.\n[2026-11-20T19:45:56.864+00:00] assistant: I\u2019m sorry, I couldn\u2019t reach Maria. Does she need to call card services herself to request the replacement? I\u2019m sorry, I couldn\u2019t reach Maria. Does she need to call card services herself to request the replacement?\n[2026-11-20T19:46:20.584+00:00] assistant: Dana, are you still there?\n[2026-11-20T19:46:24.279+00:00] user: Then please tell her to call card services at five five five five three five zero before Friday.\n[2026-11-20T19:46:32.144+00:00] assistant: I\u2019ll pass that on. Is five five five five three five zero the correct number?\n[2026-11-20T19:46:44.759+00:00] user: Thank you. Goodbye.\n[2026-11-20T19:46:47.905+00:00] assistant: Thank you, Dana. Goodbye.\n"
+    "transcript": "[2026-11-21T00:20:26.280+00:00] user: Riverside Bank card services. This is Dana speaking.\nHow can I help you?\n[2026-11-21T00:20:32.468+00:00] assistant: Hi, I\u2019m an AI assistant calling for Maria Lopez because her card was damaged, and I\u2019d like to request a replacement. Can you help with that?\n[2026-11-21T00:20:42.080+00:00] user: I am sorry. I cannot order a card with an assistant.\nI must speak with Maria Lopez herself.\nTo check her identity, can you get her on the line?\nI will hold.\n[2026-11-21T00:21:40.033+00:00] assistant: I\u2019m sorry, I couldn\u2019t reach Maria. What should she do to request the replacement card? I\u2019m sorry, I couldn\u2019t reach Maria. What should she do to request the replacement card?\n[2026-11-21T00:22:00.514+00:00] assistant: Dana, are you still there?\n[2026-11-21T00:22:07.521+00:00] user: Then please tell her to call card services at five five five six four five seven before Friday.\n[2026-11-21T00:22:15.274+00:00] assistant: I\u2019ll tell Maria to call card services at five, five, five, six, four, five, seven before Friday. Is that number correct?\n[2026-11-21T00:22:28.080+00:00] user: Thank you. Goodbye.\n[2026-11-21T00:22:30.197+00:00] assistant: Thank you. Goodbye.\n"
   },
   "sent_away_call": {
-    "call_id": 132,
+    "call_id": 158,
     "direction": "outbound",
     "status": "completed",
-    "started_at": "2026-11-20T19:47:01.053421+00:00",
-    "duration_seconds": 79,
+    "started_at": "2026-11-21T00:22:42.474420+00:00",
+    "duration_seconds": 78,
     "to": "+12088864742",
     "from": "+12085050523",
     "disposition": "end_call",
@@ -189,7 +209,7 @@
       {
         "result": "assistant_told_to_leave",
         "user_joined": true,
-        "seconds": 40,
+        "seconds": 39,
         "assistant_listened_to_the_end": false,
         "lines": [
           {
@@ -213,11 +233,1676 @@
     ],
     "result": {
       "task_completed": false,
-      "outcome_summary": "Maria Lopez requested a replacement for her damaged Riverside Bank card. Dana said she could not order it through an assistant and needed to speak with Maria directly to verify her identity. Maria joined the call and asked the assistant to leave; no card order was confirmed.",
-      "follow_up_needed": "Maria needs to speak directly with Dana to verify her identity and request the replacement card; the result of their conversation is unknown."
+      "outcome_summary": "I called Riverside Bank card services to request a replacement for Maria Lopez\u2019s damaged card. Dana said she could not order it through an assistant and needed to speak with Maria directly; Maria joined the call and asked the assistant to leave. No replacement order was confirmed.",
+      "follow_up_needed": "Maria should complete the replacement request directly with Dana or Riverside Bank."
     },
-    "transcript": "[2026-11-20T19:47:04.617+00:00] user: Riverside Bank card services. This is Dana speaking.\nHow can I help you?\n[2026-11-20T19:47:11.046+00:00] assistant: Hi, I\u2019m calling for Maria Lopez because her card was damaged and she needs a replacement. Can you help that?\n[2026-11-20T19:47:20.739+00:00] user: I am sorry. I cannot order a card with an assistant.\nI must speak with Maria Lopez herself.\nto check her identity. Can you get her on the line?\nI will hold.\n[2026-11-20T19:47:32.451+00:00] assistant: I\u2019ll get Maria on the line now. Please hold.\n"
+    "transcript": "[2026-11-21T00:22:46.469+00:00] user: Riverside Bank card services. This is Dana speaking.\nHow can I help you?\n[2026-11-21T00:22:54.262+00:00] assistant: Hi, I\u2019m calling for Maria Lopez because her card was damaged, and I\u2019d like to request a replacement. Can you help with that?\n[2026-11-21T00:23:02.230+00:00] user: I am sorry. I cannot order a card with an assistant.\nI must speak with Maria Lopez herself.\nTo check her identity, can you get her on the line?\nI will hold.\n"
   },
-  "seconds": 417,
-  "finished_at": "2026-11-20T19:48:34.267970+00:00"
+  "long_call": {
+    "call_id": 159,
+    "direction": "outbound",
+    "status": "completed",
+    "started_at": "2026-11-21T00:24:17.903708+00:00",
+    "duration_seconds": 381,
+    "to": "+12088864742",
+    "from": "+12085050523",
+    "disposition": "user_hangup",
+    "answered_by": "person",
+    "task": "Call the card services of Riverside Bank for Maria Lopez. Her card was damaged. Ask them to send a replacement card, and bring back the day on which it ships and the reference number of the order.",
+    "direct_talk": [
+      {
+        "result": "call_ended",
+        "user_joined": true,
+        "seconds": 342,
+        "assistant_listened_to_the_end": true,
+        "lines": [
+          {
+            "speaker": "other_party",
+            "text": "Hello, Maria."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This is Dana at card services."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This check takes some minutes."
+          },
+          {
+            "speaker": "other_party",
+            "text": "Please stay on the line."
+          },
+          {
+            "speaker": "user",
+            "text": "Hello, Dana."
+          },
+          {
+            "speaker": "user",
+            "text": "This is Maria Lopez."
+          },
+          {
+            "speaker": "user",
+            "text": "I will wait."
+          },
+          {
+            "speaker": "other_party",
+            "text": "I still checked the file."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This is step one."
+          },
+          {
+            "speaker": "other_party",
+            "text": "I still checked the file."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This is step two."
+          },
+          {
+            "speaker": "other_party",
+            "text": "I still checked the file."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This is step three."
+          },
+          {
+            "speaker": "other_party",
+            "text": "I still checked the file."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This is step four."
+          },
+          {
+            "speaker": "other_party",
+            "text": "I still checked the file."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This is step five."
+          },
+          {
+            "speaker": "user",
+            "text": "I am still here."
+          },
+          {
+            "speaker": "other_party",
+            "text": "I still checked the file."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This is step six."
+          },
+          {
+            "speaker": "other_party",
+            "text": "I still checked the file."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This is step seven."
+          },
+          {
+            "speaker": "other_party",
+            "text": "I still checked the file."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This is step eight. The check is done."
+          },
+          {
+            "speaker": "other_party",
+            "text": "The password of the day is sunflower."
+          },
+          {
+            "speaker": "other_party",
+            "text": "Goodbye."
+          }
+        ]
+      }
+    ],
+    "result": {
+      "task_completed": false,
+      "outcome_summary": "I asked Dana at Riverside Bank card services to replace Maria Lopez\u2019s damaged card. Dana said she must speak with Maria directly to verify her identity before ordering it, and is holding while Maria is brought on the line; no replacement was confirmed.",
+      "follow_up_needed": "Maria Lopez must speak with Dana to verify her identity and request the replacement card."
+    },
+    "transcript": "[2026-11-21T00:24:21.533+00:00] user: Riverside Bank card services. This is Dana speaking.\nHow can I help you?\n[2026-11-21T00:24:27.763+00:00] assistant: Hi Dana, I\u2019m calling for Maria Lopez because her card was damaged. Could you arrange a replacement card?\n[2026-11-21T00:24:37.613+00:00] user: I am sorry. I cannot order a card with an assistant.\nI must speak with Maria Lopez herself.\nto check her identity. Can you get her on the line?\nI will hold.\n"
+  },
+  "long_call_progress": [
+    {
+      "status": "in_progress",
+      "duration_seconds": 13,
+      "transcript": "",
+      "direct_talk_now": {}
+    },
+    {
+      "status": "in_progress",
+      "duration_seconds": 28,
+      "transcript": "ervices. This is Dana speaking.\nHow can I help you?\n[2026-11-21T00:24:27.763+00:00] assistant: Hi Dana, I\u2019m calling for Maria Lopez because her card was damaged. Could you arrange a replacement card?\n",
+      "direct_talk_now": {}
+    },
+    {
+      "status": "in_progress",
+      "duration_seconds": 43,
+      "transcript": "ervices. This is Dana speaking.\nHow can I help you?\n[2026-11-21T00:24:27.763+00:00] assistant: Hi Dana, I\u2019m calling for Maria Lopez because her card was damaged. Could you arrange a replacement card?\n",
+      "direct_talk_now": {
+        "state": "user_on_the_line",
+        "seconds": 6,
+        "assistant_is_listening": true,
+        "lines": []
+      }
+    },
+    {
+      "status": "in_progress",
+      "duration_seconds": 59,
+      "transcript": "ervices. This is Dana speaking.\nHow can I help you?\n[2026-11-21T00:24:27.763+00:00] assistant: Hi Dana, I\u2019m calling for Maria Lopez because her card was damaged. Could you arrange a replacement card?\n",
+      "direct_talk_now": {
+        "state": "user_on_the_line",
+        "seconds": 21,
+        "assistant_is_listening": true,
+        "lines": [
+          {
+            "speaker": "other_party",
+            "text": "Hello, Maria."
+          }
+        ]
+      }
+    },
+    {
+      "status": "in_progress",
+      "duration_seconds": 74,
+      "transcript": "ervices. This is Dana speaking.\nHow can I help you?\n[2026-11-21T00:24:27.763+00:00] assistant: Hi Dana, I\u2019m calling for Maria Lopez because her card was damaged. Could you arrange a replacement card?\n",
+      "direct_talk_now": {
+        "state": "user_on_the_line",
+        "seconds": 36,
+        "assistant_is_listening": true,
+        "lines": [
+          {
+            "speaker": "other_party",
+            "text": "Hello, Maria."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This is Dana at card services."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This check takes some minutes."
+          },
+          {
+            "speaker": "other_party",
+            "text": "Please stay on the line."
+          },
+          {
+            "speaker": "user",
+            "text": "Hello, Dana."
+          },
+          {
+            "speaker": "user",
+            "text": "This is Maria Lopez."
+          },
+          {
+            "speaker": "user",
+            "text": "I will wait."
+          }
+        ]
+      }
+    },
+    {
+      "status": "in_progress",
+      "duration_seconds": 89,
+      "transcript": "ervices. This is Dana speaking.\nHow can I help you?\n[2026-11-21T00:24:27.763+00:00] assistant: Hi Dana, I\u2019m calling for Maria Lopez because her card was damaged. Could you arrange a replacement card?\n",
+      "direct_talk_now": {
+        "state": "user_on_the_line",
+        "seconds": 51,
+        "assistant_is_listening": true,
+        "lines": [
+          {
+            "speaker": "other_party",
+            "text": "Hello, Maria."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This is Dana at card services."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This check takes some minutes."
+          },
+          {
+            "speaker": "other_party",
+            "text": "Please stay on the line."
+          },
+          {
+            "speaker": "user",
+            "text": "Hello, Dana."
+          },
+          {
+            "speaker": "user",
+            "text": "This is Maria Lopez."
+          },
+          {
+            "speaker": "user",
+            "text": "I will wait."
+          }
+        ]
+      }
+    },
+    {
+      "status": "in_progress",
+      "duration_seconds": 104,
+      "transcript": "ervices. This is Dana speaking.\nHow can I help you?\n[2026-11-21T00:24:27.763+00:00] assistant: Hi Dana, I\u2019m calling for Maria Lopez because her card was damaged. Could you arrange a replacement card?\n",
+      "direct_talk_now": {
+        "state": "user_on_the_line",
+        "seconds": 66,
+        "assistant_is_listening": true,
+        "lines": [
+          {
+            "speaker": "other_party",
+            "text": "Hello, Maria."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This is Dana at card services."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This check takes some minutes."
+          },
+          {
+            "speaker": "other_party",
+            "text": "Please stay on the line."
+          },
+          {
+            "speaker": "user",
+            "text": "Hello, Dana."
+          },
+          {
+            "speaker": "user",
+            "text": "This is Maria Lopez."
+          },
+          {
+            "speaker": "user",
+            "text": "I will wait."
+          },
+          {
+            "speaker": "other_party",
+            "text": "I still checked the file."
+          }
+        ]
+      }
+    },
+    {
+      "status": "in_progress",
+      "duration_seconds": 119,
+      "transcript": "ervices. This is Dana speaking.\nHow can I help you?\n[2026-11-21T00:24:27.763+00:00] assistant: Hi Dana, I\u2019m calling for Maria Lopez because her card was damaged. Could you arrange a replacement card?\n",
+      "direct_talk_now": {
+        "state": "user_on_the_line",
+        "seconds": 82,
+        "assistant_is_listening": true,
+        "lines": [
+          {
+            "speaker": "other_party",
+            "text": "Hello, Maria."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This is Dana at card services."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This check takes some minutes."
+          },
+          {
+            "speaker": "other_party",
+            "text": "Please stay on the line."
+          },
+          {
+            "speaker": "user",
+            "text": "Hello, Dana."
+          },
+          {
+            "speaker": "user",
+            "text": "This is Maria Lopez."
+          },
+          {
+            "speaker": "user",
+            "text": "I will wait."
+          },
+          {
+            "speaker": "other_party",
+            "text": "I still checked the file."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This is step one."
+          }
+        ]
+      }
+    },
+    {
+      "status": "in_progress",
+      "duration_seconds": 134,
+      "transcript": "ervices. This is Dana speaking.\nHow can I help you?\n[2026-11-21T00:24:27.763+00:00] assistant: Hi Dana, I\u2019m calling for Maria Lopez because her card was damaged. Could you arrange a replacement card?\n",
+      "direct_talk_now": {
+        "state": "user_on_the_line",
+        "seconds": 97,
+        "assistant_is_listening": true,
+        "lines": [
+          {
+            "speaker": "other_party",
+            "text": "Hello, Maria."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This is Dana at card services."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This check takes some minutes."
+          },
+          {
+            "speaker": "other_party",
+            "text": "Please stay on the line."
+          },
+          {
+            "speaker": "user",
+            "text": "Hello, Dana."
+          },
+          {
+            "speaker": "user",
+            "text": "This is Maria Lopez."
+          },
+          {
+            "speaker": "user",
+            "text": "I will wait."
+          },
+          {
+            "speaker": "other_party",
+            "text": "I still checked the file."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This is step one."
+          }
+        ]
+      }
+    },
+    {
+      "status": "in_progress",
+      "duration_seconds": 150,
+      "transcript": "ervices. This is Dana speaking.\nHow can I help you?\n[2026-11-21T00:24:27.763+00:00] assistant: Hi Dana, I\u2019m calling for Maria Lopez because her card was damaged. Could you arrange a replacement card?\n",
+      "direct_talk_now": {
+        "state": "user_on_the_line",
+        "seconds": 112,
+        "assistant_is_listening": true,
+        "lines": [
+          {
+            "speaker": "other_party",
+            "text": "Hello, Maria."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This is Dana at card services."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This check takes some minutes."
+          },
+          {
+            "speaker": "other_party",
+            "text": "Please stay on the line."
+          },
+          {
+            "speaker": "user",
+            "text": "Hello, Dana."
+          },
+          {
+            "speaker": "user",
+            "text": "This is Maria Lopez."
+          },
+          {
+            "speaker": "user",
+            "text": "I will wait."
+          },
+          {
+            "speaker": "other_party",
+            "text": "I still checked the file."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This is step one."
+          },
+          {
+            "speaker": "other_party",
+            "text": "I still checked the file."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This is step two."
+          }
+        ]
+      }
+    },
+    {
+      "status": "in_progress",
+      "duration_seconds": 165,
+      "transcript": "ervices. This is Dana speaking.\nHow can I help you?\n[2026-11-21T00:24:27.763+00:00] assistant: Hi Dana, I\u2019m calling for Maria Lopez because her card was damaged. Could you arrange a replacement card?\n",
+      "direct_talk_now": {
+        "state": "user_on_the_line",
+        "seconds": 127,
+        "assistant_is_listening": true,
+        "lines": [
+          {
+            "speaker": "other_party",
+            "text": "Hello, Maria."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This is Dana at card services."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This check takes some minutes."
+          },
+          {
+            "speaker": "other_party",
+            "text": "Please stay on the line."
+          },
+          {
+            "speaker": "user",
+            "text": "Hello, Dana."
+          },
+          {
+            "speaker": "user",
+            "text": "This is Maria Lopez."
+          },
+          {
+            "speaker": "user",
+            "text": "I will wait."
+          },
+          {
+            "speaker": "other_party",
+            "text": "I still checked the file."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This is step one."
+          },
+          {
+            "speaker": "other_party",
+            "text": "I still checked the file."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This is step two."
+          }
+        ]
+      }
+    },
+    {
+      "status": "in_progress",
+      "duration_seconds": 180,
+      "transcript": "ervices. This is Dana speaking.\nHow can I help you?\n[2026-11-21T00:24:27.763+00:00] assistant: Hi Dana, I\u2019m calling for Maria Lopez because her card was damaged. Could you arrange a replacement card?\n",
+      "direct_talk_now": {
+        "state": "user_on_the_line",
+        "seconds": 142,
+        "assistant_is_listening": true,
+        "lines": [
+          {
+            "speaker": "other_party",
+            "text": "Hello, Maria."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This is Dana at card services."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This check takes some minutes."
+          },
+          {
+            "speaker": "other_party",
+            "text": "Please stay on the line."
+          },
+          {
+            "speaker": "user",
+            "text": "Hello, Dana."
+          },
+          {
+            "speaker": "user",
+            "text": "This is Maria Lopez."
+          },
+          {
+            "speaker": "user",
+            "text": "I will wait."
+          },
+          {
+            "speaker": "other_party",
+            "text": "I still checked the file."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This is step one."
+          },
+          {
+            "speaker": "other_party",
+            "text": "I still checked the file."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This is step two."
+          },
+          {
+            "speaker": "other_party",
+            "text": "I still checked the file."
+          }
+        ]
+      }
+    },
+    {
+      "status": "in_progress",
+      "duration_seconds": 195,
+      "transcript": "ervices. This is Dana speaking.\nHow can I help you?\n[2026-11-21T00:24:27.763+00:00] assistant: Hi Dana, I\u2019m calling for Maria Lopez because her card was damaged. Could you arrange a replacement card?\n",
+      "direct_talk_now": {
+        "state": "user_on_the_line",
+        "seconds": 157,
+        "assistant_is_listening": true,
+        "lines": [
+          {
+            "speaker": "other_party",
+            "text": "Hello, Maria."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This is Dana at card services."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This check takes some minutes."
+          },
+          {
+            "speaker": "other_party",
+            "text": "Please stay on the line."
+          },
+          {
+            "speaker": "user",
+            "text": "Hello, Dana."
+          },
+          {
+            "speaker": "user",
+            "text": "This is Maria Lopez."
+          },
+          {
+            "speaker": "user",
+            "text": "I will wait."
+          },
+          {
+            "speaker": "other_party",
+            "text": "I still checked the file."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This is step one."
+          },
+          {
+            "speaker": "other_party",
+            "text": "I still checked the file."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This is step two."
+          },
+          {
+            "speaker": "other_party",
+            "text": "I still checked the file."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This is step three."
+          }
+        ]
+      }
+    },
+    {
+      "status": "in_progress",
+      "duration_seconds": 210,
+      "transcript": "ervices. This is Dana speaking.\nHow can I help you?\n[2026-11-21T00:24:27.763+00:00] assistant: Hi Dana, I\u2019m calling for Maria Lopez because her card was damaged. Could you arrange a replacement card?\n",
+      "direct_talk_now": {
+        "state": "user_on_the_line",
+        "seconds": 172,
+        "assistant_is_listening": true,
+        "lines": [
+          {
+            "speaker": "other_party",
+            "text": "Hello, Maria."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This is Dana at card services."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This check takes some minutes."
+          },
+          {
+            "speaker": "other_party",
+            "text": "Please stay on the line."
+          },
+          {
+            "speaker": "user",
+            "text": "Hello, Dana."
+          },
+          {
+            "speaker": "user",
+            "text": "This is Maria Lopez."
+          },
+          {
+            "speaker": "user",
+            "text": "I will wait."
+          },
+          {
+            "speaker": "other_party",
+            "text": "I still checked the file."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This is step one."
+          },
+          {
+            "speaker": "other_party",
+            "text": "I still checked the file."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This is step two."
+          },
+          {
+            "speaker": "other_party",
+            "text": "I still checked the file."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This is step three."
+          }
+        ]
+      }
+    },
+    {
+      "status": "in_progress",
+      "duration_seconds": 225,
+      "transcript": "ervices. This is Dana speaking.\nHow can I help you?\n[2026-11-21T00:24:27.763+00:00] assistant: Hi Dana, I\u2019m calling for Maria Lopez because her card was damaged. Could you arrange a replacement card?\n",
+      "direct_talk_now": {
+        "state": "user_on_the_line",
+        "seconds": 188,
+        "assistant_is_listening": true,
+        "lines": [
+          {
+            "speaker": "other_party",
+            "text": "Hello, Maria."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This is Dana at card services."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This check takes some minutes."
+          },
+          {
+            "speaker": "other_party",
+            "text": "Please stay on the line."
+          },
+          {
+            "speaker": "user",
+            "text": "Hello, Dana."
+          },
+          {
+            "speaker": "user",
+            "text": "This is Maria Lopez."
+          },
+          {
+            "speaker": "user",
+            "text": "I will wait."
+          },
+          {
+            "speaker": "other_party",
+            "text": "I still checked the file."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This is step one."
+          },
+          {
+            "speaker": "other_party",
+            "text": "I still checked the file."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This is step two."
+          },
+          {
+            "speaker": "other_party",
+            "text": "I still checked the file."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This is step three."
+          },
+          {
+            "speaker": "other_party",
+            "text": "I still checked the file."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This is step four."
+          }
+        ]
+      }
+    },
+    {
+      "status": "in_progress",
+      "duration_seconds": 240,
+      "transcript": "ervices. This is Dana speaking.\nHow can I help you?\n[2026-11-21T00:24:27.763+00:00] assistant: Hi Dana, I\u2019m calling for Maria Lopez because her card was damaged. Could you arrange a replacement card?\n",
+      "direct_talk_now": {
+        "state": "user_on_the_line",
+        "seconds": 203,
+        "assistant_is_listening": true,
+        "lines": [
+          {
+            "speaker": "other_party",
+            "text": "Hello, Maria."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This is Dana at card services."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This check takes some minutes."
+          },
+          {
+            "speaker": "other_party",
+            "text": "Please stay on the line."
+          },
+          {
+            "speaker": "user",
+            "text": "Hello, Dana."
+          },
+          {
+            "speaker": "user",
+            "text": "This is Maria Lopez."
+          },
+          {
+            "speaker": "user",
+            "text": "I will wait."
+          },
+          {
+            "speaker": "other_party",
+            "text": "I still checked the file."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This is step one."
+          },
+          {
+            "speaker": "other_party",
+            "text": "I still checked the file."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This is step two."
+          },
+          {
+            "speaker": "other_party",
+            "text": "I still checked the file."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This is step three."
+          },
+          {
+            "speaker": "other_party",
+            "text": "I still checked the file."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This is step four."
+          }
+        ]
+      }
+    },
+    {
+      "status": "in_progress",
+      "duration_seconds": 256,
+      "transcript": "ervices. This is Dana speaking.\nHow can I help you?\n[2026-11-21T00:24:27.763+00:00] assistant: Hi Dana, I\u2019m calling for Maria Lopez because her card was damaged. Could you arrange a replacement card?\n",
+      "direct_talk_now": {
+        "state": "user_on_the_line",
+        "seconds": 218,
+        "assistant_is_listening": true,
+        "lines": [
+          {
+            "speaker": "other_party",
+            "text": "Hello, Maria."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This is Dana at card services."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This check takes some minutes."
+          },
+          {
+            "speaker": "other_party",
+            "text": "Please stay on the line."
+          },
+          {
+            "speaker": "user",
+            "text": "Hello, Dana."
+          },
+          {
+            "speaker": "user",
+            "text": "This is Maria Lopez."
+          },
+          {
+            "speaker": "user",
+            "text": "I will wait."
+          },
+          {
+            "speaker": "other_party",
+            "text": "I still checked the file."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This is step one."
+          },
+          {
+            "speaker": "other_party",
+            "text": "I still checked the file."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This is step two."
+          },
+          {
+            "speaker": "other_party",
+            "text": "I still checked the file."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This is step three."
+          },
+          {
+            "speaker": "other_party",
+            "text": "I still checked the file."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This is step four."
+          },
+          {
+            "speaker": "other_party",
+            "text": "I still checked the file."
+          }
+        ]
+      }
+    },
+    {
+      "status": "in_progress",
+      "duration_seconds": 271,
+      "transcript": "ervices. This is Dana speaking.\nHow can I help you?\n[2026-11-21T00:24:27.763+00:00] assistant: Hi Dana, I\u2019m calling for Maria Lopez because her card was damaged. Could you arrange a replacement card?\n",
+      "direct_talk_now": {
+        "state": "user_on_the_line",
+        "seconds": 233,
+        "assistant_is_listening": true,
+        "lines": [
+          {
+            "speaker": "other_party",
+            "text": "Hello, Maria."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This is Dana at card services."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This check takes some minutes."
+          },
+          {
+            "speaker": "other_party",
+            "text": "Please stay on the line."
+          },
+          {
+            "speaker": "user",
+            "text": "Hello, Dana."
+          },
+          {
+            "speaker": "user",
+            "text": "This is Maria Lopez."
+          },
+          {
+            "speaker": "user",
+            "text": "I will wait."
+          },
+          {
+            "speaker": "other_party",
+            "text": "I still checked the file."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This is step one."
+          },
+          {
+            "speaker": "other_party",
+            "text": "I still checked the file."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This is step two."
+          },
+          {
+            "speaker": "other_party",
+            "text": "I still checked the file."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This is step three."
+          },
+          {
+            "speaker": "other_party",
+            "text": "I still checked the file."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This is step four."
+          },
+          {
+            "speaker": "other_party",
+            "text": "I still checked the file."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This is step five."
+          },
+          {
+            "speaker": "user",
+            "text": "I am still here."
+          }
+        ]
+      }
+    },
+    {
+      "status": "in_progress",
+      "duration_seconds": 286,
+      "transcript": "ervices. This is Dana speaking.\nHow can I help you?\n[2026-11-21T00:24:27.763+00:00] assistant: Hi Dana, I\u2019m calling for Maria Lopez because her card was damaged. Could you arrange a replacement card?\n",
+      "direct_talk_now": {
+        "state": "user_on_the_line",
+        "seconds": 249,
+        "assistant_is_listening": true,
+        "lines": [
+          {
+            "speaker": "other_party",
+            "text": "Hello, Maria."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This is Dana at card services."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This check takes some minutes."
+          },
+          {
+            "speaker": "other_party",
+            "text": "Please stay on the line."
+          },
+          {
+            "speaker": "user",
+            "text": "Hello, Dana."
+          },
+          {
+            "speaker": "user",
+            "text": "This is Maria Lopez."
+          },
+          {
+            "speaker": "user",
+            "text": "I will wait."
+          },
+          {
+            "speaker": "other_party",
+            "text": "I still checked the file."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This is step one."
+          },
+          {
+            "speaker": "other_party",
+            "text": "I still checked the file."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This is step two."
+          },
+          {
+            "speaker": "other_party",
+            "text": "I still checked the file."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This is step three."
+          },
+          {
+            "speaker": "other_party",
+            "text": "I still checked the file."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This is step four."
+          },
+          {
+            "speaker": "other_party",
+            "text": "I still checked the file."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This is step five."
+          },
+          {
+            "speaker": "user",
+            "text": "I am still here."
+          }
+        ]
+      }
+    },
+    {
+      "status": "in_progress",
+      "duration_seconds": 301,
+      "transcript": "ervices. This is Dana speaking.\nHow can I help you?\n[2026-11-21T00:24:27.763+00:00] assistant: Hi Dana, I\u2019m calling for Maria Lopez because her card was damaged. Could you arrange a replacement card?\n",
+      "direct_talk_now": {
+        "state": "user_on_the_line",
+        "seconds": 264,
+        "assistant_is_listening": true,
+        "lines": [
+          {
+            "speaker": "other_party",
+            "text": "Hello, Maria."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This is Dana at card services."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This check takes some minutes."
+          },
+          {
+            "speaker": "other_party",
+            "text": "Please stay on the line."
+          },
+          {
+            "speaker": "user",
+            "text": "Hello, Dana."
+          },
+          {
+            "speaker": "user",
+            "text": "This is Maria Lopez."
+          },
+          {
+            "speaker": "user",
+            "text": "I will wait."
+          },
+          {
+            "speaker": "other_party",
+            "text": "I still checked the file."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This is step one."
+          },
+          {
+            "speaker": "other_party",
+            "text": "I still checked the file."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This is step two."
+          },
+          {
+            "speaker": "other_party",
+            "text": "I still checked the file."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This is step three."
+          },
+          {
+            "speaker": "other_party",
+            "text": "I still checked the file."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This is step four."
+          },
+          {
+            "speaker": "other_party",
+            "text": "I still checked the file."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This is step five."
+          },
+          {
+            "speaker": "user",
+            "text": "I am still here."
+          },
+          {
+            "speaker": "other_party",
+            "text": "I still checked the file."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This is step six."
+          }
+        ]
+      }
+    },
+    {
+      "status": "in_progress",
+      "duration_seconds": 317,
+      "transcript": "ervices. This is Dana speaking.\nHow can I help you?\n[2026-11-21T00:24:27.763+00:00] assistant: Hi Dana, I\u2019m calling for Maria Lopez because her card was damaged. Could you arrange a replacement card?\n",
+      "direct_talk_now": {
+        "state": "user_on_the_line",
+        "seconds": 279,
+        "assistant_is_listening": true,
+        "lines": [
+          {
+            "speaker": "other_party",
+            "text": "Hello, Maria."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This is Dana at card services."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This check takes some minutes."
+          },
+          {
+            "speaker": "other_party",
+            "text": "Please stay on the line."
+          },
+          {
+            "speaker": "user",
+            "text": "Hello, Dana."
+          },
+          {
+            "speaker": "user",
+            "text": "This is Maria Lopez."
+          },
+          {
+            "speaker": "user",
+            "text": "I will wait."
+          },
+          {
+            "speaker": "other_party",
+            "text": "I still checked the file."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This is step one."
+          },
+          {
+            "speaker": "other_party",
+            "text": "I still checked the file."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This is step two."
+          },
+          {
+            "speaker": "other_party",
+            "text": "I still checked the file."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This is step three."
+          },
+          {
+            "speaker": "other_party",
+            "text": "I still checked the file."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This is step four."
+          },
+          {
+            "speaker": "other_party",
+            "text": "I still checked the file."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This is step five."
+          },
+          {
+            "speaker": "user",
+            "text": "I am still here."
+          },
+          {
+            "speaker": "other_party",
+            "text": "I still checked the file."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This is step six."
+          }
+        ]
+      }
+    },
+    {
+      "status": "in_progress",
+      "duration_seconds": 332,
+      "transcript": "ervices. This is Dana speaking.\nHow can I help you?\n[2026-11-21T00:24:27.763+00:00] assistant: Hi Dana, I\u2019m calling for Maria Lopez because her card was damaged. Could you arrange a replacement card?\n",
+      "direct_talk_now": {
+        "state": "user_on_the_line",
+        "seconds": 294,
+        "assistant_is_listening": true,
+        "lines": [
+          {
+            "speaker": "other_party",
+            "text": "Hello, Maria."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This is Dana at card services."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This check takes some minutes."
+          },
+          {
+            "speaker": "other_party",
+            "text": "Please stay on the line."
+          },
+          {
+            "speaker": "user",
+            "text": "Hello, Dana."
+          },
+          {
+            "speaker": "user",
+            "text": "This is Maria Lopez."
+          },
+          {
+            "speaker": "user",
+            "text": "I will wait."
+          },
+          {
+            "speaker": "other_party",
+            "text": "I still checked the file."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This is step one."
+          },
+          {
+            "speaker": "other_party",
+            "text": "I still checked the file."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This is step two."
+          },
+          {
+            "speaker": "other_party",
+            "text": "I still checked the file."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This is step three."
+          },
+          {
+            "speaker": "other_party",
+            "text": "I still checked the file."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This is step four."
+          },
+          {
+            "speaker": "other_party",
+            "text": "I still checked the file."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This is step five."
+          },
+          {
+            "speaker": "user",
+            "text": "I am still here."
+          },
+          {
+            "speaker": "other_party",
+            "text": "I still checked the file."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This is step six."
+          }
+        ]
+      }
+    },
+    {
+      "status": "in_progress",
+      "duration_seconds": 347,
+      "transcript": "ervices. This is Dana speaking.\nHow can I help you?\n[2026-11-21T00:24:27.763+00:00] assistant: Hi Dana, I\u2019m calling for Maria Lopez because her card was damaged. Could you arrange a replacement card?\n",
+      "direct_talk_now": {
+        "state": "user_on_the_line",
+        "seconds": 309,
+        "assistant_is_listening": true,
+        "lines": [
+          {
+            "speaker": "other_party",
+            "text": "Hello, Maria."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This is Dana at card services."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This check takes some minutes."
+          },
+          {
+            "speaker": "other_party",
+            "text": "Please stay on the line."
+          },
+          {
+            "speaker": "user",
+            "text": "Hello, Dana."
+          },
+          {
+            "speaker": "user",
+            "text": "This is Maria Lopez."
+          },
+          {
+            "speaker": "user",
+            "text": "I will wait."
+          },
+          {
+            "speaker": "other_party",
+            "text": "I still checked the file."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This is step one."
+          },
+          {
+            "speaker": "other_party",
+            "text": "I still checked the file."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This is step two."
+          },
+          {
+            "speaker": "other_party",
+            "text": "I still checked the file."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This is step three."
+          },
+          {
+            "speaker": "other_party",
+            "text": "I still checked the file."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This is step four."
+          },
+          {
+            "speaker": "other_party",
+            "text": "I still checked the file."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This is step five."
+          },
+          {
+            "speaker": "user",
+            "text": "I am still here."
+          },
+          {
+            "speaker": "other_party",
+            "text": "I still checked the file."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This is step six."
+          },
+          {
+            "speaker": "other_party",
+            "text": "I still checked the file."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This is step seven."
+          }
+        ]
+      }
+    },
+    {
+      "status": "in_progress",
+      "duration_seconds": 362,
+      "transcript": "ervices. This is Dana speaking.\nHow can I help you?\n[2026-11-21T00:24:27.763+00:00] assistant: Hi Dana, I\u2019m calling for Maria Lopez because her card was damaged. Could you arrange a replacement card?\n",
+      "direct_talk_now": {
+        "state": "user_on_the_line",
+        "seconds": 324,
+        "assistant_is_listening": true,
+        "lines": [
+          {
+            "speaker": "other_party",
+            "text": "Hello, Maria."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This is Dana at card services."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This check takes some minutes."
+          },
+          {
+            "speaker": "other_party",
+            "text": "Please stay on the line."
+          },
+          {
+            "speaker": "user",
+            "text": "Hello, Dana."
+          },
+          {
+            "speaker": "user",
+            "text": "This is Maria Lopez."
+          },
+          {
+            "speaker": "user",
+            "text": "I will wait."
+          },
+          {
+            "speaker": "other_party",
+            "text": "I still checked the file."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This is step one."
+          },
+          {
+            "speaker": "other_party",
+            "text": "I still checked the file."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This is step two."
+          },
+          {
+            "speaker": "other_party",
+            "text": "I still checked the file."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This is step three."
+          },
+          {
+            "speaker": "other_party",
+            "text": "I still checked the file."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This is step four."
+          },
+          {
+            "speaker": "other_party",
+            "text": "I still checked the file."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This is step five."
+          },
+          {
+            "speaker": "user",
+            "text": "I am still here."
+          },
+          {
+            "speaker": "other_party",
+            "text": "I still checked the file."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This is step six."
+          },
+          {
+            "speaker": "other_party",
+            "text": "I still checked the file."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This is step seven."
+          }
+        ]
+      }
+    },
+    {
+      "status": "in_progress",
+      "duration_seconds": 377,
+      "transcript": "ervices. This is Dana speaking.\nHow can I help you?\n[2026-11-21T00:24:27.763+00:00] assistant: Hi Dana, I\u2019m calling for Maria Lopez because her card was damaged. Could you arrange a replacement card?\n",
+      "direct_talk_now": {
+        "state": "user_on_the_line",
+        "seconds": 340,
+        "assistant_is_listening": true,
+        "lines": [
+          {
+            "speaker": "other_party",
+            "text": "Hello, Maria."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This is Dana at card services."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This check takes some minutes."
+          },
+          {
+            "speaker": "other_party",
+            "text": "Please stay on the line."
+          },
+          {
+            "speaker": "user",
+            "text": "Hello, Dana."
+          },
+          {
+            "speaker": "user",
+            "text": "This is Maria Lopez."
+          },
+          {
+            "speaker": "user",
+            "text": "I will wait."
+          },
+          {
+            "speaker": "other_party",
+            "text": "I still checked the file."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This is step one."
+          },
+          {
+            "speaker": "other_party",
+            "text": "I still checked the file."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This is step two."
+          },
+          {
+            "speaker": "other_party",
+            "text": "I still checked the file."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This is step three."
+          },
+          {
+            "speaker": "other_party",
+            "text": "I still checked the file."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This is step four."
+          },
+          {
+            "speaker": "other_party",
+            "text": "I still checked the file."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This is step five."
+          },
+          {
+            "speaker": "user",
+            "text": "I am still here."
+          },
+          {
+            "speaker": "other_party",
+            "text": "I still checked the file."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This is step six."
+          },
+          {
+            "speaker": "other_party",
+            "text": "I still checked the file."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This is step seven."
+          },
+          {
+            "speaker": "other_party",
+            "text": "I still checked the file."
+          },
+          {
+            "speaker": "other_party",
+            "text": "This is step eight. The check is done."
+          }
+        ]
+      }
+    }
+  ],
+  "seconds": 818,
+  "finished_at": "2026-11-21T00:30:54.770436+00:00"
 }

@@ -226,6 +226,8 @@ async def run_with_native_keys(
         await run()
     finally:
         _streams.pop(stream._workflow_run_id, None)
+        # A direct talk must not continue when the call's pipeline is over.
+        stream._report_gone()
         stream._finish()
 
 

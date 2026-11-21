@@ -1,7 +1,7 @@
 """End-to-end check: the agent brings the user into a call, and listens.
 
 Maria signs up with her phone and verifies it as her caller ID. Her assistant
-then places three real calls to a "bank" (the second approved test number,
+then places four real calls to a "bank" (the second approved test number,
 which plays a script). In each call the bank refuses to continue with an
 assistant and asks for Maria herself.
 
@@ -20,6 +20,12 @@ Ways the feature can fail, and the call that shows it:
 7. The user does not join and the other party waits without end.      (call 2)
 8. The user says "assistant, leave the call" and the agent listens on,
    or speaks again.                                                   (call 3)
+9. A direct talk of more than five minutes is cut: a timer that looks for
+   speech in the agent's pipeline sees none.                          (call 4)
+10. During a call, the call result shows 0 seconds and no words, so an
+    assistant thinks that the call is stuck.                          (call 4)
+11. The other party hangs up and the user's phone stays connected to
+    nothing.                                                          (call 4)
 
 Only the two approved test numbers are dialled. Run it with the same
 environment as verify.py.
@@ -75,6 +81,8 @@ async def run(args, report: Report) -> None:
     ship_day = random.choice(["Tuesday", "Wednesday", "Thursday"])
     callback = f"555{random.randint(1000, 9999)}"
     secret = random.choice(["pineapple", "lighthouse", "butterfly"])
+    late_word = random.choice(["sunflower", "waterfall", "strawberry"])
+    wanted = {int(n) for n in args.calls.split(",")}
     operator = {"X-Operator-Token": args.operator_token}
     report.evidence.update(
         run_id=run_id, base_url=args.base_url, started_at=datetime.now(UTC).isoformat(),
@@ -170,149 +178,279 @@ async def run(args, report: Report) -> None:
                 ]  # fmt: skip
                 return result, to_user
 
-            # --- Call 1: the user joins, the two talk, the user leaves --------
-            first, to_user = await call_bank(
-                BANK_OPENING
-                + '<Pause length="28"/><Say>Hello Maria, this is Dana at card '
-                "services. Please tell me the last four digits of the damaged "
-                'card.</Say><Pause length="22"/>'
-                "<Say>Thank you, that is correct. The new card ships on "
-                f"{ship_day}. The reference number of the order is "
-                f"{' '.join(reference)}.</Say>"
-                '<Pause length="30"/><Say>Yes, that is all correct. Thank you. '
-                'Goodbye.</Say><Pause length="20"/>',
-                JOIN + '<Pause length="24"/><Say>Hello Dana, this is Maria Lopez. The '
-                f"last four digits are {' '.join(card)}.</Say>"
-                '<Pause length="30"/><Say>Thank you Dana. That is all I need. '
-                "Goodbye.</Say><Hangup/>",
-            )
-            report.evidence["joined_call"] = first
-            report.evidence["joined_call_user_leg"] = to_user
-            talk = (first.get("direct_talk") or [{}])[0]
-            lines = talk.get("lines") or []
-            turns = transcript_turns(first.get("transcript", ""))
-            agent_said = " ".join(t for r, t in turns if r == "assistant")
-            agent_heard = " ".join(t for r, t in turns if r == "user")
-            summary = str((first.get("result") or {}).get("outcome_summary") or "")
-            report.check(
-                "The agent phones the user's verified number from the service "
-                "line, and the user joins with key 1",
-                talk.get("user_joined") is True
-                and len(to_user) == 1
-                and to_user[0]["from"] == args.line_number
-                and to_user[0]["seconds"] >= 40,
-                f"calls to the user's phone: {to_user}",
-            )
-            report.check(
-                "The user and the other party talk directly: each side's words "
-                "are in the audio of the correct channel",
-                card in spoken_digits(said(lines, "user"))
-                and reference in spoken_digits(said(lines, "other_party"))
-                and card not in spoken_digits(said(lines, "other_party"))
-                and reference not in spoken_digits(said(lines, "user")),
-                f"{len(lines)} lines in {talk.get('seconds')} s: "
-                + " / ".join(f"{line['speaker']}: {line['text']}" for line in lines)[:400],
-            )  # fmt: skip
-            report.check(
-                "The agent heard the direct talk: its result has the reference "
-                "and the day, which were said only there",
-                reference in spoken_digits(summary)
-                and ship_day.lower() in summary.lower(),
-                f"summary: {summary[:260]!r}",
-            )
-            report.check(
-                "The agent took no part in the direct talk: the words were not "
-                "spoken to it, and it did not answer them",
-                card not in spoken_digits(agent_heard)
-                and card not in spoken_digits(agent_said)
-                and talk.get("assistant_listened_to_the_end") is True,
-                f"agent heard: {agent_heard[-200:]!r}",
-            )
-            after = agent_said.lower().split("hold")[-1]
-            report.check(
-                "When the user hangs up, the agent continues with the other "
-                "party and closes the call",
-                talk.get("result") == "user_left"
-                and first.get("status") == "completed"
-                and (
-                    reference in spoken_digits(after)
-                    or ship_day.lower() in after
-                    or "goodbye" in after
-                    or "thank" in after
+            if 1 in wanted:
+                # --- Call 1: the user joins, the two talk, the user leaves --------
+                first, to_user = await call_bank(
+                    BANK_OPENING
+                    + '<Pause length="28"/><Say>Hello Maria, this is Dana at card '
+                    "services. Please tell me the last four digits of the damaged "
+                    'card.</Say><Pause length="22"/>'
+                    "<Say>Thank you, that is correct. The new card ships on "
+                    f"{ship_day}. The reference number of the order is "
+                    f"{' '.join(reference)}.</Say>"
+                    '<Pause length="30"/><Say>Yes, that is all correct. Thank you. '
+                    'Goodbye.</Say><Pause length="20"/>',
+                    JOIN
+                    + '<Pause length="24"/><Say>Hello Dana, this is Maria Lopez. The '
+                    f"last four digits are {' '.join(card)}.</Say>"
+                    '<Pause length="30"/><Say>Thank you Dana. That is all I need. '
+                    "Goodbye.</Say><Hangup/>",
                 )
-                and "all correct" in agent_heard.lower(),
-                f"{first.get('duration_seconds')} s; agent after the talk: {after[-220:]!r}",
-            )
+                report.evidence["joined_call"] = first
+                report.evidence["joined_call_user_leg"] = to_user
+                talk = (first.get("direct_talk") or [{}])[0]
+                lines = talk.get("lines") or []
+                turns = transcript_turns(first.get("transcript", ""))
+                agent_said = " ".join(t for r, t in turns if r == "assistant")
+                agent_heard = " ".join(t for r, t in turns if r == "user")
+                summary = str((first.get("result") or {}).get("outcome_summary") or "")
+                report.check(
+                    "The agent phones the user's verified number from the service "
+                    "line, and the user joins with key 1",
+                    talk.get("user_joined") is True
+                    and len(to_user) == 1
+                    and to_user[0]["from"] == args.line_number
+                    and to_user[0]["seconds"] >= 40,
+                    f"calls to the user's phone: {to_user}",
+                )
+                report.check(
+                    "The user and the other party talk directly: each side's words "
+                    "are in the audio of the correct channel",
+                    card in spoken_digits(said(lines, "user"))
+                    and reference in spoken_digits(said(lines, "other_party"))
+                    and card not in spoken_digits(said(lines, "other_party"))
+                    and reference not in spoken_digits(said(lines, "user")),
+                    f"{len(lines)} lines in {talk.get('seconds')} s: "
+                    + " / ".join(f"{line['speaker']}: {line['text']}" for line in lines)[:400],
+                )  # fmt: skip
+                report.check(
+                    "The agent heard the direct talk: its result has the reference "
+                    "and the day, which were said only there",
+                    reference in spoken_digits(summary)
+                    and ship_day.lower() in summary.lower(),
+                    f"summary: {summary[:260]!r}",
+                )
+                report.check(
+                    "The agent took no part in the direct talk: the words were not "
+                    "spoken to it, and it did not answer them",
+                    card not in spoken_digits(agent_heard)
+                    and card not in spoken_digits(agent_said)
+                    and talk.get("assistant_listened_to_the_end") is True,
+                    f"agent heard: {agent_heard[-200:]!r}",
+                )
+                after = agent_said.lower().split("hold")[-1]
+                report.check(
+                    "When the user hangs up, the agent continues with the other "
+                    "party and closes the call",
+                    talk.get("result") == "user_left"
+                    and first.get("status") == "completed"
+                    and (
+                        reference in spoken_digits(after)
+                        or ship_day.lower() in after
+                        or "goodbye" in after
+                        or "thank" in after
+                    )
+                    and "all correct" in agent_heard.lower(),
+                    f"{first.get('duration_seconds')} s; agent after the talk: {after[-220:]!r}",
+                )
 
-            # --- Call 2: a voicemail box answers the user's phone -------------
-            second, to_user = await call_bank(
-                BANK_OPENING
-                + '<Pause length="75"/><Say>Then please tell her to call card '
-                f"services at {' '.join(callback)}, before Friday.</Say>"
-                '<Pause length="14"/><Say>Thank you. Goodbye.</Say><Pause length="15"/>',
-                "<Say>Hi, this is Maria. I can not take your call. Please leave "
-                'a message after the tone.</Say><Pause length="60"/>',
-            )
-            report.evidence["not_joined_call"] = second
-            talk = (second.get("direct_talk") or [{}])[0]
-            turns = transcript_turns(second.get("transcript", ""))
-            agent_heard = " ".join(t for r, t in turns if r == "user")
-            result_text = " ".join(
-                str(v) for v in (second.get("result") or {}).values()
-            )
-            report.check(
-                "A voicemail box on the user's phone does not join the call; "
-                "the other party waits less than a minute and the agent returns",
-                talk.get("user_joined") is False
-                and talk.get("result") == "user_not_reached"
-                and not talk.get("lines")
-                and callback in spoken_digits(agent_heard),
-                f"{talk.get('result')}; calls to the user's phone: {to_user}",
-            )
-            report.check(
-                "After the user did not join, the agent takes the message and "
-                "the result tells the user what to do",
-                second.get("status") == "completed"
-                and callback in spoken_digits(result_text),
-                f"result: {result_text[:260]!r}",
-            )
+            if 2 in wanted:
+                # --- Call 2: a voicemail box answers the user's phone -------------
+                second, to_user = await call_bank(
+                    BANK_OPENING
+                    + '<Pause length="75"/><Say>Then please tell her to call card '
+                    f"services at {' '.join(callback)}, before Friday.</Say>"
+                    '<Pause length="14"/><Say>Thank you. Goodbye.</Say><Pause length="15"/>',
+                    "<Say>Hi, this is Maria. I can not take your call. Please leave "
+                    'a message after the tone.</Say><Pause length="60"/>',
+                )
+                report.evidence["not_joined_call"] = second
+                talk = (second.get("direct_talk") or [{}])[0]
+                turns = transcript_turns(second.get("transcript", ""))
+                agent_heard = " ".join(t for r, t in turns if r == "user")
+                result_text = " ".join(
+                    str(v) for v in (second.get("result") or {}).values()
+                )
+                report.check(
+                    "A voicemail box on the user's phone does not join the call; "
+                    "the other party waits less than a minute and the agent returns",
+                    talk.get("user_joined") is False
+                    and talk.get("result") == "user_not_reached"
+                    and not talk.get("lines")
+                    and callback in spoken_digits(agent_heard),
+                    f"{talk.get('result')}; calls to the user's phone: {to_user}",
+                )
+                report.check(
+                    "After the user did not join, the agent takes the message and "
+                    "the result tells the user what to do",
+                    second.get("status") == "completed"
+                    and callback in spoken_digits(result_text),
+                    f"result: {result_text[:260]!r}",
+                )
 
-            # --- Call 3: the user sends the assistant away --------------------
-            third, to_user = await call_bank(
-                BANK_OPENING
-                + '<Pause length="40"/><Say>Thank you Maria. I have what I '
-                'need. Goodbye.</Say><Pause length="40"/>',
-                JOIN + '<Pause length="10"/><Say>Hello Dana, this is Maria Lopez.</Say>'
-                '<Pause length="2"/><Say>Assistant, leave the call.</Say>'
-                f'<Pause length="9"/><Say>Dana, my security word is {secret}.</Say>'
-                '<Pause length="12"/><Hangup/>',
-                timeout=200,
-            )
-            report.evidence["sent_away_call"] = third
-            talk = (third.get("direct_talk") or [{}])[0]
-            lines = talk.get("lines") or []
-            everything = (
-                str(lines) + third.get("transcript", "") + str(third.get("result"))
-            ).lower()
-            turns = transcript_turns(third.get("transcript", ""))
-            report.check(
-                'After "assistant, leave the call" the agent stops listening: '
-                "the words that follow are not in the call record",
-                talk.get("result") == "assistant_told_to_leave"
-                and talk.get("assistant_listened_to_the_end") is False
-                and "maria lopez" in said(lines, "user").lower()
-                and secret not in everything,
-                f"lines: {' / '.join(line['text'] for line in lines)[:260]!r}",
-            )
-            report.check(
-                "The talk continues without the agent, and the call ends when "
-                "the user hangs up; the agent does not speak again",
-                third.get("status") == "completed"
-                and talk.get("seconds", 0) >= 25
-                and "i have what i need" not in everything
-                and (not turns or "hold" in turns[-1][1].lower() or turns[-1][0] == "user"),
-                f"direct talk {talk.get('seconds')} s, call {third.get('duration_seconds')} s",
-            )  # fmt: skip
+            if 3 in wanted:
+                # --- Call 3: the user sends the assistant away --------------------
+                third, to_user = await call_bank(
+                    BANK_OPENING
+                    + '<Pause length="40"/><Say>Thank you Maria. I have what I '
+                    'need. Goodbye.</Say><Pause length="40"/>',
+                    JOIN
+                    + '<Pause length="10"/><Say>Hello Dana, this is Maria Lopez.</Say>'
+                    '<Pause length="2"/><Say>Assistant, leave the call.</Say>'
+                    f'<Pause length="9"/><Say>Dana, my security word is {secret}.</Say>'
+                    '<Pause length="12"/><Hangup/>',
+                    timeout=200,
+                )
+                report.evidence["sent_away_call"] = third
+                talk = (third.get("direct_talk") or [{}])[0]
+                lines = talk.get("lines") or []
+                everything = (
+                    str(lines) + third.get("transcript", "") + str(third.get("result"))
+                ).lower()
+                turns = transcript_turns(third.get("transcript", ""))
+                report.check(
+                    'After "assistant, leave the call" the agent stops listening: '
+                    "the words that follow are not in the call record",
+                    talk.get("result") == "assistant_told_to_leave"
+                    and talk.get("assistant_listened_to_the_end") is False
+                    and "maria lopez" in said(lines, "user").lower()
+                    and secret not in everything,
+                    f"lines: {' / '.join(line['text'] for line in lines)[:260]!r}",
+                )
+                report.check(
+                    "The talk continues without the agent, and the call ends when "
+                    "the user hangs up; the agent does not speak again",
+                    third.get("status") == "completed"
+                    and talk.get("seconds", 0) >= 25
+                    and "i have what i need" not in everything
+                    and (not turns or "hold" in turns[-1][1].lower() or turns[-1][0] == "user"),
+                    f"direct talk {talk.get('seconds')} s, call {third.get('duration_seconds')} s",
+                )  # fmt: skip
+            if 4 in wanted:
+                # --- Call 4: a long direct talk; the other party ends it ------
+                # The talk is longer than five minutes. The assistant asks
+                # for the call's progress all the time, as an assistant does.
+                parts = "".join(
+                    f'<Pause length="36"/><Say>I still check the file. This '
+                    f"is step {step}.</Say>"
+                    for step in ("one", "two", "three", "four", "five", "six", "seven", "eight")
+                )  # fmt: skip
+                await bank.answer_with_script(
+                    BANK_OPENING
+                    + '<Pause length="28"/><Say>Hello Maria, this is Dana at '
+                    "card services. This check takes some minutes. Please "
+                    "stay on the line.</Say>" + parts
+                    + f"<Say>The check is done. The password of the day is "
+                    f"{late_word}. Goodbye.</Say><Hangup/>"
+                )  # fmt: skip
+                # The user's phone does not hang up: the bank ends the call.
+                await user_phone.answer_with_script(
+                    JOIN + '<Pause length="24"/><Say>Hello Dana, this is '
+                    "Maria Lopez. I will wait.</Say>"
+                    '<Pause length="200"/><Say>I am still here.</Say>'
+                    '<Pause length="400"/>'
+                )  # fmt: skip
+                since = datetime.now(UTC)
+                placed = await maria_ai.call(
+                    "place_call", phone_number=bank.number, task=TASK,
+                    on_behalf_of="Maria Lopez", call_reason="about a damaged card",
+                )  # fmt: skip
+                snapshots: list[dict] = []
+                fourth: dict = {}
+                deadline = time.monotonic() + 720
+                while time.monotonic() < deadline:
+                    await asyncio.sleep(15)
+                    fourth = await maria_ai.call(
+                        "get_call_result", call_id=placed["call_id"]
+                    )
+                    now = fourth.get("direct_talk_now") or {}
+                    print(
+                        f"    call {placed['call_id']}: {fourth['status']} "
+                        f"{fourth.get('duration_seconds')}s talk "
+                        f"{now.get('state')} {now.get('seconds')}"
+                    )
+                    if fourth["status"] in ("completed", "failed") and (
+                        fourth.get("transcript") or fourth["status"] == "failed"
+                    ):
+                        break
+                    snapshots.append(
+                        {
+                            "status": fourth["status"],
+                            "duration_seconds": fourth.get("duration_seconds"),
+                            "transcript": fourth.get("transcript", ""),
+                            "direct_talk_now": now,
+                        }
+                    )
+                found = await user_phone.twilio.get(
+                    f"/Accounts/{user_phone.account_sid}/Calls.json",
+                    params={"To": user_phone.number, "PageSize": 20},
+                )
+                found.raise_for_status()
+                user_leg = [
+                    int(c["duration"] or 0)
+                    for c in found.json()["calls"]
+                    if datetime.strptime(c["date_created"], "%a, %d %b %Y %H:%M:%S %z") >= since.replace(microsecond=0)
+                    and c["direction"] == "outbound-api"
+                ]  # fmt: skip
+                report.evidence["long_call"] = fourth
+                report.evidence["long_call_progress"] = [
+                    {**s, "transcript": s["transcript"][-200:]} for s in snapshots
+                ]
+                talk = (fourth.get("direct_talk") or [{}])[0]
+                lines = talk.get("lines") or []
+                in_talk = [
+                    s for s in snapshots
+                    if s["direct_talk_now"].get("state") == "user_on_the_line"
+                ]  # fmt: skip
+                durations = [s["duration_seconds"] or 0 for s in snapshots]
+                report.check(
+                    "During the call, the call result shows the running time "
+                    "and the words so far",
+                    bool(snapshots)
+                    and all(s["status"] == "in_progress" for s in snapshots)
+                    and durations == sorted(durations)
+                    and durations[0] > 0
+                    and durations[-1] > 300
+                    # The bank's first words, before the call is 45 seconds old.
+                    and any(
+                        "riverside" in s["transcript"].lower()
+                        for s in snapshots
+                        if (s["duration_seconds"] or 0) < 45
+                    ),
+                    f"{len(snapshots)} reports; seconds {durations[:3]} ... {durations[-2:]}",
+                )  # fmt: skip
+                live_words = " ".join(
+                    said(s["direct_talk_now"].get("lines") or [], "other_party")
+                    for s in in_talk[:-1]
+                ).lower()
+                report.check(
+                    "During the direct talk, the call result shows that the "
+                    "user is on the line, and the words of the talk so far",
+                    len(in_talk) >= 15
+                    and "step three" in live_words
+                    and in_talk[-1]["direct_talk_now"]["seconds"] > 300,
+                    f"{len(in_talk)} reports with the user on the line; last at "
+                    f"{in_talk[-1]['direct_talk_now'].get('seconds') if in_talk else None} s",
+                )
+                report.check(
+                    "A direct talk of more than five minutes is not cut: the "
+                    "words that the other party says after minute five are "
+                    "in the record",
+                    talk.get("seconds", 0) > 320
+                    and late_word in said(lines, "other_party").lower()
+                    and "step eight" in said(lines, "other_party").lower(),
+                    f"direct talk {talk.get('seconds')} s; last words: "
+                    f"{said(lines, 'other_party')[-90:]!r}",
+                )
+                report.check(
+                    "When the other party hangs up, the user's phone is "
+                    "released at once, and the result says that the call ended",
+                    talk.get("result") == "call_ended"
+                    and len(user_leg) == 1
+                    and 0 <= user_leg[0] - talk.get("seconds", 0) < 25,
+                    f"result {talk.get('result')}; user's phone call {user_leg} s, "
+                    f"direct talk {talk.get('seconds')} s",
+                )
         finally:
             await user_phone.hang_up()
             await bank.hang_up()
@@ -356,6 +494,9 @@ def main() -> int:
     )
     parser.add_argument(
         "--twilio-auth-token", default=os.getenv("PLATFORM_TWILIO_AUTH_TOKEN", "")
+    )
+    parser.add_argument(
+        "--calls", default="1,2,3,4", help="The calls to place, for example 4."
     )
     parser.add_argument("--out", default="platform_verification/results/conference")
     args = parser.parse_args()

@@ -86,6 +86,7 @@ from api.services.pipecat.worker_runner import (
     run_worker_runner,
 )
 from api.services.pipecat.ws_sender_registry import get_ws_sender
+from api.services.platform import live_calls
 from api.services.platform.settings import get_platform_settings
 from api.services.telephony import registry as telephony_registry
 from api.services.workflow.answer_classification_service import (
@@ -904,6 +905,7 @@ async def _run_pipeline_impl(
 
     # Create in-memory logs buffer early so it can be used by engine callbacks
     in_memory_logs_buffer = InMemoryLogsBuffer(workflow_run_id)
+    live_calls.register(workflow_run_id, in_memory_logs_buffer.generate_transcript_text)
 
     # Create node transition callback (always logs to buffer, optionally streams to WS)
     ws_sender = get_ws_sender(workflow_run_id)
@@ -1393,6 +1395,7 @@ async def _run_pipeline_impl(
     except asyncio.CancelledError:
         logger.warning("Received CancelledError in _run_pipeline")
     finally:
+        live_calls.unregister(workflow_run_id)
         # Close MCP sessions here, not in engine.cleanup(). The anyio cancel
         # scopes opened by MCPClient.start() in engine.initialize() are
         # task-affine; this finally runs in the same task as initialize(),

@@ -678,7 +678,7 @@ class PipecatEngine:
         """Let the agent connect the account's user with the other party."""
 
         async def bring_user_func(function_call_params: FunctionCallParams) -> None:
-            from api.services.platform import conference
+            from api.services.platform import conference, live_calls
 
             monitor = self.call_monitor
             limit = self._bring_user_call_seconds
@@ -701,6 +701,18 @@ class PipecatEngine:
             # The agent hears silence during the direct talk: that is not an
             # idle caller.
             monitor.suspend()
+
+            # No speech goes through the pipeline during the direct talk.
+            # Without this, the worker's idle timer ends the call after
+            # five minutes.
+            async def keep_call_awake() -> None:
+                while True:
+                    worker = self.call_worker
+                    if worker is not None and hasattr(worker, "note_activity"):
+                        worker.note_activity()
+                    await asyncio.sleep(30)
+
+            awake = asyncio.create_task(keep_call_awake())
             try:
                 result = await conference.bring_in_user(
                     workflow_run_id=self._workflow_run_id,
@@ -710,15 +722,16 @@ class PipecatEngine:
                     max_seconds=seconds_left,
                 )
             finally:
+                awake.cancel()
                 monitor.resume()
             status = result["status"]
             logger.info(f"bring_user_on_line: {status}")
             if not result.get("user_joined"):
                 monitor.max_call_duration_seconds = previous_limit
             lines = result.pop("direct_talk", None)
-            self._gathered_context.setdefault(BRING_USER_CONTEXT_KEY, []).append(
-                {**result, "lines": lines or []}
-            )
+            talk = {**result, "lines": lines or []}
+            self._gathered_context.setdefault(BRING_USER_CONTEXT_KEY, []).append(talk)
+            live_calls.add_direct_talk(self._workflow_run_id, talk)
             if lines is not None:
                 result["what_was_said"] = [
                     ("Your client: " if line["speaker"] == "user" else "Other person: ")

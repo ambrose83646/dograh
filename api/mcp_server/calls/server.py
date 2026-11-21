@@ -199,7 +199,11 @@ async def get_call_result(
     """Read the status, outcome, and full transcript of one call.
 
     status is "ringing", "in_progress", "completed", or "failed". While the
-    call is not finished, wait about 20 seconds and ask again. `result` holds
+    call is not finished, wait about 20 seconds and ask again. During a call,
+    `duration_seconds` and `transcript` show the call so far, and
+    `direct_talk_now` shows a direct talk between the user and the other
+    party that is in progress: a call with the user on the line is not
+    stuck. `result` holds
     the agent's own summary when the call reached its closing step; always
     check it against `transcript`, which is the record of what was said.
     For an outbound call, `answered_by` is "person", "voicemail",

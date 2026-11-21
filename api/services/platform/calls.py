@@ -13,7 +13,7 @@ from loguru import logger
 
 from api.db import db_client
 from api.services.platform import caller_id as caller_id_service
-from api.services.platform import conference, packs
+from api.services.platform import conference, live_calls, packs
 from api.services.platform.agent_definitions import (
     DEFAULT_INBOUND_RULES,
     inbound_agent_definition,
@@ -434,6 +434,11 @@ def _summarize(run, account: dict[str, Any]) -> dict[str, Any]:
         "disposition": gathered.get("mapped_call_disposition")
         or gathered.get("call_disposition"),
     }
+    live = None if run.is_completed else live_calls.progress(run.id)
+    if live is not None:
+        # The call is connected. Its record is written when it ends.
+        summary["status"] = "in_progress"
+        summary["duration_seconds"] = live["seconds"]
     if direction == "outbound":
         summary.update(_answered_by(gathered))
         keys = [k for k in gathered.get("keys_pressed") or [] if isinstance(k, str)]
@@ -456,6 +461,12 @@ async def get_call_result(organization_id: int, call_id: int) -> dict[str, Any]:
         raise HTTPException(status_code=404, detail=f"Call {call_id} not found")
 
     result = _summarize(run, account)
+    live = None if run.is_completed else live_calls.progress(run.id)
+    talks = (
+        live["direct_talks"]
+        if live is not None
+        else (run.gathered_context or {}).get("direct_talk") or []
+    )
     direct_talk = [
         {
             "result": talk.get("status"),
@@ -466,7 +477,7 @@ async def get_call_result(organization_id: int, call_id: int) -> dict[str, Any]:
             ),
             "lines": talk.get("lines") or [],
         }
-        for talk in (run.gathered_context or {}).get("direct_talk") or []
+        for talk in talks
         if isinstance(talk, dict)
     ]
     if direct_talk:
@@ -474,6 +485,16 @@ async def get_call_result(organization_id: int, call_id: int) -> dict[str, Any]:
         result["direct_talk"] = direct_talk
     result["result"] = (run.gathered_context or {}).get("extracted_variables") or {}
     result["transcript"] = ""
+    if live is not None:
+        result["transcript"] = live["transcript"]
+        now = conference.direct_talk_now(run.id)
+        if now is not None:
+            result["direct_talk_now"] = now
+        result["next_step"] = (
+            "The call is in progress. duration_seconds and transcript show "
+            "the call so far. Ask again in 20 seconds."
+        )
+        return result
     if run.transcript_url:
         try:
             result["transcript"] = await download_run_transcript_text(

@@ -82,6 +82,7 @@ _DEEPGRAM_URL = (
 )
 
 _conferences: dict[str, "Conference"] = {}
+_by_run: dict[int, "Conference"] = {}
 
 
 def _mulaw(sample: int) -> int:
@@ -331,6 +332,7 @@ async def bring_in_user(
     )
     conference.transcriber = _Transcriber(conference)
     _conferences[conference.token] = conference
+    _by_run[workflow_run_id] = conference
     backend, _ = await get_backend_endpoints()
     path = f"{backend}/api/v1/platform/conference/{conference.token}"
     ringing = None
@@ -368,6 +370,7 @@ async def bring_in_user(
         stream.pipeline_muted = False
         conference.end()
         _conferences.pop(conference.token, None)
+        _by_run.pop(workflow_run_id, None)
         await conference.transcriber.close()
         if conference.user_call_sid:
             # Never leave the user's phone connected to nothing.
@@ -399,6 +402,21 @@ async def bring_in_user(
         result["assistant_listened_to_the_end"] = not conference.assistant_left
         result["direct_talk"] = conference.lines
     return result
+
+
+def direct_talk_now(workflow_run_id: int) -> dict[str, Any] | None:
+    """The direct talk that runs now in this call, for a progress report."""
+    conference = _by_run.get(workflow_run_id)
+    if conference is None:
+        return None
+    if conference.joined_at is None:
+        return {"state": "calling_the_user"}
+    return {
+        "state": "user_on_the_line",
+        "seconds": round(time.monotonic() - conference.joined_at),
+        "assistant_is_listening": not conference.assistant_left,
+        "lines": list(conference.lines),
+    }
 
 
 # --- Twilio's requests for the user's call ----------------------------------

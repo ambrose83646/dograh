@@ -23,6 +23,15 @@ class DograhPipelineWorker(PipelineWorker):
         super().__init__(*args, **kwargs)
         self._dograh_setup_task: asyncio.Task[bool] | None = None
 
+    def note_activity(self) -> None:
+        """Restart the idle timer.
+
+        For a time when the call is in use but no speech frames go through
+        the pipeline, such as a direct talk between the user and the other
+        party.
+        """
+        self._idle_event.set()
+
     async def _cancel(self, *, reason: str | None = None):
         await super()._cancel(reason=reason)
         if self._dograh_setup_task is not None:
