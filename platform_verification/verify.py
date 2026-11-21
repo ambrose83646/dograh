@@ -149,7 +149,11 @@ def jwt_expiry(token: str) -> datetime:
 def transcript_turns(transcript: str) -> list[tuple[str, str]]:
     turns = []
     for line in transcript.splitlines():
-        match = re.match(r"^\[[^\]]+\]\s+(user|assistant):\s*(.*)$", line)
+        match = re.match(
+            r"^\[[^\]]+\]\s+(user|assistant|direct talk, your user|"
+            r"direct talk, other person):\s*(.*)$",
+            line,
+        )
         if match:
             turns.append((match.group(1), match.group(2)))
         elif turns and line.strip():

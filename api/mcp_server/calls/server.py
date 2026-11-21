@@ -203,7 +203,10 @@ async def get_call_result(
     `duration_seconds` and `transcript` show the call so far, and
     `direct_talk_now` shows a direct talk between the user and the other
     party that is in progress: a call with the user on the line is not
-    stuck. `result` holds
+    stuck. In `transcript`, "assistant:" is the calling agent and "user:" is
+    the person on the phone. Lines that start with "direct talk," are the
+    words of a direct talk: "your user" is the user, "other person" is the
+    other party; the agent did not speak then. `result` holds
     the agent's own summary when the call reached its closing step; always
     check it against `transcript`, which is the record of what was said.
     For an outbound call, `answered_by` is "person", "voicemail",

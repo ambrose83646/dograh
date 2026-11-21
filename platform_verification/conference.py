@@ -26,6 +26,12 @@ Ways the feature can fail, and the call that shows it:
     assistant thinks that the call is stuck.                          (call 4)
 11. The other party hangs up and the user's phone stays connected to
     nothing.                                                          (call 4)
+12. The transcript has a hole where the direct talk was, or the words of
+    the talk are at a wrong place in it.                        (calls 1, 4)
+13. In the transcript, the words of the direct talk look like words that
+    the agent said or heard, or the two speakers are exchanged.      (call 1)
+14. The words after "assistant, leave the call" get into the transcript.
+                                                                      (call 3)
 
 Only the two approved test numbers are dialled. Run it with the same
 environment as verify.py.
@@ -238,6 +244,24 @@ async def run(args, report: Report) -> None:
                     and talk.get("assistant_listened_to_the_end") is True,
                     f"agent heard: {agent_heard[-200:]!r}",
                 )
+                roles = [r for r, _ in turns]
+                in_talk_at = [n for n, r in enumerate(roles) if r.startswith("direct")]
+                first_at, last_at = (in_talk_at or [0])[0], (in_talk_at or [0])[-1]
+                report.check(
+                    "The transcript is one record: the words of the direct talk "
+                    "are in it at the correct place, each with the correct speaker",
+                    len(in_talk_at) == len(lines) > 0
+                    and "assistant" in roles[:first_at]
+                    and "assistant" not in roles[first_at:last_at]
+                    and "assistant" in roles[last_at:]
+                    and card in spoken_digits(
+                        " ".join(t for r, t in turns if r == "direct talk, your user")
+                    )
+                    and reference in spoken_digits(
+                        " ".join(t for r, t in turns if r == "direct talk, other person")
+                    ),
+                    f"speakers in order: {[r.replace('direct talk, ', 'talk:') for r in roles]}"[:400],
+                )  # fmt: skip
                 after = agent_said.lower().split("hold")[-1]
                 report.check(
                     "When the user hangs up, the agent continues with the other "
@@ -307,7 +331,11 @@ async def run(args, report: Report) -> None:
                 everything = (
                     str(lines) + third.get("transcript", "") + str(third.get("result"))
                 ).lower()
-                turns = transcript_turns(third.get("transcript", ""))
+                turns = [
+                    t
+                    for t in transcript_turns(third.get("transcript", ""))
+                    if not t[0].startswith("direct")
+                ]
                 report.check(
                     'After "assistant, leave the call" the agent stops listening: '
                     "the words that follow are not in the call record",
@@ -428,6 +456,12 @@ async def run(args, report: Report) -> None:
                     "user is on the line, and the words of the talk so far",
                     len(in_talk) >= 15
                     and "step three" in live_words
+                    # The same words are in the transcript of that moment.
+                    and any(
+                        "direct talk, other person" in s["transcript"]
+                        and "step three" in s["transcript"].lower()
+                        for s in in_talk[:-1]
+                    )
                     and in_talk[-1]["direct_talk_now"]["seconds"] > 300,
                     f"{len(in_talk)} reports with the user on the line; last at "
                     f"{in_talk[-1]['direct_talk_now'].get('seconds') if in_talk else None} s",

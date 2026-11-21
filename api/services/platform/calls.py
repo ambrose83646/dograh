@@ -5,6 +5,8 @@ Every function takes the caller's ``organization_id`` and reads or writes only
 through it; ids that arrive from a client are never trusted on their own.
 """
 
+import re
+from datetime import datetime
 from typing import Any
 
 import httpx
@@ -47,7 +49,9 @@ BRING_USER_INSTRUCTIONS = (
     "the bring_user_on_line tool. Use it when the other person will continue "
     "only with your client in person (an identity check, or a decision or a "
     "payment that only your client can make), or asks to speak with your "
-    "client. Do not use it for a question that you can answer from the task "
+    "client, or refuses to speak with an assistant. Such a refusal is not "
+    "the end of the call: first try to get your client on the line. Do not "
+    "use it for a question that you can answer from the task "
     "or the background. First say that you will get your client on the line "
     "and ask the other person to hold; say this in the same turn in which "
     "you use the tool. While the two talk, you cannot speak. When your "
@@ -451,6 +455,51 @@ def _summarize(run, account: dict[str, Any]) -> dict[str, Any]:
     return summary
 
 
+_ENTRY_START = re.compile(r"(?m)^(?=\[\d{4}-\d\d-\d\dT)")
+_DIRECT_TALK_LABELS = {
+    "user": "direct talk, your user",
+    "other_party": "direct talk, other person",
+}
+
+
+def _time_of(text: str) -> datetime | None:
+    try:
+        return datetime.fromisoformat(text)
+    except ValueError:
+        return None
+
+
+def _with_direct_talk(transcript: str, lines: list[dict[str, Any]]) -> str:
+    """Put the lines of the direct talks into the transcript, in time order.
+
+    The transcript has what the agent said and heard. In a direct talk the
+    agent says and hears nothing, so the transcript has a hole there.
+    """
+    timed = [
+        (at, line)
+        for line in lines
+        if isinstance(line, dict) and (at := _time_of(str(line.get("at") or "")))
+    ]
+    if not timed:
+        return transcript
+    timed.sort(key=lambda pair: pair[0])
+    merged: list[str] = []
+
+    def add_lines_before(limit: datetime | None) -> None:
+        while timed and (limit is None or timed[0][0] < limit):
+            at, line = timed.pop(0)
+            label = _DIRECT_TALK_LABELS.get(line.get("speaker"), "direct talk")
+            merged.append(f"[{line['at']}] {label}: {line.get('text', '')}\n")
+
+    for entry in _ENTRY_START.split(transcript):
+        if not entry:
+            continue
+        add_lines_before(_time_of(entry[1:].split("]")[0].split(" ")[0]))
+        merged.append(entry if entry.endswith("\n") else entry + "\n")
+    add_lines_before(None)
+    return "".join(merged)
+
+
 async def get_call_result(organization_id: int, call_id: int) -> dict[str, Any]:
     account = await _ready_account(organization_id)
     run = await db_client.get_workflow_run(
@@ -485,11 +534,13 @@ async def get_call_result(organization_id: int, call_id: int) -> dict[str, Any]:
         result["direct_talk"] = direct_talk
     result["result"] = (run.gathered_context or {}).get("extracted_variables") or {}
     result["transcript"] = ""
+    talk_lines = [line for talk in direct_talk for line in talk["lines"]]
     if live is not None:
-        result["transcript"] = live["transcript"]
         now = conference.direct_talk_now(run.id)
         if now is not None:
             result["direct_talk_now"] = now
+            talk_lines = talk_lines + (now.get("lines") or [])
+        result["transcript"] = _with_direct_talk(live["transcript"], talk_lines)
         result["next_step"] = (
             "The call is in progress. duration_seconds and transcript show "
             "the call so far. Ask again in 20 seconds."
@@ -501,6 +552,7 @@ async def get_call_result(organization_id: int, call_id: int) -> dict[str, Any]:
                 transcript_url=run.transcript_url,
                 storage_backend=run.storage_backend,
             )
+            result["transcript"] = _with_direct_talk(result["transcript"], talk_lines)
         except (TranscriptDownloadError, ValueError) as exc:
             logger.warning(f"Transcript for call {call_id} could not be read: {exc}")
             result["transcript_error"] = (

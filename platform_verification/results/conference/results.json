@@ -14,32 +14,37 @@
     {
       "name": "The user and the other party talk directly: each side's words are in the audio of the correct channel",
       "passed": true,
-      "detail": "13 lines in 62 s: other_party: Hello, Maria. / other_party: This is Dana at card services. / other_party: Please tell me the last four digits of the damaged card. / user: Hello, Dana. / user: This is Maria Lopez. / user: The last four digits are 4382. / other_party: Thank you. / other_party: That is correct. / other_party: The new card ships on Thursday. / other_party: The reference number of the order is 7982 / us"
+      "detail": "13 lines in 62 s: other_party: Hello, Maria. / other_party: This is Dana at card services. / other_party: Please tell me the last four digits of the damaged card. / user: Hello, Dana. / user: This is Maria Lopez. / user: The last four digits are 9537. / other_party: Thank you. / other_party: That is correct. / other_party: The new card ships on Tuesday. / other_party: The reference number of the order is 5119 / use"
     },
     {
       "name": "The agent heard the direct talk: its result has the reference and the day, which were said only there",
       "passed": true,
-      "detail": "summary: 'Maria Lopez requested a replacement for her damaged Riverside Bank card. Dana verified Maria\u2019s identity and ordered the replacement card, which ships Thursday; the confirmed order reference is 7982.'"
+      "detail": "summary: 'Maria Lopez requested a replacement for her damaged Riverside Bank card. Dana verified Maria\u2019s identity and confirmed that the new card ships Tuesday; the order reference is 5119.'"
     },
     {
       "name": "The agent took no part in the direct talk: the words were not spoken to it, and it did not answer them",
       "passed": true,
-      "detail": "agent heard: 'am sorry. I cannot order a card with an assistant. I must speak with Maria Lopez herself. to check her identity. Can you get her on the line? I will hold. Yes. That is all correct. Thank you. Goodbye.'"
+      "detail": "agent heard: 'am sorry. I cannot order a card with an assistant. I must speak with Maria Lopez herself. To check her identity, can you get her on the line? I will hold. Yes. That is all correct. Thank you. Goodbye.'"
+    },
+    {
+      "name": "The transcript is one record: the words of the direct talk are in it at the correct place, each with the correct speaker",
+      "passed": true,
+      "detail": "speakers in order: ['user', 'assistant', 'user', 'assistant', 'talk:other person', 'talk:other person', 'talk:other person', 'talk:your user', 'talk:your user', 'talk:your user', 'talk:other person', 'talk:other person', 'talk:other person', 'talk:other person', 'talk:your user', 'talk:your user', 'talk:your user', 'assistant', 'assistant', 'user', 'assistant']"
     },
     {
       "name": "When the user hangs up, the agent continues with the other party and closes the call",
       "passed": true,
-      "detail": "137 s; agent after the talk: ' heard the order reference as seven, nine, eight, two. is that correct? dana, are you still thank you, dana. maria\u2019s replacement card ships thursday, and the confirmed order reference is seven, nine, eight, two. goodbye.'"
+      "detail": "137 s; agent after the talk: 'nd i heard the order reference as five, one, one, nine. is that correct? dana, are you still there? thank you, dana. the replacement card ships tuesday, and the confirmed order reference is five, one, one, nine. goodbye.'"
     },
     {
       "name": "A voicemail box on the user's phone does not join the call; the other party waits less than a minute and the agent returns",
       "passed": true,
-      "detail": "user_not_reached; calls to the user's phone: [{'from': '+12088864742', 'status': 'completed', 'seconds': 45}]"
+      "detail": "user_not_reached; calls to the user's phone: [{'from': '+12088864742', 'status': 'completed', 'seconds': 44}]"
     },
     {
       "name": "After the user did not join, the agent takes the message and the result tells the user what to do",
       "passed": true,
-      "detail": "result: 'False The assistant called Riverside Bank card services to request a replacement for Maria Lopez\u2019s damaged card. Dana said she must speak with Maria to verify her identity, but Maria did not answer; Dana instructed her to call card services at 555-6457 before '"
+      "detail": "result: 'False I called Riverside Bank card services to request a replacement for Maria Lopez\u2019s damaged card. Dana said she must speak directly with Maria to verify her identity; Maria did not answer, so no replacement was ordered. Dana asked Maria to call card service'"
     },
     {
       "name": "After \"assistant, leave the call\" the agent stops listening: the words that follow are not in the call record",
@@ -49,12 +54,12 @@
     {
       "name": "The talk continues without the agent, and the call ends when the user hangs up; the agent does not speak again",
       "passed": true,
-      "detail": "direct talk 39 s, call 78 s"
+      "detail": "direct talk 39 s, call 79 s"
     },
     {
       "name": "During the call, the call result shows the running time and the words so far",
       "passed": true,
-      "detail": "25 reports; seconds [13, 28, 43] ... [362, 377]"
+      "detail": "25 reports; seconds [13, 28, 44] ... [362, 377]"
     },
     {
       "name": "During the direct talk, the call result shows that the user is on the line, and the words of the talk so far",
@@ -64,27 +69,27 @@
     {
       "name": "A direct talk of more than five minutes is not cut: the words that the other party says after minute five are in the record",
       "passed": true,
-      "detail": "direct talk 342 s; last words: 'ile. This is step eight. The check is done. The password of the day is sunflower. Goodbye.'"
+      "detail": "direct talk 342 s; last words: 'ile. This is step eight. To check is done, The password of the day is strawberry. Goodbye.'"
     },
     {
       "name": "When the other party hangs up, the user's phone is released at once, and the result says that the call ended",
       "passed": true,
-      "detail": "result call_ended; user's phone call [344] s, direct talk 342 s"
+      "detail": "result call_ended; user's phone call [345] s, direct talk 342 s"
     }
   ],
-  "run_id": "1121001716",
+  "run_id": "1121024250",
   "base_url": "http://localhost:8000",
-  "started_at": "2026-11-21T00:17:16.450040+00:00",
-  "card_digits": "4382",
-  "reference": "7982",
-  "ship_day": "Thursday",
-  "callback_number": "5556457",
-  "secret_word": "lighthouse",
+  "started_at": "2026-11-21T02:42:50.088933+00:00",
+  "card_digits": "9537",
+  "reference": "5119",
+  "ship_day": "Tuesday",
+  "callback_number": "5553041",
+  "secret_word": "butterfly",
   "joined_call": {
-    "call_id": 156,
+    "call_id": 164,
     "direction": "outbound",
     "status": "completed",
-    "started_at": "2026-11-21T00:17:45.786969+00:00",
+    "started_at": "2026-11-21T02:43:16.735146+00:00",
     "duration_seconds": 137,
     "to": "+12088864742",
     "from": "+12085050523",
@@ -100,65 +105,78 @@
         "lines": [
           {
             "speaker": "other_party",
-            "text": "Hello, Maria."
+            "text": "Hello, Maria.",
+            "at": "2026-11-21T02:44:15.626+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This is Dana at card services."
+            "text": "This is Dana at card services.",
+            "at": "2026-11-21T02:44:17.809+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "Please tell me the last four digits of the damaged card."
+            "text": "Please tell me the last four digits of the damaged card.",
+            "at": "2026-11-21T02:44:21.141+00:00"
           },
           {
             "speaker": "user",
-            "text": "Hello, Dana."
+            "text": "Hello, Dana.",
+            "at": "2026-11-21T02:44:21.965+00:00"
           },
           {
             "speaker": "user",
-            "text": "This is Maria Lopez."
+            "text": "This is Maria Lopez.",
+            "at": "2026-11-21T02:44:23.494+00:00"
           },
           {
             "speaker": "user",
-            "text": "The last four digits are 4382."
+            "text": "The last four digits are 9537.",
+            "at": "2026-11-21T02:44:31.488+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "Thank you."
+            "text": "Thank you.",
+            "at": "2026-11-21T02:44:43.906+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "That is correct."
+            "text": "That is correct.",
+            "at": "2026-11-21T02:44:45.006+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "The new card ships on Thursday."
+            "text": "The new card ships on Tuesday.",
+            "at": "2026-11-21T02:44:47.197+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "The reference number of the order is 7982"
+            "text": "The reference number of the order is 5119",
+            "at": "2026-11-21T02:44:55.568+00:00"
           },
           {
             "speaker": "user",
-            "text": "Thank you, Dana."
+            "text": "Thank you, Dana.",
+            "at": "2026-11-21T02:44:57.306+00:00"
           },
           {
             "speaker": "user",
-            "text": "That is all I need."
+            "text": "That is all I need.",
+            "at": "2026-11-21T02:44:58.820+00:00"
           },
           {
             "speaker": "user",
-            "text": "Goodbye."
+            "text": "Good",
+            "at": "2026-11-21T02:44:59.326+00:00"
           }
         ]
       }
     ],
     "result": {
       "task_completed": true,
-      "outcome_summary": "Maria Lopez requested a replacement for her damaged Riverside Bank card. Dana verified Maria\u2019s identity and ordered the replacement card, which ships Thursday; the confirmed order reference is 7982.",
+      "outcome_summary": "Maria Lopez requested a replacement for her damaged Riverside Bank card. Dana verified Maria\u2019s identity and confirmed that the new card ships Tuesday; the order reference is 5119.",
       "follow_up_needed": ""
     },
-    "transcript": "[2026-11-21T00:17:50.092+00:00] user: Riverside Bank card services. This is Dana speaking.\nHow can I help you?\n[2026-11-21T00:17:56.006+00:00] assistant: Hi, I\u2019m calling for Maria Lopez because her card was damaged and she needs a replacement. Can you help arrange that?\n[2026-11-21T00:18:05.772+00:00] user: I am sorry. I cannot order a card with an assistant.\nI must speak with Maria Lopez herself.\nto check her identity. Can you get her on the line?\nI will hold.\n[2026-11-21T00:19:30.930+00:00] assistant: Thank you, Dana. The replacement card ships Thursday, and I heard the order reference as seven, nine, eight, two. Is that correct?\n[2026-11-21T00:19:50.089+00:00] assistant: Dana, are you still\n[2026-11-21T00:19:50.732+00:00] user: Yes. That is all correct.\nThank you.\nGoodbye.\n[2026-11-21T00:19:54.614+00:00] assistant: Thank you, Dana. Maria\u2019s replacement card ships Thursday, and the confirmed order reference is seven, nine, eight, two. Goodbye.\n"
+    "transcript": "[2026-11-21T02:43:20.372+00:00] user: Riverside Bank card services. This is Dana speaking.\nHow can I help you?\n[2026-11-21T02:43:27.200+00:00] assistant: Hi, I\u2019m calling for Maria Lopez because her card was damaged. Could you send her a replacement?\n[2026-11-21T02:43:36.491+00:00] user: I am sorry. I cannot order a card with an assistant.\nI must speak with Maria Lopez herself.\nTo check her identity, can you get her on the line?\nI will hold.\n[2026-11-21T02:43:48.125+00:00] assistant: I\u2019ll get Maria on the line now. Please hold.\n[2026-11-21T02:44:15.626+00:00] direct talk, other person: Hello, Maria.\n[2026-11-21T02:44:17.809+00:00] direct talk, other person: This is Dana at card services.\n[2026-11-21T02:44:21.141+00:00] direct talk, other person: Please tell me the last four digits of the damaged card.\n[2026-11-21T02:44:21.965+00:00] direct talk, your user: Hello, Dana.\n[2026-11-21T02:44:23.494+00:00] direct talk, your user: This is Maria Lopez.\n[2026-11-21T02:44:31.488+00:00] direct talk, your user: The last four digits are 9537.\n[2026-11-21T02:44:43.906+00:00] direct talk, other person: Thank you.\n[2026-11-21T02:44:45.006+00:00] direct talk, other person: That is correct.\n[2026-11-21T02:44:47.197+00:00] direct talk, other person: The new card ships on Tuesday.\n[2026-11-21T02:44:55.568+00:00] direct talk, other person: The reference number of the order is 5119\n[2026-11-21T02:44:57.306+00:00] direct talk, your user: Thank you, Dana.\n[2026-11-21T02:44:58.820+00:00] direct talk, your user: That is all I need.\n[2026-11-21T02:44:59.326+00:00] direct talk, your user: Good\n[2026-11-21T02:45:00.765+00:00] assistant: Thank you, Dana. The replacement card ships Tuesday, and I heard the order reference as five, one, one, nine. Is that correct?\n[2026-11-21T02:45:19.885+00:00] assistant: Dana, are you still there?\n[2026-11-21T02:45:21.572+00:00] user: Yes. That is all correct.\nThank you. Goodbye.\n[2026-11-21T02:45:25.287+00:00] assistant: Thank you, Dana. The replacement card ships Tuesday, and the confirmed order reference is five, one, one, nine. Goodbye.\n"
   },
   "joined_call_user_leg": [
     {
@@ -168,11 +186,11 @@
     }
   ],
   "not_joined_call": {
-    "call_id": 157,
+    "call_id": 165,
     "direction": "outbound",
     "status": "completed",
-    "started_at": "2026-11-21T00:20:22.362870+00:00",
-    "duration_seconds": 129,
+    "started_at": "2026-11-21T02:45:52.997819+00:00",
+    "duration_seconds": 136,
     "to": "+12088864742",
     "from": "+12085050523",
     "disposition": "end_call",
@@ -189,17 +207,17 @@
     ],
     "result": {
       "task_completed": false,
-      "outcome_summary": "The assistant called Riverside Bank card services to request a replacement for Maria Lopez\u2019s damaged card. Dana said she must speak with Maria to verify her identity, but Maria did not answer; Dana instructed her to call card services at 555-6457 before Friday. No replacement card was ordered.",
-      "follow_up_needed": "Maria must call Riverside Bank card services at 555-6457 before Friday to verify her identity and request the replacement card."
+      "outcome_summary": "I called Riverside Bank card services to request a replacement for Maria Lopez\u2019s damaged card. Dana said she must speak directly with Maria to verify her identity; Maria did not answer, so no replacement was ordered. Dana asked Maria to call card services at 555-3041 before Friday.",
+      "follow_up_needed": "Maria must call Riverside Bank card services at 555-3041 before Friday to verify her identity and request the replacement card."
     },
-    "transcript": "[2026-11-21T00:20:26.280+00:00] user: Riverside Bank card services. This is Dana speaking.\nHow can I help you?\n[2026-11-21T00:20:32.468+00:00] assistant: Hi, I\u2019m an AI assistant calling for Maria Lopez because her card was damaged, and I\u2019d like to request a replacement. Can you help with that?\n[2026-11-21T00:20:42.080+00:00] user: I am sorry. I cannot order a card with an assistant.\nI must speak with Maria Lopez herself.\nTo check her identity, can you get her on the line?\nI will hold.\n[2026-11-21T00:21:40.033+00:00] assistant: I\u2019m sorry, I couldn\u2019t reach Maria. What should she do to request the replacement card? I\u2019m sorry, I couldn\u2019t reach Maria. What should she do to request the replacement card?\n[2026-11-21T00:22:00.514+00:00] assistant: Dana, are you still there?\n[2026-11-21T00:22:07.521+00:00] user: Then please tell her to call card services at five five five six four five seven before Friday.\n[2026-11-21T00:22:15.274+00:00] assistant: I\u2019ll tell Maria to call card services at five, five, five, six, four, five, seven before Friday. Is that number correct?\n[2026-11-21T00:22:28.080+00:00] user: Thank you. Goodbye.\n[2026-11-21T00:22:30.197+00:00] assistant: Thank you. Goodbye.\n"
+    "transcript": "[2026-11-21T02:45:56.615+00:00] user: Riverside Bank card services. This is Dana speaking.\nHow can I help you?\n[2026-11-21T02:46:03.083+00:00] assistant: Hi, I\u2019m calling for Maria Lopez because her card was damaged and she needs a replacement. Can you help that?\n[2026-11-21T02:46:12.775+00:00] user: I am sorry. I cannot order a card with an assistant.\nI must speak with Maria Lopez herself.\nto check her identity. Can you get her on the line?\nI will hold.\n[2026-11-21T02:46:24.568+00:00] assistant: I\u2019ll get Maria on the line now. Please hold.\n[2026-11-21T02:47:10.808+00:00] assistant: I\u2019m sorry, I couldn\u2019t reach Maria. What should she do to request the replacement?\n[2026-11-21T02:47:27.128+00:00] assistant: Dana, are you still there?\n[2026-11-21T02:47:38.295+00:00] user: Then please tell her to call card services at five five five three zero four one before Friday.\n[2026-11-21T02:47:45.529+00:00] assistant: I\u2019ll tell Maria to call card services at five, five, five, three, zero, four, one before Friday. Is that number correct?\n[2026-11-21T02:47:58.376+00:00] user: Thank you. Goodbye.\n[2026-11-21T02:48:00.929+00:00] assistant: Thank you. I couldn\u2019t order the replacement because Maria wasn\u2019t available for verification. I\u2019ll tell her to call card services before Friday.\n"
   },
   "sent_away_call": {
-    "call_id": 158,
+    "call_id": 166,
     "direction": "outbound",
     "status": "completed",
-    "started_at": "2026-11-21T00:22:42.474420+00:00",
-    "duration_seconds": 78,
+    "started_at": "2026-11-21T02:48:28.374120+00:00",
+    "duration_seconds": 79,
     "to": "+12088864742",
     "from": "+12085050523",
     "disposition": "end_call",
@@ -214,35 +232,39 @@
         "lines": [
           {
             "speaker": "user",
-            "text": "Hello, Dana."
+            "text": "Hello, Dana.",
+            "at": "2026-11-21T02:49:19.634+00:00"
           },
           {
             "speaker": "user",
-            "text": "This is Maria Lopez."
+            "text": "This is Maria Lopez.",
+            "at": "2026-11-21T02:49:21.175+00:00"
           },
           {
             "speaker": "user",
-            "text": "Assistant,"
+            "text": "Assistant,",
+            "at": "2026-11-21T02:49:23.913+00:00"
           },
           {
             "speaker": "user",
-            "text": "leave the call."
+            "text": "leave the call.",
+            "at": "2026-11-21T02:49:24.934+00:00"
           }
         ]
       }
     ],
     "result": {
       "task_completed": false,
-      "outcome_summary": "I called Riverside Bank card services to request a replacement for Maria Lopez\u2019s damaged card. Dana said she could not order it through an assistant and needed to speak with Maria directly; Maria joined the call and asked the assistant to leave. No replacement order was confirmed.",
-      "follow_up_needed": "Maria should complete the replacement request directly with Dana or Riverside Bank."
+      "outcome_summary": "Maria Lopez requested a replacement for her damaged card. Dana at Riverside Bank card services said she could not order it through an assistant and needed to speak with Maria directly to verify her identity. Maria joined the call and asked the assistant to leave; no replacement order was confirmed.",
+      "follow_up_needed": "Maria should confirm directly with Riverside Bank whether the replacement was ordered."
     },
-    "transcript": "[2026-11-21T00:22:46.469+00:00] user: Riverside Bank card services. This is Dana speaking.\nHow can I help you?\n[2026-11-21T00:22:54.262+00:00] assistant: Hi, I\u2019m calling for Maria Lopez because her card was damaged, and I\u2019d like to request a replacement. Can you help with that?\n[2026-11-21T00:23:02.230+00:00] user: I am sorry. I cannot order a card with an assistant.\nI must speak with Maria Lopez herself.\nTo check her identity, can you get her on the line?\nI will hold.\n"
+    "transcript": "[2026-11-21T02:48:31.963+00:00] user: Riverside Bank card services. This is Dana speaking.\nHow can I help you?\n[2026-11-21T02:48:38.351+00:00] assistant: Hi, I\u2019m calling for Maria Lopez because her card was damaged, and I\u2019d like to request a replacement. Can you that?\n[2026-11-21T02:48:48.043+00:00] user: I am sorry. I cannot order a card with an assistant.\nI must speak with Maria Lopez herself.\nTo check her identity, can you get her on the line?\nI will hold.\n[2026-11-21T02:48:59.757+00:00] assistant: I\u2019ll get Maria on the line now. Please hold.\n[2026-11-21T02:49:19.634+00:00] direct talk, your user: Hello, Dana.\n[2026-11-21T02:49:21.175+00:00] direct talk, your user: This is Maria Lopez.\n[2026-11-21T02:49:23.913+00:00] direct talk, your user: Assistant,\n[2026-11-21T02:49:24.934+00:00] direct talk, your user: leave the call.\n"
   },
   "long_call": {
-    "call_id": 159,
+    "call_id": 167,
     "direction": "outbound",
     "status": "completed",
-    "started_at": "2026-11-21T00:24:17.903708+00:00",
+    "started_at": "2026-11-21T02:50:03.810369+00:00",
     "duration_seconds": 381,
     "to": "+12088864742",
     "from": "+12085050523",
@@ -258,117 +280,143 @@
         "lines": [
           {
             "speaker": "other_party",
-            "text": "Hello, Maria."
+            "text": "Hello, Maria.",
+            "at": "2026-11-21T02:51:02.821+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This is Dana at card services."
+            "text": "This is Dana at card services.",
+            "at": "2026-11-21T02:51:05.010+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This check takes some minutes."
+            "text": "This check takes some minutes.",
+            "at": "2026-11-21T02:51:07.066+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "Please stay on the line."
+            "text": "Please stay on the line.",
+            "at": "2026-11-21T02:51:08.746+00:00"
           },
           {
             "speaker": "user",
-            "text": "Hello, Dana."
+            "text": "Hello, Dana.",
+            "at": "2026-11-21T02:51:08.760+00:00"
           },
           {
             "speaker": "user",
-            "text": "This is Maria Lopez."
+            "text": "This is Maria Lopez.",
+            "at": "2026-11-21T02:51:10.251+00:00"
           },
           {
             "speaker": "user",
-            "text": "I will wait."
+            "text": "I will wait.",
+            "at": "2026-11-21T02:51:11.394+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "I still checked the file."
+            "text": "I still checked the file.",
+            "at": "2026-11-21T02:51:46.073+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This is step one."
+            "text": "This is step one.",
+            "at": "2026-11-21T02:51:52.633+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "I still checked the file."
+            "text": "I still checked the file.",
+            "at": "2026-11-21T02:52:25.017+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This is step two."
+            "text": "This is step two.",
+            "at": "2026-11-21T02:52:31.571+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "I still checked the file."
+            "text": "I still checked the file.",
+            "at": "2026-11-21T02:53:03.984+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This is step three."
+            "text": "This is step three.",
+            "at": "2026-11-21T02:53:10.590+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "I still checked the file."
+            "text": "I still checked the file.",
+            "at": "2026-11-21T02:53:42.948+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This is step four."
+            "text": "This is step four.",
+            "at": "2026-11-21T02:53:49.552+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "I still checked the file."
+            "text": "I still checked the file.",
+            "at": "2026-11-21T02:54:21.938+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This is step five."
+            "text": "This is step five.",
+            "at": "2026-11-21T02:54:28.609+00:00"
           },
           {
             "speaker": "user",
-            "text": "I am still here."
+            "text": "I am still here.",
+            "at": "2026-11-21T02:54:32.369+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "I still checked the file."
+            "text": "I still checked the file.",
+            "at": "2026-11-21T02:55:00.989+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This is step six."
+            "text": "This is step six.",
+            "at": "2026-11-21T02:55:07.741+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "I still checked the file."
+            "text": "I still checked the file.",
+            "at": "2026-11-21T02:55:40.079+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This is step seven."
+            "text": "This is step seven.",
+            "at": "2026-11-21T02:55:46.735+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "I still checked the file."
+            "text": "I still checked the file.",
+            "at": "2026-11-21T02:56:19.119+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This is step eight. The check is done."
+            "text": "This is step eight. To check is done,",
+            "at": "2026-11-21T02:56:21.741+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "The password of the day is sunflower."
+            "text": "The password of the day is strawberry.",
+            "at": "2026-11-21T02:56:24.216+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "Goodbye."
+            "text": "Goodbye.",
+            "at": "2026-11-21T02:56:25.106+00:00"
           }
         ]
       }
     ],
     "result": {
       "task_completed": false,
-      "outcome_summary": "I asked Dana at Riverside Bank card services to replace Maria Lopez\u2019s damaged card. Dana said she must speak with Maria directly to verify her identity before ordering it, and is holding while Maria is brought on the line; no replacement was confirmed.",
-      "follow_up_needed": "Maria Lopez must speak with Dana to verify her identity and request the replacement card."
+      "outcome_summary": "I called Riverside Bank card services on Maria Lopez\u2019s behalf to request a replacement for her damaged card. Dana said she must speak with Maria directly to verify her identity before ordering it; I began bringing Maria onto the line, but no replacement was confirmed.",
+      "follow_up_needed": "Maria needs to speak with Dana to verify her identity and request the replacement card."
     },
-    "transcript": "[2026-11-21T00:24:21.533+00:00] user: Riverside Bank card services. This is Dana speaking.\nHow can I help you?\n[2026-11-21T00:24:27.763+00:00] assistant: Hi Dana, I\u2019m calling for Maria Lopez because her card was damaged. Could you arrange a replacement card?\n[2026-11-21T00:24:37.613+00:00] user: I am sorry. I cannot order a card with an assistant.\nI must speak with Maria Lopez herself.\nto check her identity. Can you get her on the line?\nI will hold.\n"
+    "transcript": "[2026-11-21T02:50:08.130+00:00] user: Riverside Bank card services. This is Dana speaking.\nHow can I help you?\n[2026-11-21T02:50:14.160+00:00] assistant: Hi, I\u2019m calling on behalf of Maria Lopez because her card was damaged and she\u2019d like a replacement. Can you help that?\n[2026-11-21T02:50:23.531+00:00] user: I am sorry. I cannot order a card with an assistant.\nI must speak with Maria Lopez herself.\nto check her identity. Can you get her on the line?\nI will hold.\n[2026-11-21T02:50:35.125+00:00] assistant: I\u2019ll get Maria on the line now. Please hold.\n[2026-11-21T02:51:02.821+00:00] direct talk, other person: Hello, Maria.\n[2026-11-21T02:51:05.010+00:00] direct talk, other person: This is Dana at card services.\n[2026-11-21T02:51:07.066+00:00] direct talk, other person: This check takes some minutes.\n[2026-11-21T02:51:08.746+00:00] direct talk, other person: Please stay on the line.\n[2026-11-21T02:51:08.760+00:00] direct talk, your user: Hello, Dana.\n[2026-11-21T02:51:10.251+00:00] direct talk, your user: This is Maria Lopez.\n[2026-11-21T02:51:11.394+00:00] direct talk, your user: I will wait.\n[2026-11-21T02:51:46.073+00:00] direct talk, other person: I still checked the file.\n[2026-11-21T02:51:52.633+00:00] direct talk, other person: This is step one.\n[2026-11-21T02:52:25.017+00:00] direct talk, other person: I still checked the file.\n[2026-11-21T02:52:31.571+00:00] direct talk, other person: This is step two.\n[2026-11-21T02:53:03.984+00:00] direct talk, other person: I still checked the file.\n[2026-11-21T02:53:10.590+00:00] direct talk, other person: This is step three.\n[2026-11-21T02:53:42.948+00:00] direct talk, other person: I still checked the file.\n[2026-11-21T02:53:49.552+00:00] direct talk, other person: This is step four.\n[2026-11-21T02:54:21.938+00:00] direct talk, other person: I still checked the file.\n[2026-11-21T02:54:28.609+00:00] direct talk, other person: This is step five.\n[2026-11-21T02:54:32.369+00:00] direct talk, your user: I am still here.\n[2026-11-21T02:55:00.989+00:00] direct talk, other person: I still checked the file.\n[2026-11-21T02:55:07.741+00:00] direct talk, other person: This is step six.\n[2026-11-21T02:55:40.079+00:00] direct talk, other person: I still checked the file.\n[2026-11-21T02:55:46.735+00:00] direct talk, other person: This is step seven.\n[2026-11-21T02:56:19.119+00:00] direct talk, other person: I still checked the file.\n[2026-11-21T02:56:21.741+00:00] direct talk, other person: This is step eight. To check is done,\n[2026-11-21T02:56:24.216+00:00] direct talk, other person: The password of the day is strawberry.\n[2026-11-21T02:56:25.106+00:00] direct talk, other person: Goodbye.\n"
   },
   "long_call_progress": [
     {
@@ -380,13 +428,13 @@
     {
       "status": "in_progress",
       "duration_seconds": 28,
-      "transcript": "ervices. This is Dana speaking.\nHow can I help you?\n[2026-11-21T00:24:27.763+00:00] assistant: Hi Dana, I\u2019m calling for Maria Lopez because her card was damaged. Could you arrange a replacement card?\n",
+      "transcript": "is Dana speaking.\nHow can I help you?\n[2026-11-21T02:50:14.160+00:00] assistant: Hi, I\u2019m calling on behalf of Maria Lopez because her card was damaged and she\u2019d like a replacement. Can you help that?\n",
       "direct_talk_now": {}
     },
     {
       "status": "in_progress",
-      "duration_seconds": 43,
-      "transcript": "ervices. This is Dana speaking.\nHow can I help you?\n[2026-11-21T00:24:27.763+00:00] assistant: Hi Dana, I\u2019m calling for Maria Lopez because her card was damaged. Could you arrange a replacement card?\n",
+      "duration_seconds": 44,
+      "transcript": "istant.\nI must speak with Maria Lopez herself.\nto check her identity. Can you get her on the line?\nI will hold.\n[2026-11-21T02:50:35.125+00:00] assistant: I\u2019ll get Maria on the line now. Please hold.\n",
       "direct_talk_now": {
         "state": "user_on_the_line",
         "seconds": 6,
@@ -397,7 +445,7 @@
     {
       "status": "in_progress",
       "duration_seconds": 59,
-      "transcript": "ervices. This is Dana speaking.\nHow can I help you?\n[2026-11-21T00:24:27.763+00:00] assistant: Hi Dana, I\u2019m calling for Maria Lopez because her card was damaged. Could you arrange a replacement card?\n",
+      "transcript": " you get her on the line?\nI will hold.\n[2026-11-21T02:50:35.125+00:00] assistant: I\u2019ll get Maria on the line now. Please hold.\n[2026-11-21T02:51:02.821+00:00] direct talk, other person: Hello, Maria.\n",
       "direct_talk_now": {
         "state": "user_on_the_line",
         "seconds": 21,
@@ -405,7 +453,8 @@
         "lines": [
           {
             "speaker": "other_party",
-            "text": "Hello, Maria."
+            "text": "Hello, Maria.",
+            "at": "2026-11-21T02:51:02.821+00:00"
           }
         ]
       }
@@ -413,39 +462,46 @@
     {
       "status": "in_progress",
       "duration_seconds": 74,
-      "transcript": "ervices. This is Dana speaking.\nHow can I help you?\n[2026-11-21T00:24:27.763+00:00] assistant: Hi Dana, I\u2019m calling for Maria Lopez because her card was damaged. Could you arrange a replacement card?\n",
+      "transcript": "51:08.760+00:00] direct talk, your user: Hello, Dana.\n[2026-11-21T02:51:10.251+00:00] direct talk, your user: This is Maria Lopez.\n[2026-11-21T02:51:11.394+00:00] direct talk, your user: I will wait.\n",
       "direct_talk_now": {
         "state": "user_on_the_line",
-        "seconds": 36,
+        "seconds": 37,
         "assistant_is_listening": true,
         "lines": [
           {
             "speaker": "other_party",
-            "text": "Hello, Maria."
+            "text": "Hello, Maria.",
+            "at": "2026-11-21T02:51:02.821+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This is Dana at card services."
+            "text": "This is Dana at card services.",
+            "at": "2026-11-21T02:51:05.010+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This check takes some minutes."
+            "text": "This check takes some minutes.",
+            "at": "2026-11-21T02:51:07.066+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "Please stay on the line."
+            "text": "Please stay on the line.",
+            "at": "2026-11-21T02:51:08.746+00:00"
           },
           {
             "speaker": "user",
-            "text": "Hello, Dana."
+            "text": "Hello, Dana.",
+            "at": "2026-11-21T02:51:08.760+00:00"
           },
           {
             "speaker": "user",
-            "text": "This is Maria Lopez."
+            "text": "This is Maria Lopez.",
+            "at": "2026-11-21T02:51:10.251+00:00"
           },
           {
             "speaker": "user",
-            "text": "I will wait."
+            "text": "I will wait.",
+            "at": "2026-11-21T02:51:11.394+00:00"
           }
         ]
       }
@@ -453,39 +509,46 @@
     {
       "status": "in_progress",
       "duration_seconds": 89,
-      "transcript": "ervices. This is Dana speaking.\nHow can I help you?\n[2026-11-21T00:24:27.763+00:00] assistant: Hi Dana, I\u2019m calling for Maria Lopez because her card was damaged. Could you arrange a replacement card?\n",
+      "transcript": "51:08.760+00:00] direct talk, your user: Hello, Dana.\n[2026-11-21T02:51:10.251+00:00] direct talk, your user: This is Maria Lopez.\n[2026-11-21T02:51:11.394+00:00] direct talk, your user: I will wait.\n",
       "direct_talk_now": {
         "state": "user_on_the_line",
-        "seconds": 51,
+        "seconds": 52,
         "assistant_is_listening": true,
         "lines": [
           {
             "speaker": "other_party",
-            "text": "Hello, Maria."
+            "text": "Hello, Maria.",
+            "at": "2026-11-21T02:51:02.821+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This is Dana at card services."
+            "text": "This is Dana at card services.",
+            "at": "2026-11-21T02:51:05.010+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This check takes some minutes."
+            "text": "This check takes some minutes.",
+            "at": "2026-11-21T02:51:07.066+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "Please stay on the line."
+            "text": "Please stay on the line.",
+            "at": "2026-11-21T02:51:08.746+00:00"
           },
           {
             "speaker": "user",
-            "text": "Hello, Dana."
+            "text": "Hello, Dana.",
+            "at": "2026-11-21T02:51:08.760+00:00"
           },
           {
             "speaker": "user",
-            "text": "This is Maria Lopez."
+            "text": "This is Maria Lopez.",
+            "at": "2026-11-21T02:51:10.251+00:00"
           },
           {
             "speaker": "user",
-            "text": "I will wait."
+            "text": "I will wait.",
+            "at": "2026-11-21T02:51:11.394+00:00"
           }
         ]
       }
@@ -493,43 +556,51 @@
     {
       "status": "in_progress",
       "duration_seconds": 104,
-      "transcript": "ervices. This is Dana speaking.\nHow can I help you?\n[2026-11-21T00:24:27.763+00:00] assistant: Hi Dana, I\u2019m calling for Maria Lopez because her card was damaged. Could you arrange a replacement card?\n",
+      "transcript": " direct talk, your user: This is Maria Lopez.\n[2026-11-21T02:51:11.394+00:00] direct talk, your user: I will wait.\n[2026-11-21T02:51:46.073+00:00] direct talk, other person: I still checked the file.\n",
       "direct_talk_now": {
         "state": "user_on_the_line",
-        "seconds": 66,
+        "seconds": 67,
         "assistant_is_listening": true,
         "lines": [
           {
             "speaker": "other_party",
-            "text": "Hello, Maria."
+            "text": "Hello, Maria.",
+            "at": "2026-11-21T02:51:02.821+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This is Dana at card services."
+            "text": "This is Dana at card services.",
+            "at": "2026-11-21T02:51:05.010+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This check takes some minutes."
+            "text": "This check takes some minutes.",
+            "at": "2026-11-21T02:51:07.066+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "Please stay on the line."
+            "text": "Please stay on the line.",
+            "at": "2026-11-21T02:51:08.746+00:00"
           },
           {
             "speaker": "user",
-            "text": "Hello, Dana."
+            "text": "Hello, Dana.",
+            "at": "2026-11-21T02:51:08.760+00:00"
           },
           {
             "speaker": "user",
-            "text": "This is Maria Lopez."
+            "text": "This is Maria Lopez.",
+            "at": "2026-11-21T02:51:10.251+00:00"
           },
           {
             "speaker": "user",
-            "text": "I will wait."
+            "text": "I will wait.",
+            "at": "2026-11-21T02:51:11.394+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "I still checked the file."
+            "text": "I still checked the file.",
+            "at": "2026-11-21T02:51:46.073+00:00"
           }
         ]
       }
@@ -537,7 +608,7 @@
     {
       "status": "in_progress",
       "duration_seconds": 119,
-      "transcript": "ervices. This is Dana speaking.\nHow can I help you?\n[2026-11-21T00:24:27.763+00:00] assistant: Hi Dana, I\u2019m calling for Maria Lopez because her card was damaged. Could you arrange a replacement card?\n",
+      "transcript": " direct talk, your user: I will wait.\n[2026-11-21T02:51:46.073+00:00] direct talk, other person: I still checked the file.\n[2026-11-21T02:51:52.633+00:00] direct talk, other person: This is step one.\n",
       "direct_talk_now": {
         "state": "user_on_the_line",
         "seconds": 82,
@@ -545,39 +616,48 @@
         "lines": [
           {
             "speaker": "other_party",
-            "text": "Hello, Maria."
+            "text": "Hello, Maria.",
+            "at": "2026-11-21T02:51:02.821+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This is Dana at card services."
+            "text": "This is Dana at card services.",
+            "at": "2026-11-21T02:51:05.010+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This check takes some minutes."
+            "text": "This check takes some minutes.",
+            "at": "2026-11-21T02:51:07.066+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "Please stay on the line."
+            "text": "Please stay on the line.",
+            "at": "2026-11-21T02:51:08.746+00:00"
           },
           {
             "speaker": "user",
-            "text": "Hello, Dana."
+            "text": "Hello, Dana.",
+            "at": "2026-11-21T02:51:08.760+00:00"
           },
           {
             "speaker": "user",
-            "text": "This is Maria Lopez."
+            "text": "This is Maria Lopez.",
+            "at": "2026-11-21T02:51:10.251+00:00"
           },
           {
             "speaker": "user",
-            "text": "I will wait."
+            "text": "I will wait.",
+            "at": "2026-11-21T02:51:11.394+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "I still checked the file."
+            "text": "I still checked the file.",
+            "at": "2026-11-21T02:51:46.073+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This is step one."
+            "text": "This is step one.",
+            "at": "2026-11-21T02:51:52.633+00:00"
           }
         ]
       }
@@ -585,7 +665,7 @@
     {
       "status": "in_progress",
       "duration_seconds": 134,
-      "transcript": "ervices. This is Dana speaking.\nHow can I help you?\n[2026-11-21T00:24:27.763+00:00] assistant: Hi Dana, I\u2019m calling for Maria Lopez because her card was damaged. Could you arrange a replacement card?\n",
+      "transcript": " direct talk, your user: I will wait.\n[2026-11-21T02:51:46.073+00:00] direct talk, other person: I still checked the file.\n[2026-11-21T02:51:52.633+00:00] direct talk, other person: This is step one.\n",
       "direct_talk_now": {
         "state": "user_on_the_line",
         "seconds": 97,
@@ -593,39 +673,48 @@
         "lines": [
           {
             "speaker": "other_party",
-            "text": "Hello, Maria."
+            "text": "Hello, Maria.",
+            "at": "2026-11-21T02:51:02.821+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This is Dana at card services."
+            "text": "This is Dana at card services.",
+            "at": "2026-11-21T02:51:05.010+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This check takes some minutes."
+            "text": "This check takes some minutes.",
+            "at": "2026-11-21T02:51:07.066+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "Please stay on the line."
+            "text": "Please stay on the line.",
+            "at": "2026-11-21T02:51:08.746+00:00"
           },
           {
             "speaker": "user",
-            "text": "Hello, Dana."
+            "text": "Hello, Dana.",
+            "at": "2026-11-21T02:51:08.760+00:00"
           },
           {
             "speaker": "user",
-            "text": "This is Maria Lopez."
+            "text": "This is Maria Lopez.",
+            "at": "2026-11-21T02:51:10.251+00:00"
           },
           {
             "speaker": "user",
-            "text": "I will wait."
+            "text": "I will wait.",
+            "at": "2026-11-21T02:51:11.394+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "I still checked the file."
+            "text": "I still checked the file.",
+            "at": "2026-11-21T02:51:46.073+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This is step one."
+            "text": "This is step one.",
+            "at": "2026-11-21T02:51:52.633+00:00"
           }
         ]
       }
@@ -633,7 +722,7 @@
     {
       "status": "in_progress",
       "duration_seconds": 150,
-      "transcript": "ervices. This is Dana speaking.\nHow can I help you?\n[2026-11-21T00:24:27.763+00:00] assistant: Hi Dana, I\u2019m calling for Maria Lopez because her card was damaged. Could you arrange a replacement card?\n",
+      "transcript": "talk, other person: This is step one.\n[2026-11-21T02:52:25.017+00:00] direct talk, other person: I still checked the file.\n[2026-11-21T02:52:31.571+00:00] direct talk, other person: This is step two.\n",
       "direct_talk_now": {
         "state": "user_on_the_line",
         "seconds": 112,
@@ -641,47 +730,58 @@
         "lines": [
           {
             "speaker": "other_party",
-            "text": "Hello, Maria."
+            "text": "Hello, Maria.",
+            "at": "2026-11-21T02:51:02.821+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This is Dana at card services."
+            "text": "This is Dana at card services.",
+            "at": "2026-11-21T02:51:05.010+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This check takes some minutes."
+            "text": "This check takes some minutes.",
+            "at": "2026-11-21T02:51:07.066+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "Please stay on the line."
+            "text": "Please stay on the line.",
+            "at": "2026-11-21T02:51:08.746+00:00"
           },
           {
             "speaker": "user",
-            "text": "Hello, Dana."
+            "text": "Hello, Dana.",
+            "at": "2026-11-21T02:51:08.760+00:00"
           },
           {
             "speaker": "user",
-            "text": "This is Maria Lopez."
+            "text": "This is Maria Lopez.",
+            "at": "2026-11-21T02:51:10.251+00:00"
           },
           {
             "speaker": "user",
-            "text": "I will wait."
+            "text": "I will wait.",
+            "at": "2026-11-21T02:51:11.394+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "I still checked the file."
+            "text": "I still checked the file.",
+            "at": "2026-11-21T02:51:46.073+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This is step one."
+            "text": "This is step one.",
+            "at": "2026-11-21T02:51:52.633+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "I still checked the file."
+            "text": "I still checked the file.",
+            "at": "2026-11-21T02:52:25.017+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This is step two."
+            "text": "This is step two.",
+            "at": "2026-11-21T02:52:31.571+00:00"
           }
         ]
       }
@@ -689,7 +789,7 @@
     {
       "status": "in_progress",
       "duration_seconds": 165,
-      "transcript": "ervices. This is Dana speaking.\nHow can I help you?\n[2026-11-21T00:24:27.763+00:00] assistant: Hi Dana, I\u2019m calling for Maria Lopez because her card was damaged. Could you arrange a replacement card?\n",
+      "transcript": "talk, other person: This is step one.\n[2026-11-21T02:52:25.017+00:00] direct talk, other person: I still checked the file.\n[2026-11-21T02:52:31.571+00:00] direct talk, other person: This is step two.\n",
       "direct_talk_now": {
         "state": "user_on_the_line",
         "seconds": 127,
@@ -697,47 +797,58 @@
         "lines": [
           {
             "speaker": "other_party",
-            "text": "Hello, Maria."
+            "text": "Hello, Maria.",
+            "at": "2026-11-21T02:51:02.821+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This is Dana at card services."
+            "text": "This is Dana at card services.",
+            "at": "2026-11-21T02:51:05.010+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This check takes some minutes."
+            "text": "This check takes some minutes.",
+            "at": "2026-11-21T02:51:07.066+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "Please stay on the line."
+            "text": "Please stay on the line.",
+            "at": "2026-11-21T02:51:08.746+00:00"
           },
           {
             "speaker": "user",
-            "text": "Hello, Dana."
+            "text": "Hello, Dana.",
+            "at": "2026-11-21T02:51:08.760+00:00"
           },
           {
             "speaker": "user",
-            "text": "This is Maria Lopez."
+            "text": "This is Maria Lopez.",
+            "at": "2026-11-21T02:51:10.251+00:00"
           },
           {
             "speaker": "user",
-            "text": "I will wait."
+            "text": "I will wait.",
+            "at": "2026-11-21T02:51:11.394+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "I still checked the file."
+            "text": "I still checked the file.",
+            "at": "2026-11-21T02:51:46.073+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This is step one."
+            "text": "This is step one.",
+            "at": "2026-11-21T02:51:52.633+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "I still checked the file."
+            "text": "I still checked the file.",
+            "at": "2026-11-21T02:52:25.017+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This is step two."
+            "text": "This is step two.",
+            "at": "2026-11-21T02:52:31.571+00:00"
           }
         ]
       }
@@ -745,59 +856,71 @@
     {
       "status": "in_progress",
       "duration_seconds": 180,
-      "transcript": "ervices. This is Dana speaking.\nHow can I help you?\n[2026-11-21T00:24:27.763+00:00] assistant: Hi Dana, I\u2019m calling for Maria Lopez because her card was damaged. Could you arrange a replacement card?\n",
+      "transcript": "her person: I still checked the file.\n[2026-11-21T02:52:31.571+00:00] direct talk, other person: This is step two.\n[2026-11-21T02:53:03.984+00:00] direct talk, other person: I still checked the file.\n",
       "direct_talk_now": {
         "state": "user_on_the_line",
-        "seconds": 142,
+        "seconds": 143,
         "assistant_is_listening": true,
         "lines": [
           {
             "speaker": "other_party",
-            "text": "Hello, Maria."
+            "text": "Hello, Maria.",
+            "at": "2026-11-21T02:51:02.821+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This is Dana at card services."
+            "text": "This is Dana at card services.",
+            "at": "2026-11-21T02:51:05.010+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This check takes some minutes."
+            "text": "This check takes some minutes.",
+            "at": "2026-11-21T02:51:07.066+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "Please stay on the line."
+            "text": "Please stay on the line.",
+            "at": "2026-11-21T02:51:08.746+00:00"
           },
           {
             "speaker": "user",
-            "text": "Hello, Dana."
+            "text": "Hello, Dana.",
+            "at": "2026-11-21T02:51:08.760+00:00"
           },
           {
             "speaker": "user",
-            "text": "This is Maria Lopez."
+            "text": "This is Maria Lopez.",
+            "at": "2026-11-21T02:51:10.251+00:00"
           },
           {
             "speaker": "user",
-            "text": "I will wait."
+            "text": "I will wait.",
+            "at": "2026-11-21T02:51:11.394+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "I still checked the file."
+            "text": "I still checked the file.",
+            "at": "2026-11-21T02:51:46.073+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This is step one."
+            "text": "This is step one.",
+            "at": "2026-11-21T02:51:52.633+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "I still checked the file."
+            "text": "I still checked the file.",
+            "at": "2026-11-21T02:52:25.017+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This is step two."
+            "text": "This is step two.",
+            "at": "2026-11-21T02:52:31.571+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "I still checked the file."
+            "text": "I still checked the file.",
+            "at": "2026-11-21T02:53:03.984+00:00"
           }
         ]
       }
@@ -805,63 +928,76 @@
     {
       "status": "in_progress",
       "duration_seconds": 195,
-      "transcript": "ervices. This is Dana speaking.\nHow can I help you?\n[2026-11-21T00:24:27.763+00:00] assistant: Hi Dana, I\u2019m calling for Maria Lopez because her card was damaged. Could you arrange a replacement card?\n",
+      "transcript": "lk, other person: This is step two.\n[2026-11-21T02:53:03.984+00:00] direct talk, other person: I still checked the file.\n[2026-11-21T02:53:10.590+00:00] direct talk, other person: This is step three.\n",
       "direct_talk_now": {
         "state": "user_on_the_line",
-        "seconds": 157,
+        "seconds": 158,
         "assistant_is_listening": true,
         "lines": [
           {
             "speaker": "other_party",
-            "text": "Hello, Maria."
+            "text": "Hello, Maria.",
+            "at": "2026-11-21T02:51:02.821+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This is Dana at card services."
+            "text": "This is Dana at card services.",
+            "at": "2026-11-21T02:51:05.010+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This check takes some minutes."
+            "text": "This check takes some minutes.",
+            "at": "2026-11-21T02:51:07.066+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "Please stay on the line."
+            "text": "Please stay on the line.",
+            "at": "2026-11-21T02:51:08.746+00:00"
           },
           {
             "speaker": "user",
-            "text": "Hello, Dana."
+            "text": "Hello, Dana.",
+            "at": "2026-11-21T02:51:08.760+00:00"
           },
           {
             "speaker": "user",
-            "text": "This is Maria Lopez."
+            "text": "This is Maria Lopez.",
+            "at": "2026-11-21T02:51:10.251+00:00"
           },
           {
             "speaker": "user",
-            "text": "I will wait."
+            "text": "I will wait.",
+            "at": "2026-11-21T02:51:11.394+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "I still checked the file."
+            "text": "I still checked the file.",
+            "at": "2026-11-21T02:51:46.073+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This is step one."
+            "text": "This is step one.",
+            "at": "2026-11-21T02:51:52.633+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "I still checked the file."
+            "text": "I still checked the file.",
+            "at": "2026-11-21T02:52:25.017+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This is step two."
+            "text": "This is step two.",
+            "at": "2026-11-21T02:52:31.571+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "I still checked the file."
+            "text": "I still checked the file.",
+            "at": "2026-11-21T02:53:03.984+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This is step three."
+            "text": "This is step three.",
+            "at": "2026-11-21T02:53:10.590+00:00"
           }
         ]
       }
@@ -869,63 +1005,76 @@
     {
       "status": "in_progress",
       "duration_seconds": 210,
-      "transcript": "ervices. This is Dana speaking.\nHow can I help you?\n[2026-11-21T00:24:27.763+00:00] assistant: Hi Dana, I\u2019m calling for Maria Lopez because her card was damaged. Could you arrange a replacement card?\n",
+      "transcript": "lk, other person: This is step two.\n[2026-11-21T02:53:03.984+00:00] direct talk, other person: I still checked the file.\n[2026-11-21T02:53:10.590+00:00] direct talk, other person: This is step three.\n",
       "direct_talk_now": {
         "state": "user_on_the_line",
-        "seconds": 172,
+        "seconds": 173,
         "assistant_is_listening": true,
         "lines": [
           {
             "speaker": "other_party",
-            "text": "Hello, Maria."
+            "text": "Hello, Maria.",
+            "at": "2026-11-21T02:51:02.821+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This is Dana at card services."
+            "text": "This is Dana at card services.",
+            "at": "2026-11-21T02:51:05.010+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This check takes some minutes."
+            "text": "This check takes some minutes.",
+            "at": "2026-11-21T02:51:07.066+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "Please stay on the line."
+            "text": "Please stay on the line.",
+            "at": "2026-11-21T02:51:08.746+00:00"
           },
           {
             "speaker": "user",
-            "text": "Hello, Dana."
+            "text": "Hello, Dana.",
+            "at": "2026-11-21T02:51:08.760+00:00"
           },
           {
             "speaker": "user",
-            "text": "This is Maria Lopez."
+            "text": "This is Maria Lopez.",
+            "at": "2026-11-21T02:51:10.251+00:00"
           },
           {
             "speaker": "user",
-            "text": "I will wait."
+            "text": "I will wait.",
+            "at": "2026-11-21T02:51:11.394+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "I still checked the file."
+            "text": "I still checked the file.",
+            "at": "2026-11-21T02:51:46.073+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This is step one."
+            "text": "This is step one.",
+            "at": "2026-11-21T02:51:52.633+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "I still checked the file."
+            "text": "I still checked the file.",
+            "at": "2026-11-21T02:52:25.017+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This is step two."
+            "text": "This is step two.",
+            "at": "2026-11-21T02:52:31.571+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "I still checked the file."
+            "text": "I still checked the file.",
+            "at": "2026-11-21T02:53:03.984+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This is step three."
+            "text": "This is step three.",
+            "at": "2026-11-21T02:53:10.590+00:00"
           }
         ]
       }
@@ -933,7 +1082,7 @@
     {
       "status": "in_progress",
       "duration_seconds": 225,
-      "transcript": "ervices. This is Dana speaking.\nHow can I help you?\n[2026-11-21T00:24:27.763+00:00] assistant: Hi Dana, I\u2019m calling for Maria Lopez because her card was damaged. Could you arrange a replacement card?\n",
+      "transcript": "k, other person: This is step three.\n[2026-11-21T02:53:42.948+00:00] direct talk, other person: I still checked the file.\n[2026-11-21T02:53:49.552+00:00] direct talk, other person: This is step four.\n",
       "direct_talk_now": {
         "state": "user_on_the_line",
         "seconds": 188,
@@ -941,71 +1090,86 @@
         "lines": [
           {
             "speaker": "other_party",
-            "text": "Hello, Maria."
+            "text": "Hello, Maria.",
+            "at": "2026-11-21T02:51:02.821+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This is Dana at card services."
+            "text": "This is Dana at card services.",
+            "at": "2026-11-21T02:51:05.010+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This check takes some minutes."
+            "text": "This check takes some minutes.",
+            "at": "2026-11-21T02:51:07.066+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "Please stay on the line."
+            "text": "Please stay on the line.",
+            "at": "2026-11-21T02:51:08.746+00:00"
           },
           {
             "speaker": "user",
-            "text": "Hello, Dana."
+            "text": "Hello, Dana.",
+            "at": "2026-11-21T02:51:08.760+00:00"
           },
           {
             "speaker": "user",
-            "text": "This is Maria Lopez."
+            "text": "This is Maria Lopez.",
+            "at": "2026-11-21T02:51:10.251+00:00"
           },
           {
             "speaker": "user",
-            "text": "I will wait."
+            "text": "I will wait.",
+            "at": "2026-11-21T02:51:11.394+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "I still checked the file."
+            "text": "I still checked the file.",
+            "at": "2026-11-21T02:51:46.073+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This is step one."
+            "text": "This is step one.",
+            "at": "2026-11-21T02:51:52.633+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "I still checked the file."
+            "text": "I still checked the file.",
+            "at": "2026-11-21T02:52:25.017+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This is step two."
+            "text": "This is step two.",
+            "at": "2026-11-21T02:52:31.571+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "I still checked the file."
+            "text": "I still checked the file.",
+            "at": "2026-11-21T02:53:03.984+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This is step three."
+            "text": "This is step three.",
+            "at": "2026-11-21T02:53:10.590+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "I still checked the file."
+            "text": "I still checked the file.",
+            "at": "2026-11-21T02:53:42.948+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This is step four."
+            "text": "This is step four.",
+            "at": "2026-11-21T02:53:49.552+00:00"
           }
         ]
       }
     },
     {
       "status": "in_progress",
-      "duration_seconds": 240,
-      "transcript": "ervices. This is Dana speaking.\nHow can I help you?\n[2026-11-21T00:24:27.763+00:00] assistant: Hi Dana, I\u2019m calling for Maria Lopez because her card was damaged. Could you arrange a replacement card?\n",
+      "duration_seconds": 241,
+      "transcript": "k, other person: This is step three.\n[2026-11-21T02:53:42.948+00:00] direct talk, other person: I still checked the file.\n[2026-11-21T02:53:49.552+00:00] direct talk, other person: This is step four.\n",
       "direct_talk_now": {
         "state": "user_on_the_line",
         "seconds": 203,
@@ -1013,63 +1177,78 @@
         "lines": [
           {
             "speaker": "other_party",
-            "text": "Hello, Maria."
+            "text": "Hello, Maria.",
+            "at": "2026-11-21T02:51:02.821+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This is Dana at card services."
+            "text": "This is Dana at card services.",
+            "at": "2026-11-21T02:51:05.010+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This check takes some minutes."
+            "text": "This check takes some minutes.",
+            "at": "2026-11-21T02:51:07.066+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "Please stay on the line."
+            "text": "Please stay on the line.",
+            "at": "2026-11-21T02:51:08.746+00:00"
           },
           {
             "speaker": "user",
-            "text": "Hello, Dana."
+            "text": "Hello, Dana.",
+            "at": "2026-11-21T02:51:08.760+00:00"
           },
           {
             "speaker": "user",
-            "text": "This is Maria Lopez."
+            "text": "This is Maria Lopez.",
+            "at": "2026-11-21T02:51:10.251+00:00"
           },
           {
             "speaker": "user",
-            "text": "I will wait."
+            "text": "I will wait.",
+            "at": "2026-11-21T02:51:11.394+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "I still checked the file."
+            "text": "I still checked the file.",
+            "at": "2026-11-21T02:51:46.073+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This is step one."
+            "text": "This is step one.",
+            "at": "2026-11-21T02:51:52.633+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "I still checked the file."
+            "text": "I still checked the file.",
+            "at": "2026-11-21T02:52:25.017+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This is step two."
+            "text": "This is step two.",
+            "at": "2026-11-21T02:52:31.571+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "I still checked the file."
+            "text": "I still checked the file.",
+            "at": "2026-11-21T02:53:03.984+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This is step three."
+            "text": "This is step three.",
+            "at": "2026-11-21T02:53:10.590+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "I still checked the file."
+            "text": "I still checked the file.",
+            "at": "2026-11-21T02:53:42.948+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This is step four."
+            "text": "This is step four.",
+            "at": "2026-11-21T02:53:49.552+00:00"
           }
         ]
       }
@@ -1077,7 +1256,7 @@
     {
       "status": "in_progress",
       "duration_seconds": 256,
-      "transcript": "ervices. This is Dana speaking.\nHow can I help you?\n[2026-11-21T00:24:27.763+00:00] assistant: Hi Dana, I\u2019m calling for Maria Lopez because her card was damaged. Could you arrange a replacement card?\n",
+      "transcript": "er person: I still checked the file.\n[2026-11-21T02:53:49.552+00:00] direct talk, other person: This is step four.\n[2026-11-21T02:54:21.938+00:00] direct talk, other person: I still checked the file.\n",
       "direct_talk_now": {
         "state": "user_on_the_line",
         "seconds": 218,
@@ -1085,67 +1264,83 @@
         "lines": [
           {
             "speaker": "other_party",
-            "text": "Hello, Maria."
+            "text": "Hello, Maria.",
+            "at": "2026-11-21T02:51:02.821+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This is Dana at card services."
+            "text": "This is Dana at card services.",
+            "at": "2026-11-21T02:51:05.010+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This check takes some minutes."
+            "text": "This check takes some minutes.",
+            "at": "2026-11-21T02:51:07.066+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "Please stay on the line."
+            "text": "Please stay on the line.",
+            "at": "2026-11-21T02:51:08.746+00:00"
           },
           {
             "speaker": "user",
-            "text": "Hello, Dana."
+            "text": "Hello, Dana.",
+            "at": "2026-11-21T02:51:08.760+00:00"
           },
           {
             "speaker": "user",
-            "text": "This is Maria Lopez."
+            "text": "This is Maria Lopez.",
+            "at": "2026-11-21T02:51:10.251+00:00"
           },
           {
             "speaker": "user",
-            "text": "I will wait."
+            "text": "I will wait.",
+            "at": "2026-11-21T02:51:11.394+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "I still checked the file."
+            "text": "I still checked the file.",
+            "at": "2026-11-21T02:51:46.073+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This is step one."
+            "text": "This is step one.",
+            "at": "2026-11-21T02:51:52.633+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "I still checked the file."
+            "text": "I still checked the file.",
+            "at": "2026-11-21T02:52:25.017+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This is step two."
+            "text": "This is step two.",
+            "at": "2026-11-21T02:52:31.571+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "I still checked the file."
+            "text": "I still checked the file.",
+            "at": "2026-11-21T02:53:03.984+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This is step three."
+            "text": "This is step three.",
+            "at": "2026-11-21T02:53:10.590+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "I still checked the file."
+            "text": "I still checked the file.",
+            "at": "2026-11-21T02:53:42.948+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This is step four."
+            "text": "This is step four.",
+            "at": "2026-11-21T02:53:49.552+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "I still checked the file."
+            "text": "I still checked the file.",
+            "at": "2026-11-21T02:54:21.938+00:00"
           }
         ]
       }
@@ -1153,83 +1348,101 @@
     {
       "status": "in_progress",
       "duration_seconds": 271,
-      "transcript": "ervices. This is Dana speaking.\nHow can I help you?\n[2026-11-21T00:24:27.763+00:00] assistant: Hi Dana, I\u2019m calling for Maria Lopez because her card was damaged. Could you arrange a replacement card?\n",
+      "transcript": "ct talk, other person: I still checked the file.\n[2026-11-21T02:54:28.609+00:00] direct talk, other person: This is step five.\n[2026-11-21T02:54:32.369+00:00] direct talk, your user: I am still here.\n",
       "direct_talk_now": {
         "state": "user_on_the_line",
-        "seconds": 233,
+        "seconds": 234,
         "assistant_is_listening": true,
         "lines": [
           {
             "speaker": "other_party",
-            "text": "Hello, Maria."
+            "text": "Hello, Maria.",
+            "at": "2026-11-21T02:51:02.821+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This is Dana at card services."
+            "text": "This is Dana at card services.",
+            "at": "2026-11-21T02:51:05.010+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This check takes some minutes."
+            "text": "This check takes some minutes.",
+            "at": "2026-11-21T02:51:07.066+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "Please stay on the line."
+            "text": "Please stay on the line.",
+            "at": "2026-11-21T02:51:08.746+00:00"
           },
           {
             "speaker": "user",
-            "text": "Hello, Dana."
+            "text": "Hello, Dana.",
+            "at": "2026-11-21T02:51:08.760+00:00"
           },
           {
             "speaker": "user",
-            "text": "This is Maria Lopez."
+            "text": "This is Maria Lopez.",
+            "at": "2026-11-21T02:51:10.251+00:00"
           },
           {
             "speaker": "user",
-            "text": "I will wait."
+            "text": "I will wait.",
+            "at": "2026-11-21T02:51:11.394+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "I still checked the file."
+            "text": "I still checked the file.",
+            "at": "2026-11-21T02:51:46.073+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This is step one."
+            "text": "This is step one.",
+            "at": "2026-11-21T02:51:52.633+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "I still checked the file."
+            "text": "I still checked the file.",
+            "at": "2026-11-21T02:52:25.017+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This is step two."
+            "text": "This is step two.",
+            "at": "2026-11-21T02:52:31.571+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "I still checked the file."
+            "text": "I still checked the file.",
+            "at": "2026-11-21T02:53:03.984+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This is step three."
+            "text": "This is step three.",
+            "at": "2026-11-21T02:53:10.590+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "I still checked the file."
+            "text": "I still checked the file.",
+            "at": "2026-11-21T02:53:42.948+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This is step four."
+            "text": "This is step four.",
+            "at": "2026-11-21T02:53:49.552+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "I still checked the file."
+            "text": "I still checked the file.",
+            "at": "2026-11-21T02:54:21.938+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This is step five."
+            "text": "This is step five.",
+            "at": "2026-11-21T02:54:28.609+00:00"
           },
           {
             "speaker": "user",
-            "text": "I am still here."
+            "text": "I am still here.",
+            "at": "2026-11-21T02:54:32.369+00:00"
           }
         ]
       }
@@ -1237,7 +1450,7 @@
     {
       "status": "in_progress",
       "duration_seconds": 286,
-      "transcript": "ervices. This is Dana speaking.\nHow can I help you?\n[2026-11-21T00:24:27.763+00:00] assistant: Hi Dana, I\u2019m calling for Maria Lopez because her card was damaged. Could you arrange a replacement card?\n",
+      "transcript": "ct talk, other person: I still checked the file.\n[2026-11-21T02:54:28.609+00:00] direct talk, other person: This is step five.\n[2026-11-21T02:54:32.369+00:00] direct talk, your user: I am still here.\n",
       "direct_talk_now": {
         "state": "user_on_the_line",
         "seconds": 249,
@@ -1245,75 +1458,93 @@
         "lines": [
           {
             "speaker": "other_party",
-            "text": "Hello, Maria."
+            "text": "Hello, Maria.",
+            "at": "2026-11-21T02:51:02.821+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This is Dana at card services."
+            "text": "This is Dana at card services.",
+            "at": "2026-11-21T02:51:05.010+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This check takes some minutes."
+            "text": "This check takes some minutes.",
+            "at": "2026-11-21T02:51:07.066+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "Please stay on the line."
+            "text": "Please stay on the line.",
+            "at": "2026-11-21T02:51:08.746+00:00"
           },
           {
             "speaker": "user",
-            "text": "Hello, Dana."
+            "text": "Hello, Dana.",
+            "at": "2026-11-21T02:51:08.760+00:00"
           },
           {
             "speaker": "user",
-            "text": "This is Maria Lopez."
+            "text": "This is Maria Lopez.",
+            "at": "2026-11-21T02:51:10.251+00:00"
           },
           {
             "speaker": "user",
-            "text": "I will wait."
+            "text": "I will wait.",
+            "at": "2026-11-21T02:51:11.394+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "I still checked the file."
+            "text": "I still checked the file.",
+            "at": "2026-11-21T02:51:46.073+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This is step one."
+            "text": "This is step one.",
+            "at": "2026-11-21T02:51:52.633+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "I still checked the file."
+            "text": "I still checked the file.",
+            "at": "2026-11-21T02:52:25.017+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This is step two."
+            "text": "This is step two.",
+            "at": "2026-11-21T02:52:31.571+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "I still checked the file."
+            "text": "I still checked the file.",
+            "at": "2026-11-21T02:53:03.984+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This is step three."
+            "text": "This is step three.",
+            "at": "2026-11-21T02:53:10.590+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "I still checked the file."
+            "text": "I still checked the file.",
+            "at": "2026-11-21T02:53:42.948+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This is step four."
+            "text": "This is step four.",
+            "at": "2026-11-21T02:53:49.552+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "I still checked the file."
+            "text": "I still checked the file.",
+            "at": "2026-11-21T02:54:21.938+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This is step five."
+            "text": "This is step five.",
+            "at": "2026-11-21T02:54:28.609+00:00"
           },
           {
             "speaker": "user",
-            "text": "I am still here."
+            "text": "I am still here.",
+            "at": "2026-11-21T02:54:32.369+00:00"
           }
         ]
       }
@@ -1321,7 +1552,7 @@
     {
       "status": "in_progress",
       "duration_seconds": 301,
-      "transcript": "ervices. This is Dana speaking.\nHow can I help you?\n[2026-11-21T00:24:27.763+00:00] assistant: Hi Dana, I\u2019m calling for Maria Lopez because her card was damaged. Could you arrange a replacement card?\n",
+      "transcript": "ct talk, other person: This is step five.\n[2026-11-21T02:54:32.369+00:00] direct talk, your user: I am still here.\n[2026-11-21T02:55:00.989+00:00] direct talk, other person: I still checked the file.\n",
       "direct_talk_now": {
         "state": "user_on_the_line",
         "seconds": 264,
@@ -1329,91 +1560,106 @@
         "lines": [
           {
             "speaker": "other_party",
-            "text": "Hello, Maria."
+            "text": "Hello, Maria.",
+            "at": "2026-11-21T02:51:02.821+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This is Dana at card services."
+            "text": "This is Dana at card services.",
+            "at": "2026-11-21T02:51:05.010+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This check takes some minutes."
+            "text": "This check takes some minutes.",
+            "at": "2026-11-21T02:51:07.066+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "Please stay on the line."
+            "text": "Please stay on the line.",
+            "at": "2026-11-21T02:51:08.746+00:00"
           },
           {
             "speaker": "user",
-            "text": "Hello, Dana."
+            "text": "Hello, Dana.",
+            "at": "2026-11-21T02:51:08.760+00:00"
           },
           {
             "speaker": "user",
-            "text": "This is Maria Lopez."
+            "text": "This is Maria Lopez.",
+            "at": "2026-11-21T02:51:10.251+00:00"
           },
           {
             "speaker": "user",
-            "text": "I will wait."
+            "text": "I will wait.",
+            "at": "2026-11-21T02:51:11.394+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "I still checked the file."
+            "text": "I still checked the file.",
+            "at": "2026-11-21T02:51:46.073+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This is step one."
+            "text": "This is step one.",
+            "at": "2026-11-21T02:51:52.633+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "I still checked the file."
+            "text": "I still checked the file.",
+            "at": "2026-11-21T02:52:25.017+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This is step two."
+            "text": "This is step two.",
+            "at": "2026-11-21T02:52:31.571+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "I still checked the file."
+            "text": "I still checked the file.",
+            "at": "2026-11-21T02:53:03.984+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This is step three."
+            "text": "This is step three.",
+            "at": "2026-11-21T02:53:10.590+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "I still checked the file."
+            "text": "I still checked the file.",
+            "at": "2026-11-21T02:53:42.948+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This is step four."
+            "text": "This is step four.",
+            "at": "2026-11-21T02:53:49.552+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "I still checked the file."
+            "text": "I still checked the file.",
+            "at": "2026-11-21T02:54:21.938+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This is step five."
+            "text": "This is step five.",
+            "at": "2026-11-21T02:54:28.609+00:00"
           },
           {
             "speaker": "user",
-            "text": "I am still here."
+            "text": "I am still here.",
+            "at": "2026-11-21T02:54:32.369+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "I still checked the file."
-          },
-          {
-            "speaker": "other_party",
-            "text": "This is step six."
+            "text": "I still checked the file.",
+            "at": "2026-11-21T02:55:00.989+00:00"
           }
         ]
       }
     },
     {
       "status": "in_progress",
-      "duration_seconds": 317,
-      "transcript": "ervices. This is Dana speaking.\nHow can I help you?\n[2026-11-21T00:24:27.763+00:00] assistant: Hi Dana, I\u2019m calling for Maria Lopez because her card was damaged. Could you arrange a replacement card?\n",
+      "duration_seconds": 316,
+      "transcript": "ect talk, your user: I am still here.\n[2026-11-21T02:55:00.989+00:00] direct talk, other person: I still checked the file.\n[2026-11-21T02:55:07.741+00:00] direct talk, other person: This is step six.\n",
       "direct_talk_now": {
         "state": "user_on_the_line",
         "seconds": 279,
@@ -1421,83 +1667,103 @@
         "lines": [
           {
             "speaker": "other_party",
-            "text": "Hello, Maria."
+            "text": "Hello, Maria.",
+            "at": "2026-11-21T02:51:02.821+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This is Dana at card services."
+            "text": "This is Dana at card services.",
+            "at": "2026-11-21T02:51:05.010+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This check takes some minutes."
+            "text": "This check takes some minutes.",
+            "at": "2026-11-21T02:51:07.066+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "Please stay on the line."
+            "text": "Please stay on the line.",
+            "at": "2026-11-21T02:51:08.746+00:00"
           },
           {
             "speaker": "user",
-            "text": "Hello, Dana."
+            "text": "Hello, Dana.",
+            "at": "2026-11-21T02:51:08.760+00:00"
           },
           {
             "speaker": "user",
-            "text": "This is Maria Lopez."
+            "text": "This is Maria Lopez.",
+            "at": "2026-11-21T02:51:10.251+00:00"
           },
           {
             "speaker": "user",
-            "text": "I will wait."
+            "text": "I will wait.",
+            "at": "2026-11-21T02:51:11.394+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "I still checked the file."
+            "text": "I still checked the file.",
+            "at": "2026-11-21T02:51:46.073+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This is step one."
+            "text": "This is step one.",
+            "at": "2026-11-21T02:51:52.633+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "I still checked the file."
+            "text": "I still checked the file.",
+            "at": "2026-11-21T02:52:25.017+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This is step two."
+            "text": "This is step two.",
+            "at": "2026-11-21T02:52:31.571+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "I still checked the file."
+            "text": "I still checked the file.",
+            "at": "2026-11-21T02:53:03.984+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This is step three."
+            "text": "This is step three.",
+            "at": "2026-11-21T02:53:10.590+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "I still checked the file."
+            "text": "I still checked the file.",
+            "at": "2026-11-21T02:53:42.948+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This is step four."
+            "text": "This is step four.",
+            "at": "2026-11-21T02:53:49.552+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "I still checked the file."
+            "text": "I still checked the file.",
+            "at": "2026-11-21T02:54:21.938+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This is step five."
+            "text": "This is step five.",
+            "at": "2026-11-21T02:54:28.609+00:00"
           },
           {
             "speaker": "user",
-            "text": "I am still here."
+            "text": "I am still here.",
+            "at": "2026-11-21T02:54:32.369+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "I still checked the file."
+            "text": "I still checked the file.",
+            "at": "2026-11-21T02:55:00.989+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This is step six."
+            "text": "This is step six.",
+            "at": "2026-11-21T02:55:07.741+00:00"
           }
         ]
       }
@@ -1505,7 +1771,7 @@
     {
       "status": "in_progress",
       "duration_seconds": 332,
-      "transcript": "ervices. This is Dana speaking.\nHow can I help you?\n[2026-11-21T00:24:27.763+00:00] assistant: Hi Dana, I\u2019m calling for Maria Lopez because her card was damaged. Could you arrange a replacement card?\n",
+      "transcript": "ect talk, your user: I am still here.\n[2026-11-21T02:55:00.989+00:00] direct talk, other person: I still checked the file.\n[2026-11-21T02:55:07.741+00:00] direct talk, other person: This is step six.\n",
       "direct_talk_now": {
         "state": "user_on_the_line",
         "seconds": 294,
@@ -1513,83 +1779,103 @@
         "lines": [
           {
             "speaker": "other_party",
-            "text": "Hello, Maria."
+            "text": "Hello, Maria.",
+            "at": "2026-11-21T02:51:02.821+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This is Dana at card services."
+            "text": "This is Dana at card services.",
+            "at": "2026-11-21T02:51:05.010+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This check takes some minutes."
+            "text": "This check takes some minutes.",
+            "at": "2026-11-21T02:51:07.066+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "Please stay on the line."
+            "text": "Please stay on the line.",
+            "at": "2026-11-21T02:51:08.746+00:00"
           },
           {
             "speaker": "user",
-            "text": "Hello, Dana."
+            "text": "Hello, Dana.",
+            "at": "2026-11-21T02:51:08.760+00:00"
           },
           {
             "speaker": "user",
-            "text": "This is Maria Lopez."
+            "text": "This is Maria Lopez.",
+            "at": "2026-11-21T02:51:10.251+00:00"
           },
           {
             "speaker": "user",
-            "text": "I will wait."
+            "text": "I will wait.",
+            "at": "2026-11-21T02:51:11.394+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "I still checked the file."
+            "text": "I still checked the file.",
+            "at": "2026-11-21T02:51:46.073+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This is step one."
+            "text": "This is step one.",
+            "at": "2026-11-21T02:51:52.633+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "I still checked the file."
+            "text": "I still checked the file.",
+            "at": "2026-11-21T02:52:25.017+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This is step two."
+            "text": "This is step two.",
+            "at": "2026-11-21T02:52:31.571+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "I still checked the file."
+            "text": "I still checked the file.",
+            "at": "2026-11-21T02:53:03.984+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This is step three."
+            "text": "This is step three.",
+            "at": "2026-11-21T02:53:10.590+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "I still checked the file."
+            "text": "I still checked the file.",
+            "at": "2026-11-21T02:53:42.948+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This is step four."
+            "text": "This is step four.",
+            "at": "2026-11-21T02:53:49.552+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "I still checked the file."
+            "text": "I still checked the file.",
+            "at": "2026-11-21T02:54:21.938+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This is step five."
+            "text": "This is step five.",
+            "at": "2026-11-21T02:54:28.609+00:00"
           },
           {
             "speaker": "user",
-            "text": "I am still here."
+            "text": "I am still here.",
+            "at": "2026-11-21T02:54:32.369+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "I still checked the file."
+            "text": "I still checked the file.",
+            "at": "2026-11-21T02:55:00.989+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This is step six."
+            "text": "This is step six.",
+            "at": "2026-11-21T02:55:07.741+00:00"
           }
         ]
       }
@@ -1597,99 +1883,121 @@
     {
       "status": "in_progress",
       "duration_seconds": 347,
-      "transcript": "ervices. This is Dana speaking.\nHow can I help you?\n[2026-11-21T00:24:27.763+00:00] assistant: Hi Dana, I\u2019m calling for Maria Lopez because her card was damaged. Could you arrange a replacement card?\n",
+      "transcript": "lk, other person: This is step six.\n[2026-11-21T02:55:40.079+00:00] direct talk, other person: I still checked the file.\n[2026-11-21T02:55:46.735+00:00] direct talk, other person: This is step seven.\n",
       "direct_talk_now": {
         "state": "user_on_the_line",
-        "seconds": 309,
+        "seconds": 310,
         "assistant_is_listening": true,
         "lines": [
           {
             "speaker": "other_party",
-            "text": "Hello, Maria."
+            "text": "Hello, Maria.",
+            "at": "2026-11-21T02:51:02.821+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This is Dana at card services."
+            "text": "This is Dana at card services.",
+            "at": "2026-11-21T02:51:05.010+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This check takes some minutes."
+            "text": "This check takes some minutes.",
+            "at": "2026-11-21T02:51:07.066+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "Please stay on the line."
+            "text": "Please stay on the line.",
+            "at": "2026-11-21T02:51:08.746+00:00"
           },
           {
             "speaker": "user",
-            "text": "Hello, Dana."
+            "text": "Hello, Dana.",
+            "at": "2026-11-21T02:51:08.760+00:00"
           },
           {
             "speaker": "user",
-            "text": "This is Maria Lopez."
+            "text": "This is Maria Lopez.",
+            "at": "2026-11-21T02:51:10.251+00:00"
           },
           {
             "speaker": "user",
-            "text": "I will wait."
+            "text": "I will wait.",
+            "at": "2026-11-21T02:51:11.394+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "I still checked the file."
+            "text": "I still checked the file.",
+            "at": "2026-11-21T02:51:46.073+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This is step one."
+            "text": "This is step one.",
+            "at": "2026-11-21T02:51:52.633+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "I still checked the file."
+            "text": "I still checked the file.",
+            "at": "2026-11-21T02:52:25.017+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This is step two."
+            "text": "This is step two.",
+            "at": "2026-11-21T02:52:31.571+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "I still checked the file."
+            "text": "I still checked the file.",
+            "at": "2026-11-21T02:53:03.984+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This is step three."
+            "text": "This is step three.",
+            "at": "2026-11-21T02:53:10.590+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "I still checked the file."
+            "text": "I still checked the file.",
+            "at": "2026-11-21T02:53:42.948+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This is step four."
+            "text": "This is step four.",
+            "at": "2026-11-21T02:53:49.552+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "I still checked the file."
+            "text": "I still checked the file.",
+            "at": "2026-11-21T02:54:21.938+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This is step five."
+            "text": "This is step five.",
+            "at": "2026-11-21T02:54:28.609+00:00"
           },
           {
             "speaker": "user",
-            "text": "I am still here."
+            "text": "I am still here.",
+            "at": "2026-11-21T02:54:32.369+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "I still checked the file."
+            "text": "I still checked the file.",
+            "at": "2026-11-21T02:55:00.989+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This is step six."
+            "text": "This is step six.",
+            "at": "2026-11-21T02:55:07.741+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "I still checked the file."
+            "text": "I still checked the file.",
+            "at": "2026-11-21T02:55:40.079+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This is step seven."
+            "text": "This is step seven.",
+            "at": "2026-11-21T02:55:46.735+00:00"
           }
         ]
       }
@@ -1697,99 +2005,121 @@
     {
       "status": "in_progress",
       "duration_seconds": 362,
-      "transcript": "ervices. This is Dana speaking.\nHow can I help you?\n[2026-11-21T00:24:27.763+00:00] assistant: Hi Dana, I\u2019m calling for Maria Lopez because her card was damaged. Could you arrange a replacement card?\n",
+      "transcript": "lk, other person: This is step six.\n[2026-11-21T02:55:40.079+00:00] direct talk, other person: I still checked the file.\n[2026-11-21T02:55:46.735+00:00] direct talk, other person: This is step seven.\n",
       "direct_talk_now": {
         "state": "user_on_the_line",
-        "seconds": 324,
+        "seconds": 325,
         "assistant_is_listening": true,
         "lines": [
           {
             "speaker": "other_party",
-            "text": "Hello, Maria."
+            "text": "Hello, Maria.",
+            "at": "2026-11-21T02:51:02.821+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This is Dana at card services."
+            "text": "This is Dana at card services.",
+            "at": "2026-11-21T02:51:05.010+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This check takes some minutes."
+            "text": "This check takes some minutes.",
+            "at": "2026-11-21T02:51:07.066+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "Please stay on the line."
+            "text": "Please stay on the line.",
+            "at": "2026-11-21T02:51:08.746+00:00"
           },
           {
             "speaker": "user",
-            "text": "Hello, Dana."
+            "text": "Hello, Dana.",
+            "at": "2026-11-21T02:51:08.760+00:00"
           },
           {
             "speaker": "user",
-            "text": "This is Maria Lopez."
+            "text": "This is Maria Lopez.",
+            "at": "2026-11-21T02:51:10.251+00:00"
           },
           {
             "speaker": "user",
-            "text": "I will wait."
+            "text": "I will wait.",
+            "at": "2026-11-21T02:51:11.394+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "I still checked the file."
+            "text": "I still checked the file.",
+            "at": "2026-11-21T02:51:46.073+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This is step one."
+            "text": "This is step one.",
+            "at": "2026-11-21T02:51:52.633+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "I still checked the file."
+            "text": "I still checked the file.",
+            "at": "2026-11-21T02:52:25.017+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This is step two."
+            "text": "This is step two.",
+            "at": "2026-11-21T02:52:31.571+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "I still checked the file."
+            "text": "I still checked the file.",
+            "at": "2026-11-21T02:53:03.984+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This is step three."
+            "text": "This is step three.",
+            "at": "2026-11-21T02:53:10.590+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "I still checked the file."
+            "text": "I still checked the file.",
+            "at": "2026-11-21T02:53:42.948+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This is step four."
+            "text": "This is step four.",
+            "at": "2026-11-21T02:53:49.552+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "I still checked the file."
+            "text": "I still checked the file.",
+            "at": "2026-11-21T02:54:21.938+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This is step five."
+            "text": "This is step five.",
+            "at": "2026-11-21T02:54:28.609+00:00"
           },
           {
             "speaker": "user",
-            "text": "I am still here."
+            "text": "I am still here.",
+            "at": "2026-11-21T02:54:32.369+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "I still checked the file."
+            "text": "I still checked the file.",
+            "at": "2026-11-21T02:55:00.989+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This is step six."
+            "text": "This is step six.",
+            "at": "2026-11-21T02:55:07.741+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "I still checked the file."
+            "text": "I still checked the file.",
+            "at": "2026-11-21T02:55:40.079+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This is step seven."
+            "text": "This is step seven.",
+            "at": "2026-11-21T02:55:46.735+00:00"
           }
         ]
       }
@@ -1797,7 +2127,7 @@
     {
       "status": "in_progress",
       "duration_seconds": 377,
-      "transcript": "ervices. This is Dana speaking.\nHow can I help you?\n[2026-11-21T00:24:27.763+00:00] assistant: Hi Dana, I\u2019m calling for Maria Lopez because her card was damaged. Could you arrange a replacement card?\n",
+      "transcript": "is is step seven.\n[2026-11-21T02:56:19.119+00:00] direct talk, other person: I still checked the file.\n[2026-11-21T02:56:21.741+00:00] direct talk, other person: This is step eight. To check is done,\n",
       "direct_talk_now": {
         "state": "user_on_the_line",
         "seconds": 340,
@@ -1805,104 +2135,128 @@
         "lines": [
           {
             "speaker": "other_party",
-            "text": "Hello, Maria."
+            "text": "Hello, Maria.",
+            "at": "2026-11-21T02:51:02.821+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This is Dana at card services."
+            "text": "This is Dana at card services.",
+            "at": "2026-11-21T02:51:05.010+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This check takes some minutes."
+            "text": "This check takes some minutes.",
+            "at": "2026-11-21T02:51:07.066+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "Please stay on the line."
+            "text": "Please stay on the line.",
+            "at": "2026-11-21T02:51:08.746+00:00"
           },
           {
             "speaker": "user",
-            "text": "Hello, Dana."
+            "text": "Hello, Dana.",
+            "at": "2026-11-21T02:51:08.760+00:00"
           },
           {
             "speaker": "user",
-            "text": "This is Maria Lopez."
+            "text": "This is Maria Lopez.",
+            "at": "2026-11-21T02:51:10.251+00:00"
           },
           {
             "speaker": "user",
-            "text": "I will wait."
+            "text": "I will wait.",
+            "at": "2026-11-21T02:51:11.394+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "I still checked the file."
+            "text": "I still checked the file.",
+            "at": "2026-11-21T02:51:46.073+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This is step one."
+            "text": "This is step one.",
+            "at": "2026-11-21T02:51:52.633+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "I still checked the file."
+            "text": "I still checked the file.",
+            "at": "2026-11-21T02:52:25.017+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This is step two."
+            "text": "This is step two.",
+            "at": "2026-11-21T02:52:31.571+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "I still checked the file."
+            "text": "I still checked the file.",
+            "at": "2026-11-21T02:53:03.984+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This is step three."
+            "text": "This is step three.",
+            "at": "2026-11-21T02:53:10.590+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "I still checked the file."
+            "text": "I still checked the file.",
+            "at": "2026-11-21T02:53:42.948+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This is step four."
+            "text": "This is step four.",
+            "at": "2026-11-21T02:53:49.552+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "I still checked the file."
+            "text": "I still checked the file.",
+            "at": "2026-11-21T02:54:21.938+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This is step five."
+            "text": "This is step five.",
+            "at": "2026-11-21T02:54:28.609+00:00"
           },
           {
             "speaker": "user",
-            "text": "I am still here."
+            "text": "I am still here.",
+            "at": "2026-11-21T02:54:32.369+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "I still checked the file."
+            "text": "I still checked the file.",
+            "at": "2026-11-21T02:55:00.989+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This is step six."
+            "text": "This is step six.",
+            "at": "2026-11-21T02:55:07.741+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "I still checked the file."
+            "text": "I still checked the file.",
+            "at": "2026-11-21T02:55:40.079+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This is step seven."
+            "text": "This is step seven.",
+            "at": "2026-11-21T02:55:46.735+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "I still checked the file."
+            "text": "I still checked the file.",
+            "at": "2026-11-21T02:56:19.119+00:00"
           },
           {
             "speaker": "other_party",
-            "text": "This is step eight. The check is done."
+            "text": "This is step eight. To check is done,",
+            "at": "2026-11-21T02:56:21.741+00:00"
           }
         ]
       }
     }
   ],
-  "seconds": 818,
-  "finished_at": "2026-11-21T00:30:54.770436+00:00"
+  "seconds": 830,
+  "finished_at": "2026-11-21T02:56:40.585671+00:00"
 }

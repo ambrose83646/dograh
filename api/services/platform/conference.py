@@ -43,6 +43,7 @@ import re
 import secrets
 import time
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from typing import Any, Callable
 from xml.sax.saxutils import escape
 
@@ -191,7 +192,13 @@ class _Transcriber:
             speaker = "other_party" if message["channel_index"][0] == 0 else "user"
             if self._chars < MAX_TALK_CHARS:
                 self._chars += len(text)
-                conference.lines.append({"speaker": speaker, "text": text})
+                conference.lines.append(
+                    {
+                        "speaker": speaker,
+                        "text": text,
+                        "at": datetime.now(UTC).isoformat(timespec="milliseconds"),
+                    }
+                )
             if speaker != "user":
                 continue
             # The transcription can split one sentence: "Assistant," and
