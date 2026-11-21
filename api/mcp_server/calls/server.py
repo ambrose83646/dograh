@@ -174,6 +174,11 @@ async def place_call(
     and the other party then talk directly. The agent does not speak; it
     listens and writes down what is said, until the user says "assistant,
     leave the call". When the user hangs up, the agent continues the call.
+    To connect the user with a person now ("get Steve on the line for me"),
+    say so in the task: "Confirm that Steve answered, ask one time if he can
+    speak with <user> now, and if yes bring <user> on the line." Do not add
+    more questions about availability; each one is a question that the other
+    person must answer before the agent connects the two.
     The time counts as call minutes. get_call_result gives the words in
     `direct_talk`; `user_joined` false means the user did not answer or did
     not press 1.

@@ -1,7 +1,7 @@
 """End-to-end check: the agent brings the user into a call, and listens.
 
 Maria signs up with her phone and verifies it as her caller ID. Her assistant
-then places four real calls to a "bank" (the second approved test number,
+then places five real calls to a "bank" (the second approved test number,
 which plays a script). In each call the bank refuses to continue with an
 assistant and asks for Maria herself.
 
@@ -32,6 +32,13 @@ Ways the feature can fail, and the call that shows it:
     the agent said or heard, or the two speakers are exchanged.      (call 1)
 14. The words after "assistant, leave the call" get into the transcript.
                                                                       (call 3)
+15. The agent says "please hold, I will get her" and does not phone the
+    user. The other party waits in silence, and then the agent asks if
+    they are still there.                                            (call 5:
+    the task tells the agent to announce the hold and then to wait for an
+    answer, and the other party gives no answer)
+16. The other party said that they can speak now, and the agent asks
+    again before it brings the user.                                  (call 5)
 
 Only the two approved test numbers are dialled. Run it with the same
 environment as verify.py.
@@ -39,6 +46,7 @@ environment as verify.py.
 
 import argparse
 import asyncio
+import re
 import os
 import random
 import sys
@@ -154,12 +162,14 @@ async def run(args, report: Report) -> None:
                 f"caller ID {status.get('caller_id')}",
             )
 
-            async def call_bank(bank_script: str, user_script: str, timeout=240):
+            async def call_bank(
+                bank_script: str, user_script: str, timeout=240, task=TASK
+            ):
                 await bank.answer_with_script(bank_script)
                 await user_phone.answer_with_script(user_script)
                 since = datetime.now(UTC)
                 placed = await maria_ai.call(
-                    "place_call", phone_number=bank.number, task=TASK,
+                    "place_call", phone_number=bank.number, task=task,
                     on_behalf_of="Maria Lopez", call_reason="about a damaged card",
                 )  # fmt: skip
                 result = await wait_for_call(maria_ai, placed["call_id"], timeout)
@@ -177,7 +187,8 @@ async def run(args, report: Report) -> None:
                 )
                 found.raise_for_status()
                 to_user = [
-                    {"from": c["from"], "status": c["status"], "seconds": int(c["duration"] or 0)}
+                    {"from": c["from"], "status": c["status"], "seconds": int(c["duration"] or 0),
+                     "created": datetime.strptime(c["date_created"], "%a, %d %b %Y %H:%M:%S %z").isoformat()}
                     for c in found.json()["calls"]
                     if datetime.strptime(c["date_created"], "%a, %d %b %Y %H:%M:%S %z") >= since.replace(microsecond=0)
                     and c["direction"] == "outbound-api"
@@ -485,6 +496,71 @@ async def run(args, report: Report) -> None:
                     f"result {talk.get('result')}; user's phone call {user_leg} s, "
                     f"direct talk {talk.get('seconds')} s",
                 )
+            if 5 in wanted:
+                # --- Call 5: "please hold" and the call to the user are one step
+                fifth, to_user = await call_bank(
+                    '<Pause length="1"/><Say>Hello?</Say><Pause length="9"/>'
+                    "<Say>Yes, this is Steve Miller. I can speak with Maria "
+                    "right now.</Say>"
+                    # Steve gives no answer to "please hold". He waits.
+                    '<Pause length="22"/><Say>Hello Maria, good to hear you. '
+                    f"The meeting is on {ship_day}.</Say>"
+                    '<Pause length="60"/>',
+                    JOIN + '<Pause length="20"/><Say>Hello Steve, this is '
+                    "Maria. Thank you. Goodbye.</Say><Hangup/>",
+                    task="Call Steve Miller for Maria Lopez. Confirm that "
+                    "Steve answered, and ask if he can speak with Maria now. "
+                    "If yes, tell him to hold while you get Maria on the "
+                    "line. Say only that sentence in that turn and use no tool "
+                    "in that turn. Use a tool only after Steve answers 'okay'.",
+                )  # fmt: skip
+                report.evidence["hold_call"] = fifth
+                report.evidence["hold_call_user_leg"] = to_user
+                entries = re.findall(
+                    r"(?m)^\[([^\]\s]+)[^\]]*\] (user|assistant|direct talk[^:]*): (.*)$",
+                    fifth.get("transcript", ""),
+                )
+                before_talk = []
+                for at, role, text in entries:
+                    if role.startswith("direct"):
+                        break
+                    before_talk.append((at, role, text))
+                agent_turns = [(at, t) for at, r, t in before_talk if r == "assistant"]
+                hold = next(
+                    (
+                        (at, t) for at, t in agent_turns
+                        if re.search(r"hold|on the line|get maria", t, re.I)
+                    ),
+                    None,
+                )  # fmt: skip
+                gap = None
+                if hold and to_user:
+                    gap = (
+                        datetime.fromisoformat(to_user[0]["created"])
+                        - datetime.fromisoformat(hold[0])
+                    ).total_seconds()
+                agent_words = " ".join(t for _, t in agent_turns).lower()
+                talk = (fifth.get("direct_talk") or [{}])[0]
+                report.check(
+                    'The agent says "hold" and phones the user in one step: the '
+                    "user's phone rings in less than 8 seconds, and the agent "
+                    "does not ask if the other party is still there",
+                    gap is not None
+                    and -2 <= gap < 8
+                    and "still there" not in agent_words
+                    and talk.get("user_joined") is True
+                    and ship_day.lower()
+                    in said(talk.get("lines") or [], "other_party").lower(),
+                    f"{gap} s from {hold[1][:70] if hold else None!r} to the call to the user",
+                )
+                report.check(
+                    "The other party said that they can speak now: the agent "
+                    "does not ask again before it brings the user",
+                    # One turn with the question, one turn with "hold".
+                    hold is not None and len(agent_turns) == 2,
+                    f"{len(agent_turns)} turn(s) of the agent before the talk: "
+                    f"{[t[:80] for _, t in agent_turns]}",
+                )
         finally:
             await user_phone.hang_up()
             await bank.hang_up()
@@ -530,7 +606,7 @@ def main() -> int:
         "--twilio-auth-token", default=os.getenv("PLATFORM_TWILIO_AUTH_TOKEN", "")
     )
     parser.add_argument(
-        "--calls", default="1,2,3,4", help="The calls to place, for example 4."
+        "--calls", default="1,2,3,4,5", help="The calls to place, for example 4."
     )
     parser.add_argument("--out", default="platform_verification/results/conference")
     args = parser.parse_args()
