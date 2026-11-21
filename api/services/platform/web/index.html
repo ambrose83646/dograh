@@ -1,0 +1,332 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Phone calls for your AI assistant</title>
+<style>
+  :root { --ink:#16181d; --muted:#5d6470; --line:#e2e5ea; --bg:#f6f7f9; --card:#fff; --accent:#1f5eff; --bad:#b3261e; --good:#12733c; }
+  * { box-sizing:border-box; }
+  body { margin:0; font:16px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif; color:var(--ink); background:var(--bg); }
+  main { max-width:760px; margin:0 auto; padding:32px 20px 64px; }
+  h1 { font-size:28px; line-height:1.2; margin:0 0 8px; }
+  h2 { font-size:18px; margin:0 0 12px; }
+  p { margin:0 0 12px; }
+  .muted { color:var(--muted); }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:20px; margin-top:16px; }
+  label { display:block; font-size:14px; font-weight:600; margin:12px 0 4px; }
+  input { width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:8px; font:inherit; }
+  button { font:inherit; font-weight:600; padding:10px 16px; border-radius:8px; border:1px solid var(--accent); background:var(--accent); color:#fff; cursor:pointer; }
+  button.plain { background:#fff; color:var(--accent); }
+  button.small { padding:4px 10px; font-size:14px; }
+  button:disabled { opacity:.5; cursor:default; }
+  .row { display:flex; gap:12px; flex-wrap:wrap; align-items:center; }
+  .stat { flex:1 1 180px; }
+  .stat b { display:block; font-size:22px; }
+  code, .mono { font:14px ui-monospace,Menlo,Consolas,monospace; word-break:break-all; }
+  .box { background:var(--bg); border:1px solid var(--line); border-radius:8px; padding:10px 12px; }
+  .error { color:var(--bad); min-height:1.5em; }
+  .notice { border-left:4px solid var(--accent); padding:8px 12px; background:#eef3ff; border-radius:4px; }
+  .blocked { border-left-color:var(--bad); background:#fdecea; }
+  table { width:100%; border-collapse:collapse; font-size:14px; }
+  th, td { text-align:left; padding:8px 6px; border-bottom:1px solid var(--line); }
+  [hidden] { display:none !important; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Phone calls for your AI assistant</h1>
+  <p class="muted">Connect your assistant with MCP. It can then make phone calls for you, and answer calls to your number with rules that you save.</p>
+
+  <section id="signed-out" hidden>
+    <div class="card">
+      <h2>Sign in</h2>
+      <p id="closed-note" class="notice" hidden>Sign-up is not open yet. If you have an account, sign in.</p>
+      <form id="phone-form">
+        <label for="phone">Your mobile phone number (United States or Canada)</label>
+        <input id="phone" type="tel" autocomplete="tel" placeholder="208 555 0123" required>
+        <div id="code-field" hidden>
+          <label for="code">The 6-digit code from the text message</label>
+          <input id="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}">
+        </div>
+        <p id="phone-error" class="error" role="alert"></p>
+        <div class="row">
+          <button id="phone-submit" type="submit">Send me a code</button>
+          <button id="use-email" type="button" class="plain">Sign in with email</button>
+        </div>
+        <p class="muted" style="margin-top:12px">Your phone number is your account. We send a text message with a code. There is no password.</p>
+      </form>
+      <form id="auth-form" hidden>
+        <label for="email">Email</label>
+        <input id="email" type="email" autocomplete="email" required>
+        <label for="password">Password</label>
+        <input id="password" type="password" autocomplete="current-password" minlength="8" required>
+        <p id="auth-error" class="error" role="alert"></p>
+        <div class="row">
+          <button id="auth-submit" type="submit">Sign in</button>
+          <button id="use-phone" type="button" class="plain">Sign in with a phone number</button>
+        </div>
+      </form>
+      <p id="free-note" class="muted" style="margin-top:12px"></p>
+    </div>
+  </section>
+
+  <section id="signed-in" hidden>
+    <div class="card">
+      <div class="row" style="justify-content:space-between">
+        <h2 style="margin:0">Your account</h2>
+        <button id="sign-out" class="plain small" type="button">Sign out</button>
+      </div>
+      <div class="row" style="margin-top:12px">
+        <div class="stat"><span class="muted">Your calls show</span><b id="number">…</b></div>
+        <div class="stat"><span class="muted">Number for inbound calls</span><b id="inbound-number">…</b></div>
+        <div class="stat"><span class="muted">Free minutes left</span><b id="minutes">…</b></div>
+      </div>
+      <p id="status-note" class="notice" style="margin-top:12px" hidden></p>
+    </div>
+
+    <div class="card">
+      <h2>Your phone number</h2>
+      <p id="caller-id-text"></p>
+      <form id="caller-id-form" class="row">
+        <input id="caller-id-input" type="tel" autocomplete="tel" placeholder="+14155550123" aria-label="Your phone number" required>
+        <button id="caller-id-submit" type="submit">Call me with a code</button>
+      </form>
+      <p id="caller-id-code" class="box" hidden></p>
+      <p id="caller-id-error" class="error" role="alert"></p>
+    </div>
+
+    <div class="card">
+      <h2>Connect your assistant</h2>
+      <p>1. Add a remote MCP server to your assistant with this address:</p>
+      <p class="box mono" id="mcp-url"></p>
+      <p>2. Set the authorization header to <code>Bearer</code> and an access key:</p>
+      <div id="new-key" hidden>
+        <p class="box mono" id="new-key-value"></p>
+        <p class="notice">Copy this key now. It is shown one time only.</p>
+      </div>
+      <div class="row">
+        <button id="create-key" type="button">Create an access key</button>
+      </div>
+      <table id="keys" style="margin-top:12px" hidden>
+        <thead><tr><th>Key</th><th>Created</th><th>Last used</th><th></th></tr></thead>
+        <tbody></tbody>
+      </table>
+      <p class="muted" style="margin-top:12px">3. Ask your assistant to call a number, or to save rules for calls that come to your number.</p>
+    </div>
+
+    <div class="card">
+      <h2>Recent calls</h2>
+      <p id="no-calls" class="muted">No calls yet.</p>
+      <table id="calls" hidden>
+        <thead><tr><th>When</th><th>Direction</th><th>Other number</th><th>Status</th><th>Seconds</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+</main>
+<script>
+const $ = (id) => document.getElementById(id);
+const API = "/api/v1";
+let token = localStorage.getItem("token");
+
+async function api(path, options = {}) {
+  const headers = { "Content-Type": "application/json", ...(options.headers || {}) };
+  if (token) headers.Authorization = "Bearer " + token;
+  const response = await fetch(API + path, { ...options, headers });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const detail = typeof body.detail === "string" ? body.detail : "The request failed.";
+    throw Object.assign(new Error(detail), { status: response.status });
+  }
+  return body;
+}
+
+function cell(row, text) { const td = row.insertCell(); td.textContent = text ?? ""; return td; }
+function when(value) { return value ? new Date(value).toLocaleString() : "—"; }
+
+function setMode(email) {
+  $("auth-form").hidden = !email;
+  $("phone-form").hidden = email;
+  $("code-field").hidden = true;
+  $("code").value = "";
+  $("phone-submit").textContent = "Send me a code";
+  $("auth-error").textContent = "";
+  $("phone-error").textContent = "";
+}
+
+async function showSignedOut() {
+  $("signed-in").hidden = true;
+  $("signed-out").hidden = false;
+  const info = await api("/platform/info");
+  $("closed-note").hidden = info.signup_open;
+  $("use-phone").hidden = !info.phone_sign_in;
+  $("free-note").textContent = "Each account gets its own phone number and " + info.free_minutes + " free call minutes.";
+  setMode(!info.phone_sign_in);
+}
+
+async function showAccount() {
+  let account;
+  try { account = await api("/platform/account"); }
+  catch (error) {
+    if (error.status === 401 || error.status === 403) { signOut(); return; }
+    throw error;
+  }
+  $("signed-out").hidden = true;
+  $("signed-in").hidden = false;
+  $("number").textContent = account.outbound_calls_from || "Not set";
+  $("inbound-number").textContent = account.phone_number || "None";
+  $("caller-id-text").textContent = account.caller_id
+    ? "Your calls show " + account.caller_id + ". To change it, check a different number."
+    : "Your assistant calls from your own phone number. Enter it here. We call you, and you enter a code on the keypad.";
+  $("minutes").textContent = account.minutes_remaining + " of " + account.minutes_total;
+  $("mcp-url").textContent = account.mcp_url;
+  const note = $("status-note");
+  const message = account.blocked_reason
+    || (account.test_period ? "Test period: calls can go to approved test numbers only." : "");
+  note.textContent = message;
+  note.hidden = !message;
+  note.classList.toggle("blocked", !account.can_call);
+  await Promise.all([showKeys(), showCalls()]);
+}
+
+let callerIdPoll = null;
+
+async function startCallerId(event) {
+  event.preventDefault();
+  $("caller-id-error").textContent = "";
+  $("caller-id-submit").disabled = true;
+  try {
+    const result = await api("/platform/caller-id", {
+      method: "POST",
+      body: JSON.stringify({ phone_number: $("caller-id-input").value.trim() }),
+    });
+    const box = $("caller-id-code");
+    box.hidden = false;
+    if (result.status === "verified") { box.textContent = result.note; return; }
+    box.textContent = "Your phone rings now. Answer it and enter this code: " + result.validation_code;
+    clearInterval(callerIdPoll);
+    let checks = 0;
+    callerIdPoll = setInterval(async () => {
+      checks += 1;
+      const account = await api("/platform/account");
+      if (account.caller_id === result.phone_number) {
+        clearInterval(callerIdPoll);
+        box.textContent = "Done. Your calls now show " + account.caller_id + ".";
+        $("caller-id-input").value = "";
+        await showAccount();
+      } else if (checks >= 24) {
+        clearInterval(callerIdPoll);
+        box.textContent = "The code was not entered. Try again.";
+      }
+    }, 5000);
+  } catch (error) {
+    $("caller-id-error").textContent = error.message;
+  } finally {
+    $("caller-id-submit").disabled = false;
+  }
+}
+
+async function showKeys() {
+  const keys = await api("/user/api-keys");
+  const body = $("keys").tBodies[0];
+  body.replaceChildren();
+  for (const key of keys) {
+    const row = body.insertRow();
+    cell(row, key.key_prefix + "…").className = "mono";
+    cell(row, when(key.created_at));
+    cell(row, when(key.last_used_at));
+    const button = document.createElement("button");
+    button.textContent = "Revoke";
+    button.className = "plain small";
+    button.onclick = async () => {
+      if (!confirm("Revoke this key? An assistant that uses it loses access.")) return;
+      await api("/user/api-keys/" + key.id, { method: "DELETE" });
+      await showKeys();
+    };
+    row.insertCell().append(button);
+  }
+  $("keys").hidden = keys.length === 0;
+}
+
+async function showCalls() {
+  const calls = await api("/platform/calls?limit=20");
+  const body = $("calls").tBodies[0];
+  body.replaceChildren();
+  for (const call of calls) {
+    const row = body.insertRow();
+    cell(row, when(call.started_at));
+    cell(row, call.direction);
+    cell(row, call.direction === "inbound" ? call.from : call.to);
+    cell(row, call.status);
+    cell(row, call.duration_seconds);
+  }
+  $("calls").hidden = calls.length === 0;
+  $("no-calls").hidden = calls.length !== 0;
+}
+
+function signOut() {
+  token = null;
+  localStorage.removeItem("token");
+  $("new-key").hidden = true;
+  showSignedOut();
+}
+
+$("use-email").onclick = () => setMode(true);
+$("use-phone").onclick = () => setMode(false);
+
+$("phone-form").onsubmit = async (event) => {
+  event.preventDefault();
+  $("phone-error").textContent = "";
+  $("phone-submit").disabled = true;
+  const phone_number = $("phone").value.trim();
+  try {
+    if ($("code-field").hidden) {
+      await api("/platform/auth/start", { method: "POST", body: JSON.stringify({ phone_number }) });
+      $("code-field").hidden = false;
+      $("phone-submit").textContent = "Sign in";
+      $("code").focus();
+    } else {
+      const result = await api("/platform/auth/verify", { method: "POST", body: JSON.stringify({ phone_number, code: $("code").value.trim() }) });
+      token = result.token;
+      localStorage.setItem("token", token);
+      await showAccount();
+    }
+  } catch (error) {
+    $("phone-error").textContent = error.message;
+  } finally {
+    $("phone-submit").disabled = false;
+  }
+};
+$("sign-out").onclick = signOut;
+$("caller-id-form").onsubmit = startCallerId;
+
+$("auth-form").onsubmit = async (event) => {
+  event.preventDefault();
+  $("auth-error").textContent = "";
+  $("auth-submit").disabled = true;
+  try {
+    const body = { email: $("email").value.trim(), password: $("password").value };
+    const result = await api("/auth/login", { method: "POST", body: JSON.stringify(body) });
+    token = result.token;
+    localStorage.setItem("token", token);
+    $("password").value = "";
+    await showAccount();
+  } catch (error) {
+    $("auth-error").textContent = error.message;
+  } finally {
+    $("auth-submit").disabled = false;
+  }
+};
+
+$("create-key").onclick = async () => {
+  const created = await api("/user/api-keys", { method: "POST", body: JSON.stringify({ name: "assistant" }) });
+  $("new-key-value").textContent = created.api_key;
+  $("new-key").hidden = false;
+  await showKeys();
+};
+
+(token ? showAccount() : showSignedOut()).catch(() => showSignedOut());
+</script>
+</body>
+</html>

@@ -23,6 +23,10 @@ from api.services.telephony.base import (
     TelephonyProvider,
 )
 from api.services.telephony.providers.twilio.introduction import introduction_urls
+from api.services.telephony.providers.twilio.native_keys import (
+    ResumableTwilioStream,
+    run_with_native_keys,
+)
 from api.services.telephony.sip import first_sip_string, normalize_sip_headers
 from api.utils.common import get_backend_endpoints
 from api.utils.telephony_address import normalize_telephony_address
@@ -166,16 +170,21 @@ class TwilioProvider(TelephonyProvider):
         validator = RequestValidator(self.auth_token)
         return validator.validate(url, params, signature)
 
+    async def _media_ws_url(
+        self, workflow_id: int, organization_id: int, workflow_run_id: int
+    ) -> str:
+        _, wss_backend_endpoint = await get_backend_endpoints()
+        return ws_auth.build_media_ws_url(
+            wss_backend_endpoint, workflow_id, organization_id, workflow_run_id
+        )
+
     async def get_webhook_response(
         self, workflow_id: int, organization_id: int, workflow_run_id: int
     ) -> str:
         """
         Generate TwiML response for starting a call session.
         """
-        _, wss_backend_endpoint = await get_backend_endpoints()
-        ws_url = ws_auth.build_media_ws_url(
-            wss_backend_endpoint, workflow_id, organization_id, workflow_run_id
-        )
+        ws_url = await self._media_ws_url(workflow_id, organization_id, workflow_run_id)
 
         twiml_content = f"""<?xml version="1.0" encoding="UTF-8"?>
 <Response>
@@ -301,14 +310,47 @@ class TwilioProvider(TelephonyProvider):
                 await websocket.close(code=4400, reason="Missing stream identifiers")
                 return
 
-            await run_pipeline_telephony(
+            ws_url = await self._media_ws_url(
+                workflow_id, organization_id, workflow_run_id
+            )
+
+            async def play_digits(keys: str) -> None:
+                # The digits are validated to 0-9, * and # before they get here.
+                twiml = (
+                    f'<Response><Play digits="{keys}"/><Connect>'
+                    f'<Stream url="{ws_url}"></Stream></Connect>'
+                    '<Pause length="40"/></Response>'
+                )
+                async with aiohttp.ClientSession() as session:
+                    auth = aiohttp.BasicAuth(self.account_sid, self.auth_token)
+                    async with session.post(
+                        f"{self.base_url}/Calls/{call_sid}.json",
+                        data={"Twiml": twiml},
+                        auth=auth,
+                    ) as response:
+                        if response.status != 200:
+                            raise RuntimeError(
+                                f"Twilio refused the key press: HTTP {response.status}"
+                            )
+
+            stream = ResumableTwilioStream(
                 websocket,
-                provider_name=self.PROVIDER_NAME,
-                workflow_id=workflow_id,
                 workflow_run_id=workflow_run_id,
-                organization_id=organization_id,
-                call_id=call_sid,
-                transport_kwargs={"stream_sid": stream_sid, "call_sid": call_sid},
+                stream_sid=stream_sid,
+                call_sid=call_sid,
+                redirect=play_digits,
+            )
+            await run_with_native_keys(
+                stream,
+                lambda: run_pipeline_telephony(
+                    stream,
+                    provider_name=self.PROVIDER_NAME,
+                    workflow_id=workflow_id,
+                    workflow_run_id=workflow_run_id,
+                    organization_id=organization_id,
+                    call_id=call_sid,
+                    transport_kwargs={"stream_sid": stream_sid, "call_sid": call_sid},
+                ),
             )
 
         except Exception as e:
@@ -597,6 +639,19 @@ class TwilioProvider(TelephonyProvider):
         from fastapi import Response
 
         from api.errors.telephony_errors import TELEPHONY_ERROR_MESSAGES, TelephonyError
+        from api.services.platform.settings import get_platform_settings
+
+        if (
+            error_type == TelephonyError.QUOTA_EXCEEDED
+            and get_platform_settings().enabled
+        ):
+            # Platform mode: the operator pays for answered calls, so a call to
+            # an account with no allowance left is refused, not answered.
+            return Response(
+                content='<?xml version="1.0" encoding="UTF-8"?>\n'
+                '<Response><Reject reason="busy"/></Response>',
+                media_type="application/xml",
+            )
 
         message = TELEPHONY_ERROR_MESSAGES.get(
             error_type, TELEPHONY_ERROR_MESSAGES[TelephonyError.GENERAL_AUTH_FAILED]

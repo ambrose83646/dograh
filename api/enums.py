@@ -181,6 +181,10 @@ class OrganizationConfigurationKey(Enum):
         "ORGANIZATION_BOOTSTRAP"  # Single-winner lease for post-signup provisioning
     )
     MPS_SIGNUP_GRANT = "MPS_SIGNUP_GRANT"  # Team grant / per-actor claim results
+    PLATFORM_ACCOUNT = "PLATFORM_ACCOUNT"  # Managed calling setup ids in platform mode
+    PLATFORM_ACCOUNT_BOOTSTRAP = (
+        "PLATFORM_ACCOUNT_BOOTSTRAP"  # Single-winner lease for platform provisioning
+    )
 
 
 class UserConfigurationKey(Enum):

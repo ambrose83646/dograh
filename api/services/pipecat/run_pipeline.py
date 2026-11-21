@@ -86,6 +86,8 @@ from api.services.pipecat.worker_runner import (
     run_worker_runner,
 )
 from api.services.pipecat.ws_sender_registry import get_ws_sender
+from api.services.platform import live_calls
+from api.services.platform.settings import get_platform_settings
 from api.services.telephony import registry as telephony_registry
 from api.services.workflow.answer_classification_service import (
     AnswerClassificationService,
@@ -132,6 +134,10 @@ ensure_tracing()
 
 DEFAULT_USER_TURN_STOP_TIMEOUT = 5.0
 EXTERNAL_TURN_USER_STOP_TIMEOUT = 30.0
+
+
+# Tasks that outlive the function that started them.
+_background_tasks: set[asyncio.Task] = set()
 
 
 def _create_answer_supervisor(
@@ -732,6 +738,50 @@ async def _run_pipeline_impl(
                     term.strip() for term in dictionary.split(",") if term.strip()
                 ]
 
+    # Platform mode: the start-of-call check only refuses an account with no
+    # minutes left. A call must also stop when the minutes run out during it.
+    bring_user_call_seconds = None
+    if get_platform_settings().enabled:
+        from api.services.platform.allowance import get_allowance_status
+
+        allowance = await get_allowance_status(
+            workflow.organization_id, exclude_current_run=True
+        )
+        if (
+            run_configs.get("bring_user_enabled")
+            and merged_call_context_vars.get("bring_user") is True
+        ):
+            from api.services.platform.conference import MAX_CALL_SECONDS
+
+            # A call that the user joins can run longer than other calls, but
+            # not longer than the minutes that are left.
+            bring_user_call_seconds = (
+                MAX_CALL_SECONDS
+                if allowance.pack_available
+                else max(1, min(MAX_CALL_SECONDS, allowance.remaining_seconds))
+            )
+        if allowance.pack_available:
+            # More minutes are bought when these run low, so the call is not
+            # cut at the minutes that remain now.
+            from api.services.platform import packs
+
+            pack_watch = asyncio.create_task(
+                packs.watch_call(
+                    workflow.organization_id,
+                    workflow_run_id,
+                    max(
+                        0,
+                        allowance.remaining_seconds - packs.REQUEST_BELOW_SECONDS + 1,
+                    ),
+                )
+            )
+            _background_tasks.add(pack_watch)
+            pack_watch.add_done_callback(_background_tasks.discard)
+        else:
+            max_call_duration_seconds = max(
+                1, min(max_call_duration_seconds, allowance.remaining_seconds)
+            )
+
     # Resolve model overrides from the version onto global org config (skip
     # when the caller already resolved it).
     if resolved_user_config is None:
@@ -855,6 +905,7 @@ async def _run_pipeline_impl(
 
     # Create in-memory logs buffer early so it can be used by engine callbacks
     in_memory_logs_buffer = InMemoryLogsBuffer(workflow_run_id)
+    live_calls.register(workflow_run_id, in_memory_logs_buffer.generate_transcript_text)
 
     # Create node transition callback (always logs to buffer, optionally streams to WS)
     ws_sender = get_ws_sender(workflow_run_id)
@@ -950,6 +1001,8 @@ async def _run_pipeline_impl(
         call_dispositions=call_dispositions,
         # Voice calls hand final extraction to the completion worker after hangup.
         defer_final_extraction=True,
+        keypad_enabled=bool(run_configs.get("keypad_enabled")),
+        bring_user_call_seconds=bring_user_call_seconds,
     )
 
     # Create pipeline components
@@ -1225,6 +1278,7 @@ async def _run_pipeline_impl(
             return AgentGenerationCallbacks(
                 generation_started=engine.create_generation_started_callback(visit_id),
                 llm_text_frame=engine.create_llm_text_frame_callback(visit_id),
+                generation_ended=engine.create_generation_ended_callback(visit_id),
             )
 
         agent_factory = AgentRuntimeFactory(
@@ -1342,6 +1396,7 @@ async def _run_pipeline_impl(
     except asyncio.CancelledError:
         logger.warning("Received CancelledError in _run_pipeline")
     finally:
+        live_calls.unregister(workflow_run_id)
         # Close MCP sessions here, not in engine.cleanup(). The anyio cancel
         # scopes opened by MCPClient.start() in engine.initialize() are
         # task-affine; this finally runs in the same task as initialize(),

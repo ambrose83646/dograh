@@ -1,0 +1,13 @@
+{$PUBLIC_HOST} {
+	encode gzip
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options nosniff
+		X-Frame-Options DENY
+		Referrer-Policy no-referrer
+	}
+	# Calls hold a websocket open for their full length.
+	reverse_proxy api:8000 {
+		flush_interval -1
+	}
+}
