@@ -293,7 +293,7 @@ async def run(args, report: Report) -> None:
                 # --- Call 2: a voicemail box answers the user's phone -------------
                 second, to_user = await call_bank(
                     BANK_OPENING
-                    + '<Pause length="75"/><Say>Then please tell her to call card '
+                    + '<Pause length="66"/><Say>Then please tell her to call card '
                     f"services at {' '.join(callback)}, before Friday.</Say>"
                     '<Pause length="14"/><Say>Thank you. Goodbye.</Say><Pause length="15"/>',
                     "<Say>Hi, this is Maria. I can not take your call. Please leave "
