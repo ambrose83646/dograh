@@ -13,10 +13,9 @@ from fastmcp.exceptions import ToolError
 from mcp.types import ToolAnnotations
 from pydantic import Field
 
-from api.mcp_server.auth import authenticate_mcp_request
+from api.mcp_server.auth import authenticate_mcp_request, user_for_credential
 from api.mcp_server.tracing import traced_tool
-from api.services.auth.depends import _handle_api_key_auth
-from api.services.platform import caller_id, calls
+from api.services.platform import caller_id, calls, oauth
 
 INSTRUCTIONS = """\
 This server gives you a phone. You can call a number to carry out a spoken task
@@ -379,10 +378,13 @@ for _read_tool in (get_call_result, list_calls, get_inbound_rules, get_account_s
 
 
 class RequireApiKey:
-    """Answer 401 at the HTTP layer when a request carries no valid API key.
+    """Answer 401 at the HTTP layer when a request carries no valid credential.
 
     MCP clients decide whether a server needs credentials from the HTTP status,
-    so an unauthenticated client must not get as far as the tool list.
+    so an unauthenticated client must not get as far as the tool list. The
+    credential is an OAuth access token or an API key. The 401 gives the
+    address of the OAuth discovery document, which starts a plugin host's
+    sign-in.
     """
 
     def __init__(self, app) -> None:
@@ -397,10 +399,12 @@ class RequireApiKey:
         authorization = headers.get("authorization", "")
         if not api_key and authorization.lower().startswith("bearer "):
             api_key = authorization.split(" ", 1)[1].strip()
-        detail = "Send your API key as 'Authorization: Bearer <key>'."
+        detail = (
+            "Sign in with OAuth, or send an API key as 'Authorization: Bearer <key>'."
+        )
         if api_key:
             try:
-                await _handle_api_key_auth(api_key)
+                await user_for_credential(api_key)
             except HTTPException as exc:
                 api_key, detail = "", str(exc.detail)
         if api_key:
@@ -411,6 +415,9 @@ class RequireApiKey:
         response = JSONResponse(
             status_code=401,
             content={"error": "unauthorized", "detail": detail},
-            headers={"WWW-Authenticate": 'Bearer realm="phone-calls"'},
+            headers={
+                "WWW-Authenticate": 'Bearer realm="phone-calls", '
+                f'resource_metadata="{oauth.resource_metadata_url()}"'
+            },
         )
         await response(scope, receive, send)

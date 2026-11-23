@@ -20,6 +20,14 @@ _ALLOWED: tuple[tuple[frozenset[str] | None, re.Pattern[str]], ...] = tuple(
         (None, r"/mcp(/.*)?"),
         # The account web page.
         ({"GET"}, r"/"),
+        # OAuth sign-in for plugin hosts.
+        (
+            {"GET"},
+            r"/\.well-known/oauth-(authorization-server|protected-resource)(/.*)?",
+        ),
+        ({"GET", "POST"}, r"/authorize"),
+        ({"POST"}, r"/(token|register|revoke)"),
+        ({"GET", "POST"}, r"/oauth/consent"),
         ({"GET"}, rf"{_API}/health"),
         (None, rf"{_API}/auth/.*"),
         ({"GET"}, rf"{_API}/user/auth/user"),
@@ -56,6 +64,10 @@ class PlatformSurfaceMiddleware:
         self.app = app
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        # "/mcp" and "/mcp/" are the same address. Without this, "/mcp" gets a
+        # redirect, and some assistants do not follow a redirect on POST.
+        if scope["type"] == "http" and scope["path"] == "/mcp":
+            scope = {**scope, "path": "/mcp/", "raw_path": b"/mcp/"}
         if scope["type"] not in ("http", "websocket") or is_platform_path_allowed(
             scope["type"], scope.get("method", ""), scope["path"]
         ):

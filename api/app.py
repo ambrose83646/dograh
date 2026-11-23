@@ -215,6 +215,13 @@ if PLATFORM_MODE:
     app.mount("/mcp", RequireApiKey(calls_mcp_app))
     app.add_middleware(PlatformSurfaceMiddleware)
 
+    # OAuth sign-in for plugin hosts: discovery, registration, token, and
+    # revoke routes from the MCP library, and our consent page.
+    from api.routes import platform_oauth
+
+    app.router.routes.extend(platform_oauth.provider.get_routes(mcp_path="/mcp"))
+    app.include_router(platform_oauth.router)
+
     _PLATFORM_PAGE = Path(__file__).parent / "services/platform/web/index.html"
 
     @app.get("/", include_in_schema=False)

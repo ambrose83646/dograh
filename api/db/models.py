@@ -1713,3 +1713,32 @@ class KnowledgeBaseChunkModel(Base):
             postgresql_ops={"embedding": "vector_cosine_ops"},
         ),
     )
+
+
+class PlatformOAuthClientModel(Base):
+    """An MCP client (for example Grok Bot) that registered itself."""
+
+    __tablename__ = "platform_oauth_clients"
+
+    client_id = Column(String(64), primary_key=True)
+    client_info = Column(JSON, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
+
+
+class PlatformOAuthTokenModel(Base):
+    """An access or refresh token. Only the hash of the token is stored."""
+
+    __tablename__ = "platform_oauth_tokens"
+
+    id = Column(Integer, primary_key=True)
+    token_hash = Column(String(64), nullable=False, unique=True, index=True)
+    kind = Column(String(8), nullable=False)  # "access" or "refresh"
+    client_id = Column(String(64), nullable=False)
+    user_id = Column(
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    # All tokens that came from one consent of the person.
+    grant_id = Column(String(32), nullable=False, index=True)
+    scopes = Column(JSON, nullable=False, default=list)
+    expires_at = Column(DateTime(timezone=True), nullable=False)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(UTC))

@@ -8,12 +8,14 @@ usage against its free allowance, and listing an organization's calls.
 from collections.abc import Sequence
 from datetime import datetime
 
-from sqlalchemy import Float, cast, delete, func, text
+from sqlalchemy import Float, cast, delete, func, text, update
 from sqlalchemy.future import select
 
 from api.db.base_client import BaseDBClient
 from api.db.models import (
     OrganizationModel,
+    PlatformOAuthClientModel,
+    PlatformOAuthTokenModel,
     TelephonyPhoneNumberModel,
     UserModel,
     WorkflowModel,
@@ -321,3 +323,73 @@ class PlatformClient(BaseDBClient):
             )
             await session.commit()
             return bool(result.rowcount)
+
+    # --- OAuth: clients that registered, and the tokens of each consent ------
+
+    async def save_platform_oauth_client(self, client_id: str, info: dict) -> None:
+        async with self.async_session() as session:
+            await session.merge(
+                PlatformOAuthClientModel(client_id=client_id, client_info=info)
+            )
+            await session.commit()
+
+    async def get_platform_oauth_client(self, client_id: str) -> dict | None:
+        async with self.async_session() as session:
+            return await session.scalar(
+                select(PlatformOAuthClientModel.client_info).where(
+                    PlatformOAuthClientModel.client_id == client_id
+                )
+            )
+
+    async def add_platform_oauth_tokens(
+        self, tokens: Sequence[PlatformOAuthTokenModel]
+    ) -> None:
+        async with self.async_session() as session:
+            session.add_all(tokens)
+            await session.commit()
+
+    async def get_platform_oauth_token(
+        self, token_hash: str, kind: str
+    ) -> PlatformOAuthTokenModel | None:
+        """The token, when it exists and its time has not ended."""
+        async with self.async_session() as session:
+            return await session.scalar(
+                select(PlatformOAuthTokenModel).where(
+                    PlatformOAuthTokenModel.token_hash == token_hash,
+                    PlatformOAuthTokenModel.kind == kind,
+                    PlatformOAuthTokenModel.expires_at > func.now(),
+                )
+            )
+
+    async def end_platform_oauth_token(self, token_id: int, at: datetime) -> None:
+        """Bring the end of a token forward. It never moves the end later."""
+        async with self.async_session() as session:
+            await session.execute(
+                update(PlatformOAuthTokenModel)
+                .where(
+                    PlatformOAuthTokenModel.id == token_id,
+                    PlatformOAuthTokenModel.expires_at > at,
+                )
+                .values(expires_at=at)
+            )
+            await session.commit()
+
+    async def delete_platform_oauth_grant(self, grant_id: str) -> None:
+        async with self.async_session() as session:
+            await session.execute(
+                delete(PlatformOAuthTokenModel).where(
+                    PlatformOAuthTokenModel.grant_id == grant_id
+                )
+            )
+            await session.commit()
+
+    async def list_platform_oauth_accounts(self) -> list[int]:
+        """Organizations of accounts that came from OAuth and have no phone."""
+        async with self.async_session() as session:
+            rows = await session.scalars(
+                select(UserModel.selected_organization_id).where(
+                    UserModel.provider_id.like("oauth\\_%"),
+                    UserModel.selected_organization_id.is_not(None),
+                )
+            )
+            return sorted(rows)
