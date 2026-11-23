@@ -21,6 +21,7 @@ from fastmcp.server.auth.auth import (
     OAuthProvider,
     RevocationOptions,
 )
+from loguru import logger
 from mcp.server.auth.provider import (
     AccessToken,
     AuthorizationCode,
@@ -64,6 +65,17 @@ def resource_metadata_url() -> str:
 
 def _hash(token: str) -> str:
     return hashlib.sha256(token.encode()).hexdigest()
+
+
+class TooManyAccounts(Exception):
+    """The limit of new accounts was reached."""
+
+
+async def reset_account_limits() -> int:
+    """Operator only: let all addresses make new accounts again."""
+    store = phone_auth._store()
+    keys = [key async for key in store.scan_iter("oauth:day:*")] + ["oauth:hour"]
+    return await store.delete(*keys)
 
 
 class _Code(AuthorizationCode):
@@ -212,9 +224,37 @@ class PlatformOAuthProvider(OAuthProvider):
         raw = await phone_auth._store().get(f"oauth:consent:{request_id}")
         return json.loads(raw) if raw else None
 
-    async def decide(self, request_id: str, allow: bool) -> str | None:
-        """Use the consent request one time. Returns where to send the person."""
-        raw = await phone_auth._store().getdel(f"oauth:consent:{request_id}")
+    async def decide(
+        self, request_id: str, allow: bool, client_address: str
+    ) -> str | None:
+        """Use the consent request one time. Returns where to send the person.
+
+        Each "Allow" makes an account and a Twilio subaccount, and the person
+        has not proved who they are. Thus the number of new accounts has a
+        limit for each network address and a limit for the full service.
+        Raises TooManyAccounts before the consent request is used.
+        """
+        store = phone_auth._store()
+        if allow:
+            if not await store.exists(f"oauth:consent:{request_id}"):
+                return None
+            settings = get_platform_settings()
+            if (
+                await phone_auth._count(f"oauth:day:{client_address}", 86400)
+                > settings.oauth_daily_per_address
+            ):
+                raise TooManyAccounts
+            if (
+                await phone_auth._count("oauth:hour", 3600)
+                > settings.oauth_hourly_total
+            ):
+                logger.error(
+                    "More than {} new OAuth accounts in one hour. New accounts "
+                    "are refused until the hour ends.",
+                    settings.oauth_hourly_total,
+                )
+                raise TooManyAccounts
+        raw = await store.getdel(f"oauth:consent:{request_id}")
         if not raw:
             return None
         request = json.loads(raw)

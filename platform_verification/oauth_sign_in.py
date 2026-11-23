@@ -21,6 +21,9 @@ How this can fail (written before the code):
  9. The consent page shows the client's name as HTML.
 10. A code works with a wrong PKCE verifier, or works two times.
 11. The token of one person reads the account of a different person.
+16. One network address makes accounts with no limit. Each account has a
+    Twilio subaccount, so this costs the operator.
+17. The limit also stops "Cancel", or a refused "Allow" makes an account.
 12. A new account with no phone can place a call, or the refusal does not
     tell the assistant what to do.
 13. A refresh does not give a token that works, or the old refresh token
@@ -162,6 +165,10 @@ async def run(args, report: Report) -> None:
     operator_base = (args.operator_url or base).rstrip("/")
     operator = {"X-Operator-Token": args.operator_token}
     async with httpx.AsyncClient(timeout=30, follow_redirects=False) as http:
+        summary_url = operator_base + "/api/v1/platform/operator/oauth/summary"
+        reset_url = operator_base + "/api/v1/platform/operator/oauth/reset-limits"
+        (await http.post(reset_url, headers=operator)).raise_for_status()
+
         # --- The host has only the MCP address ---------------------------------
         hello = {
             "jsonrpc": "2.0", "id": 1, "method": "initialize",
@@ -401,8 +408,39 @@ async def run(args, report: Report) -> None:
             f"made-up token connects: {made_up}; API key connects: {key_ok}",
         )
 
+        # --- The limit of new accounts for one network address ------------------
+        # Maria and Omar are two accounts. Make more until the service refuses.
+        made_now = 2
+        refusal = None
+        for _ in range(args.limit):
+            first = await host.start(pkce()[1], "limit")
+            answer = await host.decide(first.headers["location"], "allow")
+            if answer.status_code != 303:
+                refusal = answer
+                refused_form = await host.form(first.headers["location"])
+                break
+            made_now += 1
+        count = (await http.get(summary_url, headers=operator)).json()["accounts"]
+        cancel_still = (
+            await host.decide("", "cancel", refused_form) if refusal else None
+        )
+        report.check(
+            f"One network address can make {args.limit} accounts in a day and "
+            'no more. The refused "Allow" makes no account, and "Cancel" '
+            "still works",
+            refusal is not None
+            and refusal.status_code == 429
+            and "Too many new accounts" in refusal.text
+            and made_now == args.limit
+            and count - accounts_before["accounts"] == args.limit
+            and cancel_still.status_code == 303,
+            f"accounts made: {made_now}; then HTTP "
+            f"{refusal.status_code if refusal else 'no refusal'}; accounts in the "
+            f"service: +{count - accounts_before['accounts']}",
+        )
+
         # --- Clean up: the accounts that this run made -----------------------------
-        summary_url = operator_base + "/api/v1/platform/operator/oauth/summary"
+        await http.post(reset_url, headers=operator)
         now = (await http.get(summary_url, headers=operator)).json()
         made = set(now["organization_ids"]) - set(accounts_before["organization_ids"])
         for organization_id in sorted(made):
@@ -421,6 +459,7 @@ def main() -> int:
     parser.add_argument("--api-key", default="")
     parser.add_argument("--dial", default="+12085050523")
     parser.add_argument("--grace", type=int, default=60)
+    parser.add_argument("--limit", type=int, default=5)
     parser.add_argument("--out", required=True)
     args = parser.parse_args()
     report = Report()

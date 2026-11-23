@@ -3,12 +3,16 @@
 from html import escape
 from urllib.parse import urlsplit
 
-from fastapi import APIRouter, Depends, Form
+from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 
 from api.db import db_client
-from api.routes.platform import _require_operator
-from api.services.platform.oauth import PlatformOAuthProvider
+from api.routes.platform import _client_address, _require_operator
+from api.services.platform.oauth import (
+    PlatformOAuthProvider,
+    TooManyAccounts,
+    reset_account_limits,
+)
 
 router = APIRouter()
 provider = PlatformOAuthProvider()
@@ -62,6 +66,10 @@ each call.</li>
 <button type="submit" name="decision" value="allow" class="allow">Allow</button>
 </div></form>"""
 
+_TOO_MANY = """<h1>Too many new accounts</h1>
+<p>Too many new DanaDial accounts were made from your network today. No
+account was made for you. Try again tomorrow.</p>"""
+
 _EXPIRED = """<h1>This step is not valid now</h1>
 <p>Go back to your assistant and connect DanaDial again.</p>"""
 
@@ -87,14 +95,32 @@ async def consent_page(request: str = "") -> HTMLResponse:
 
 @router.post("/oauth/consent", include_in_schema=False)
 async def consent_decision(
-    request: str = Form(default=""), decision: str = Form(default="")
+    http_request: Request,
+    request: str = Form(default=""),
+    decision: str = Form(default=""),
 ) -> Response:
-    where = await provider.decide(request, allow=decision == "allow")
+    try:
+        where = await provider.decide(
+            request,
+            allow=decision == "allow",
+            client_address=_client_address(http_request),
+        )
+    except TooManyAccounts:
+        return _page(_TOO_MANY, 429)
     if where is None:
         return _page(_EXPIRED, 400)
     return RedirectResponse(
         where, status_code=303, headers={"Cache-Control": "no-store"}
     )
+
+
+@router.post(
+    "/api/v1/platform/operator/oauth/reset-limits",
+    dependencies=[Depends(_require_operator)],
+    include_in_schema=False,
+)
+async def reset_oauth_limits() -> dict:
+    return {"reset": await reset_account_limits()}
 
 
 @router.get(
