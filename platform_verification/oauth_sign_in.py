@@ -158,6 +158,8 @@ class Host:
 async def run(args, report: Report) -> None:
     base = args.base_url.rstrip("/")
     mcp_url = base + "/mcp"
+    # The operator API is not always open to the internet.
+    operator_base = (args.operator_url or base).rstrip("/")
     operator = {"X-Operator-Token": args.operator_token}
     async with httpx.AsyncClient(timeout=30, follow_redirects=False) as http:
         # --- The host has only the MCP address ---------------------------------
@@ -232,14 +234,16 @@ async def run(args, report: Report) -> None:
 
         accounts_before = (
             await http.get(
-                base + "/api/v1/platform/operator/oauth/summary", headers=operator
+                operator_base + "/api/v1/platform/operator/oauth/summary",
+                headers=operator,
             )
         ).json()
         form = await host.form(consent_url)
         cancelled = await host.decide(consent_url, "cancel", form)
         accounts_after = (
             await http.get(
-                base + "/api/v1/platform/operator/oauth/summary", headers=operator
+                operator_base + "/api/v1/platform/operator/oauth/summary",
+                headers=operator,
             )
         ).json()
         cancel_to = cancelled.headers.get("location", "")
@@ -398,12 +402,12 @@ async def run(args, report: Report) -> None:
         )
 
         # --- Clean up: the accounts that this run made -----------------------------
-        summary_url = base + "/api/v1/platform/operator/oauth/summary"
+        summary_url = operator_base + "/api/v1/platform/operator/oauth/summary"
         now = (await http.get(summary_url, headers=operator)).json()
         made = set(now["organization_ids"]) - set(accounts_before["organization_ids"])
         for organization_id in sorted(made):
             closed = await http.post(
-                f"{base}/api/v1/platform/operator/accounts/{organization_id}/close",
+                f"{operator_base}/api/v1/platform/operator/accounts/{organization_id}/close",
                 headers=operator,
             )
             print(f"closed account {organization_id}: HTTP {closed.status_code}")
@@ -413,6 +417,7 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--base-url", required=True)
     parser.add_argument("--operator-token", required=True)
+    parser.add_argument("--operator-url", default="")
     parser.add_argument("--api-key", default="")
     parser.add_argument("--dial", default="+12085050523")
     parser.add_argument("--grace", type=int, default=60)
