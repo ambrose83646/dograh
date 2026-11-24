@@ -48,8 +48,8 @@ owner sends the form. The fields marked **owner** need the owner's details.
 >    danadial.com.
 >
 > Limits: 10 minutes for each call, 20 calls each day. The service refuses
-> emergency and premium-rate numbers. The voice agent says that it is an AI
-> assistant if a person asks.
+> premium-rate numbers and numbers out of the US and Canada. The voice agent
+> starts each call with "This is an AI assistant calling for ...".
 
 ## Tools
 
