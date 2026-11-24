@@ -110,8 +110,7 @@ number is yours.</li>
 each call and deletes them after 30 days.</li>
 <li>Phone you to bring you into a call.</li>
 </ul>
-<p class="free">You get 10 free call minutes. You are not asked to pay on
-this page.</p>
+<p class="free">You get 10 free call minutes.</p>
 <form method="post" action="/oauth/consent">
 <input type="hidden" name="request" value="{request}">
 <div class="row">
