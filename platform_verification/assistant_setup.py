@@ -173,7 +173,7 @@ async def run(args, report: Report) -> None:
             )
 
             # --- A real call on hold; the assistant stops it ------------------
-            omar, omar_org = await new_assistant(host)
+            omar, _ = await new_assistant(host)
             await shop.answer_with_script(HOLD_SCRIPT)
             placed_at = time.time()
             call = await lena_tool(
