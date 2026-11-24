@@ -1,12 +1,12 @@
 # Marketplace submission package
 
 Answers for the form at <https://x.ai/bot/marketplace/submit-a-plugin>. The
-owner sends the form. The fields marked **owner** need the owner's details.
+owner sends the form.
 
 | Form field | Value |
 | --- | --- |
-| First Name, Last Name | **owner** |
-| Work Email | **owner** |
+| First Name, Last Name | Adam, Stewart |
+| Work Email | `info@danadial.com` |
 | Organization Name | DanaDial |
 | Organization Handle | `danadial` |
 | Website URL | `https://danadial.com` |
