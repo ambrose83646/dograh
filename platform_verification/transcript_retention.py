@@ -28,6 +28,7 @@ import argparse
 import asyncio
 import json
 import os
+import re
 import sys
 import time
 from pathlib import Path
@@ -36,7 +37,7 @@ import asyncpg
 import httpx
 
 sys.path.insert(0, str(Path(__file__).parent))
-from oauth_sign_in import Host, session, tool
+from oauth_sign_in import Host, tool
 from verify import HOLD_SCRIPT, HOLD_TASK, Report, TestPhone
 
 CALLBACK = "cursor://anysphere.cursor-mcp/oauth/callback"
@@ -76,8 +77,12 @@ async def run(args, report: Report) -> None:
             answer.raise_for_status()
             return answer.json()["call_ids"]
 
-        async def stored(call_id: int) -> dict:
-            """Where the words of a call are, read without the service."""
+        async def stored(call_id: int, transcript: str = "") -> dict:
+            """Where the words of a call are, read without the service.
+
+            With ``transcript`` (the words before the deletion), the answer
+            also has each sentence of it that is still in the database row.
+            """
             file = await http.get(
                 f"{args.storage_url.rstrip('/')}/transcripts/{call_id}.txt"
             )
@@ -85,11 +90,24 @@ async def run(args, report: Report) -> None:
                 "SELECT row_to_json(r)::text FROM workflow_runs r WHERE id = $1",
                 call_id,
             )
-            return {
+            found = {
                 "file_status": file.status_code,
                 "words_in_file": SPOKEN in file.text,
                 "words_in_row": SPOKEN in row,
             }
+            if transcript:
+                sentences = {
+                    part.strip()
+                    for line in transcript.splitlines()
+                    for part in re.split(r"[.?!]", line.split(": ", 1)[-1])
+                    if len(part.strip()) >= 20
+                }
+                row_text = json.dumps(json.loads(row), ensure_ascii=False)
+                found["sentences_checked"] = len(sentences)
+                found["sentences_in_row"] = sorted(
+                    s for s in sentences if s in row_text
+                )
+            return found
 
         try:
             (await op("POST", "oauth/reset-limits")).raise_for_status()
@@ -171,15 +189,17 @@ async def run(args, report: Report) -> None:
             second_id = await call_until_words()
             deleted = await delete_older_than(time.time() - between)
             first_after = await lena_tool("get_call_result", call_id=first_id)
-            first_stored_after = await stored(first_id)
+            first_stored_after = await stored(first_id, first["transcript"])
             report.evidence["first_call_after"] = first_after
             report.check(
                 "The deletion removes the words of the old call from the "
                 "answer to the assistant, the file and the database row",
                 first_id in deleted
                 and first_after.get("transcript") == ""
-                and first_stored_after
-                == {"file_status": 404, "words_in_file": False, "words_in_row": False},
+                and first_stored_after["file_status"] == 404
+                and not first_stored_after["words_in_row"]
+                and first_stored_after["sentences_checked"] >= 3
+                and first_stored_after["sentences_in_row"] == [],
                 f"deleted {len(deleted)} calls, call {first_id} included: "
                 f"{first_id in deleted}; {first_stored_after}",
             )

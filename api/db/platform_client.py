@@ -24,8 +24,13 @@ from api.db.models import (
 from api.utils.telephony_address import normalize_telephony_address
 
 # Where a call record has the words that were said, apart from the transcript
-# file: the lines of a direct talk, and what was heard before the agent spoke.
-_WORD_FIELDS = {"direct_talk": "lines", "answer_supervisor": "transcript"}
+# file: the lines of a direct talk, what was heard before the agent spoke, and
+# what the tools of the agent got and gave (a direct talk gives its lines).
+_WORD_FIELDS = {
+    "direct_talk": ("lines",),
+    "answer_supervisor": ("transcript",),
+    "tool_results": ("arguments", "result"),
+}
 # The other logs of a call (conversation, events, extraction) have the words.
 _LOGS_WITHOUT_WORDS = ("telephony_status_callbacks",)
 
@@ -494,11 +499,11 @@ class PlatformClient(BaseDBClient):
             if run is None:
                 return
             gathered = dict(run.gathered_context or {})
-            for key, field in _WORD_FIELDS.items():
+            for key, fields in _WORD_FIELDS.items():
                 entries = gathered.get(key)
                 if isinstance(entries, list):
                     gathered[key] = [
-                        {k: v for k, v in entry.items() if k != field}
+                        {k: v for k, v in entry.items() if k not in fields}
                         if isinstance(entry, dict)
                         else entry
                         for entry in entries

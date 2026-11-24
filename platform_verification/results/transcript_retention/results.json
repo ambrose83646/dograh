@@ -3,12 +3,12 @@
     {
       "name": "Before the deletion, the words of the first call are in the answer to the assistant, in the file and in the database row",
       "passed": true,
-      "detail": "call 184: 590 characters; {'file_status': 200, 'words_in_file': True, 'words_in_row': True}"
+      "detail": "call 186: 573 characters; {'file_status': 200, 'words_in_file': True, 'words_in_row': True}"
     },
     {
       "name": "The deletion removes the words of the old call from the answer to the assistant, the file and the database row",
       "passed": true,
-      "detail": "deleted 2 calls, call 184 included: True; {'file_status': 404, 'words_in_file': False, 'words_in_row': False}"
+      "detail": "deleted 1 calls, call 186 included: True; {'file_status': 404, 'words_in_file': False, 'words_in_row': False, 'sentences_checked': 6, 'sentences_in_row': []}"
     },
     {
       "name": "The assistant is told that the words were deleted, and is not told to wait for them",
@@ -18,17 +18,17 @@
     {
       "name": "The other data of the old call stays: status, length, numbers, task, result, the list of calls, the minutes used",
       "passed": true,
-      "detail": "changed fields: none; result: {'task_completed': False, 'outcome_summary': 'The caller asked whether Bright Bikes is ope; minutes used 0.9 before"
+      "detail": "changed fields: none; result: {'task_completed': False, 'outcome_summary': 'The caller began asking on behalf of Lena Fi; minutes used 0.9 before"
     },
     {
       "name": "A call that is not old keeps its words",
       "passed": true,
-      "detail": "call 185 started after the age limit; deleted: False"
+      "detail": "call 187 started after the age limit; deleted: False"
     },
     {
       "name": "A deletion during a call does not touch that call: the call continues and its words are stored at the end",
       "passed": true,
-      "detail": "call 185 during the deletion: in_progress; after the end: 715 characters; {'file_status': 200, 'words_in_file': True, 'words_in_row': True}"
+      "detail": "call 187 during the deletion: in_progress; after the end: 725 characters; {'file_status': 200, 'words_in_file': True, 'words_in_row': True}"
     },
     {
       "name": "When the second call is old, a new deletion removes its words too",
@@ -48,10 +48,10 @@
   ],
   "evidence": {
     "first_call_before": {
-      "call_id": 184,
+      "call_id": 186,
       "direction": "outbound",
       "status": "completed",
-      "started_at": "2026-11-24T18:07:11.916606+00:00",
+      "started_at": "2026-11-24T18:11:26.313983+00:00",
       "duration_seconds": 53,
       "to": "+12088864742",
       "from": "+12085050523",
@@ -61,16 +61,16 @@
       "ended_by": "assistant",
       "result": {
         "task_completed": false,
-        "outcome_summary": "The caller asked whether Bright Bikes is open on Saturday. No response from Bright Bikes or opening hours were provided, so the hours were not confirmed.",
-        "follow_up_needed": "Contact Bright Bikes to confirm its Saturday hours."
+        "outcome_summary": "The caller began asking on behalf of Lena Fischer about Bright Bikes, but the request was cut off. No response from the other party or result was recorded.",
+        "follow_up_needed": "Call again to complete the inquiry."
       },
-      "transcript": "[2026-11-24T18:07:14.575+00:00] user: Thank you for calling Bright Bikes. All of our staff are with other customers. Please stay on the line.\nYour call is important to us. Someone will be with you in less than two minutes. Please stay on the line.\nYour call is important to us. Someone will be with you in less than two minutes. Please stay on the line.\nYour call is important to us. Someone will be with you in less than two minutes. Please stay on the line.\n[2026-11-24T18:07:57.963+00:00] assistant: I\u2019m calling on behalf of Lena Fischer to ask whether Bright Bikes is open on Saturday.\n"
+      "transcript": "[2026-11-24T18:11:28.941+00:00] user: Thank you for calling Bright Bikes. All of our staff are with other customers. Please stay on the line.\nYour call is important to us. Someone will be with you in less than two minutes. Please stay on the line.\nYour call is important to us. Someone will be with you in less than two minutes. Please stay on the line.\nYour call is important to us. Someone will be with you in less than two minutes. Please stay on the line.\n[2026-11-24T18:12:12.582+00:00] assistant: Hi, I\u2019m calling on behalf of Lena Fischer to ask whether Bright Bikes\n"
     },
     "first_call_after": {
-      "call_id": 184,
+      "call_id": 186,
       "direction": "outbound",
       "status": "completed",
-      "started_at": "2026-11-24T18:07:11.916606+00:00",
+      "started_at": "2026-11-24T18:11:26.313983+00:00",
       "duration_seconds": 53,
       "to": "+12088864742",
       "from": "+12085050523",
@@ -80,19 +80,19 @@
       "ended_by": "assistant",
       "result": {
         "task_completed": false,
-        "outcome_summary": "The caller asked whether Bright Bikes is open on Saturday. No response from Bright Bikes or opening hours were provided, so the hours were not confirmed.",
-        "follow_up_needed": "Contact Bright Bikes to confirm its Saturday hours."
+        "outcome_summary": "The caller began asking on behalf of Lena Fischer about Bright Bikes, but the request was cut off. No response from the other party or result was recorded.",
+        "follow_up_needed": "Call again to complete the inquiry."
       },
       "transcript": "",
       "transcript_deleted": true,
       "next_step": "The words of this call were deleted, because the call is older than 30 days. `result` has what is left. Do not ask again."
     },
     "second_call": {
-      "call_id": 185,
+      "call_id": 187,
       "direction": "outbound",
       "status": "completed",
-      "started_at": "2026-11-24T18:08:21.727689+00:00",
-      "duration_seconds": 61,
+      "started_at": "2026-11-24T18:12:36.176715+00:00",
+      "duration_seconds": 62,
       "to": "+12088864742",
       "from": "+12085050523",
       "disposition": "user_hangup",
@@ -101,10 +101,10 @@
       "ended_by": "assistant",
       "result": {
         "task_completed": false,
-        "outcome_summary": "I called Bright Bikes for Lena Fischer to ask whether they are open, but only reached a hold message saying someone would be available in less than two minutes. No hours were confirmed.",
-        "follow_up_needed": "Call Bright Bikes again or stay on the line to confirm whether they are open."
+        "outcome_summary": "I called Bright Bikes for Lena Fischer to ask whether they are open on Saturday. A recorded message said someone would be available in less than two minutes, but no one answered and the hours were not confirmed.",
+        "follow_up_needed": "Call Bright Bikes again to confirm Saturday hours."
       },
-      "transcript": "[2026-11-24T18:08:25.037+00:00] user: Thank you for calling Bright Bikes. All of our staff are with other customers. Please stay on the line.\nYour call is important to us. Someone will be with you in less than two minutes. Please stay on the line.\nYour call is important to us. Someone will be with you in less than two minutes. Please stay on the line.\nYour call is important to us. Someone will be with you in less than two minutes. Please stay on the line.\n[2026-11-24T18:09:08.514+00:00] assistant: I\u2019m calling for Lena Fischer to ask whether Bright Bikes is open on\n[2026-11-24T18:09:12.559+00:00] user: Your call is important to us. Someone will be with you in less than two minutes. Please stay on the line.\n"
+      "transcript": "[2026-11-24T18:12:38.600+00:00] user: Thank you for calling Bright Bikes. All of our staff are with other customers. Please stay on the line.\nYour call is important to us. Someone will be with you in less than two minutes. Please stay on the line.\nYour call is important to us. Someone will be with you in less than two minutes. Please stay on the line.\nYour call is important to us. Someone will be with you in less than two minutes. Please stay on the line.\n[2026-11-24T18:13:22.510+00:00] assistant: I\u2019m calling for Lena Fischer to ask whether Bright Bikes is open on Saturday.\n[2026-11-24T18:13:26.952+00:00] user: Your call is important to us. Someone will be with you in less than two minutes. Please stay on the line.\n"
     }
   }
 }
