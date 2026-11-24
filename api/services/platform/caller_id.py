@@ -12,7 +12,7 @@ from fastapi import HTTPException
 from loguru import logger
 
 from api.db import db_client
-from api.services.platform import twilio_accounts
+from api.services.platform import oauth_accounts, twilio_accounts
 from api.services.platform.destinations import assert_destination_allowed
 from api.services.platform.provisioning import (
     get_platform_account,
@@ -59,14 +59,23 @@ async def start_verification(organization_id: int, phone_number: str) -> dict[st
             detail="This is the service number of this account. Give a phone you own.",
         )
 
-    if await db_client.platform_number_owner_differs(phone_number, organization_id):
-        raise HTTPException(
-            status_code=409,
-            detail=(
-                "This phone number belongs to another account. One phone "
-                "number can be used on one account only."
-            ),
-        )
+    # Another account has this number. A new account from an assistant can
+    # join that account when the person passes the check; all others stop here.
+    join_to = await db_client.get_platform_number_owner(phone_number, organization_id)
+    proof_in_target = False
+    if join_to is not None:
+        if not await oauth_accounts.is_new_oauth_account(organization_id, account):
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    "This phone number belongs to another account. One phone "
+                    "number can be used on one account only."
+                ),
+            )
+        target_sid = await oauth_accounts.proof_subaccount(join_to)
+        # A number that Twilio lists there already would pass with no call.
+        if target_sid and not await _listed(target_sid, phone_number):
+            subaccount_sid, proof_in_target = target_sid, True
 
     now = datetime.now(UTC)
     attempts = _recent_attempts(account, now)
@@ -102,7 +111,15 @@ async def start_verification(organization_id: int, phone_number: str) -> dict[st
 
     await update_platform_account(
         organization_id,
-        caller_id_pending={"phone_number": phone_number, "started_at": now.isoformat()},
+        caller_id_pending={
+            "phone_number": phone_number,
+            "started_at": now.isoformat(),
+            **(
+                {"join_to": join_to, "proof_in_target": proof_in_target}
+                if join_to is not None
+                else {}
+            ),
+        },
     )
     return {
         "status": "calling",
@@ -116,19 +133,37 @@ async def start_verification(organization_id: int, phone_number: str) -> dict[st
     }
 
 
+async def _listed(subaccount_sid: str, phone_number: str) -> bool:
+    try:
+        return (
+            await twilio_accounts.find_caller_id(subaccount_sid, phone_number)
+            is not None
+        )
+    except twilio_accounts.TwilioAccountError as exc:
+        raise HTTPException(
+            status_code=502, detail="The phone company did not answer. Try again."
+        ) from exc
+
+
 async def refresh(organization_id: int, account: dict[str, Any]) -> dict[str, Any]:
     """Complete a pending verification when Twilio reports it passed.
 
     Twilio, not the client, is the source of truth: the number becomes the
-    caller ID only when the organization's own subaccount lists it.
+    caller ID only when the subaccount that ran the check lists it. After a
+    join, the returned account has ``joined_to``: the organization that the
+    caller's tokens work for from now on.
     """
     pending = account.get("caller_id_pending")
     if not pending:
         return account
     phone_number = pending["phone_number"]
+    join_to = pending.get("join_to")
+    checked_id, checked = organization_id, account
+    if join_to is not None and pending.get("proof_in_target"):
+        checked_id, checked = join_to, await get_platform_account(join_to)
     try:
         caller_id_sid = await twilio_accounts.find_caller_id(
-            account["twilio_subaccount_sid"], phone_number
+            checked["twilio_subaccount_sid"], phone_number
         )
     except twilio_accounts.TwilioAccountError as exc:
         logger.warning(f"Caller ID lookup failed for {organization_id}: {exc}")
@@ -142,6 +177,17 @@ async def refresh(organization_id: int, account: dict[str, Any]) -> dict[str, An
             )
         return account
 
+    if join_to is None:
+        return await _record(organization_id, account, phone_number, caller_id_sid)
+    if checked_id == join_to:
+        await _record(join_to, checked, phone_number, caller_id_sid)
+    return await oauth_accounts.join(organization_id, join_to)
+
+
+async def _record(
+    organization_id: int, account: dict[str, Any], phone_number: str, caller_id_sid: str
+) -> dict[str, Any]:
+    """Make a number that Twilio verified the caller ID of the account."""
     previous_sid = account.get("caller_id_sid")
     row = await db_client.set_platform_caller_id(
         organization_id, account["telephony_configuration_id"], phone_number

@@ -47,6 +47,7 @@ class PlatformSettings:
     otp_exempt_numbers: tuple[str, ...]
     oauth_daily_per_address: int
     oauth_hourly_total: int
+    oauth_unverified_hours: float
     max_call_seconds: int
     daily_call_limit: int
     # E.164 prefixes users may dial, e.g. "+1". Empty means no restriction.
@@ -97,6 +98,9 @@ def get_platform_settings() -> PlatformSettings:
         otp_exempt_numbers=_csv("PLATFORM_OTP_EXEMPT_NUMBERS"),
         oauth_daily_per_address=int(os.getenv("PLATFORM_OAUTH_DAILY_PER_ADDRESS", "5")),
         oauth_hourly_total=int(os.getenv("PLATFORM_OAUTH_HOURLY_TOTAL", "60")),
+        oauth_unverified_hours=float(
+            os.getenv("PLATFORM_OAUTH_UNVERIFIED_HOURS", "24")
+        ),
         max_call_seconds=int(os.getenv("PLATFORM_MAX_CALL_SECONDS", "600")),
         daily_call_limit=int(os.getenv("PLATFORM_DAILY_CALL_LIMIT", "20")),
         allowed_prefixes=_csv("PLATFORM_ALLOWED_PREFIXES"),

@@ -160,11 +160,11 @@ class PlatformClient(BaseDBClient):
             await session.commit()
             return True
 
-    async def platform_number_owner_differs(
+    async def get_platform_number_owner(
         self, phone_number: str, organization_id: int
-    ) -> bool:
-        """True when the number is the sign-in phone or the caller ID of a
-        different organization."""
+    ) -> int | None:
+        """The different organization that has this number as its sign-in
+        phone or as its caller ID. The sign-in phone wins."""
         async with self.async_session() as session:
             identity = await session.scalar(
                 select(UserModel.selected_organization_id).where(
@@ -172,15 +172,24 @@ class PlatformClient(BaseDBClient):
                 )
             )
             if identity is not None and identity != organization_id:
-                return True
-            other = await session.scalar(
-                select(TelephonyPhoneNumberModel.id).where(
+                return identity
+            return await session.scalar(
+                select(TelephonyPhoneNumberModel.organization_id)
+                .where(
                     TelephonyPhoneNumberModel.address_normalized == phone_number,
                     TelephonyPhoneNumberModel.label == CALLER_ID_LABEL,
                     TelephonyPhoneNumberModel.organization_id != organization_id,
                 )
+                .limit(1)
             )
-            return other is not None
+
+    async def platform_number_owner_differs(
+        self, phone_number: str, organization_id: int
+    ) -> bool:
+        """True when the number is the sign-in phone or the caller ID of a
+        different organization."""
+        owner = await self.get_platform_number_owner(phone_number, organization_id)
+        return owner is not None
 
     async def clear_platform_caller_id(self, organization_id: int) -> None:
         async with self.async_session() as session:
@@ -393,3 +402,46 @@ class PlatformClient(BaseDBClient):
                 )
             )
             return sorted(rows)
+
+    async def list_platform_oauth_users(self) -> list[UserModel]:
+        """Users that came from an OAuth consent and are not retired."""
+        async with self.async_session() as session:
+            rows = await session.scalars(
+                select(UserModel)
+                .where(UserModel.provider_id.like("oauth\\_%"))
+                .order_by(UserModel.id)
+            )
+            return list(rows)
+
+    async def move_platform_oauth_tokens(
+        self, from_user_id: int, to_user_id: int
+    ) -> int:
+        """Make the tokens of one account work for a different account."""
+        async with self.async_session() as session:
+            result = await session.execute(
+                update(PlatformOAuthTokenModel)
+                .where(PlatformOAuthTokenModel.user_id == from_user_id)
+                .values(user_id=to_user_id)
+            )
+            await session.commit()
+            return result.rowcount
+
+    async def delete_platform_oauth_tokens_of_user(self, user_id: int) -> int:
+        async with self.async_session() as session:
+            result = await session.execute(
+                delete(PlatformOAuthTokenModel).where(
+                    PlatformOAuthTokenModel.user_id == user_id
+                )
+            )
+            await session.commit()
+            return result.rowcount
+
+    async def retire_platform_oauth_user(self, user_id: int) -> None:
+        """Rename the user so that it is not an OAuth account from now on."""
+        async with self.async_session() as session:
+            user = await session.get(UserModel, user_id)
+            if user is not None and user.provider_id.startswith("oauth_"):
+                user.provider_id = (
+                    f"retired_{int(datetime.now().timestamp())}_{user.provider_id}"
+                )
+                await session.commit()

@@ -1,18 +1,22 @@
 """The consent page of the OAuth sign-in (platform mode only)."""
 
+from datetime import timedelta
 from html import escape
 from urllib.parse import urlsplit
 
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
+from pydantic import BaseModel, Field
 
 from api.db import db_client
 from api.routes.platform import _client_address, _require_operator
+from api.services.platform import oauth_accounts
 from api.services.platform.oauth import (
     PlatformOAuthProvider,
     TooManyAccounts,
     reset_account_limits,
 )
+from api.services.platform.settings import get_platform_settings
 
 router = APIRouter()
 provider = PlatformOAuthProvider()
@@ -132,3 +136,21 @@ async def oauth_summary() -> dict:
     """Accounts that came from an OAuth consent and have no phone yet."""
     organization_ids = await db_client.list_platform_oauth_accounts()
     return {"accounts": len(organization_ids), "organization_ids": organization_ids}
+
+
+class CleanUpRequest(BaseModel):
+    # None: the age from the settings, as in the timed clean-up.
+    older_than_hours: float | None = Field(default=None, ge=0)
+
+
+@router.post(
+    "/api/v1/platform/operator/oauth/clean-up",
+    dependencies=[Depends(_require_operator)],
+    include_in_schema=False,
+)
+async def clean_up_oauth_accounts(request: CleanUpRequest | None = None) -> dict:
+    """Close OAuth accounts that joined an account or never proved a phone."""
+    hours = request.older_than_hours if request else None
+    if hours is None:
+        hours = get_platform_settings().oauth_unverified_hours
+    return await oauth_accounts.clean_up(timedelta(hours=hours))

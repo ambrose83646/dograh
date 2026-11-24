@@ -79,6 +79,18 @@ async def _ready_account(organization_id: int) -> dict[str, Any]:
     return await upgrade_outbound_agent(organization_id, account)
 
 
+async def _checked_account(organization_id: int) -> tuple[int, dict[str, Any]]:
+    """The account after a pending phone check. A check can join this account
+    to the account that has the phone already; the answer is then for that one.
+    """
+    account = await _ready_account(organization_id)
+    account = await caller_id_service.refresh(organization_id, account)
+    if account.get("joined_to"):
+        organization_id = account["joined_to"]
+        account = await _ready_account(organization_id)
+    return organization_id, account
+
+
 def _from_number(account: dict[str, Any]) -> tuple[int | None, str | None]:
     """The number outbound calls show: the user's own, else the service number."""
     if account.get("caller_id_phone_number_id"):
@@ -89,8 +101,7 @@ def _from_number(account: dict[str, Any]) -> tuple[int | None, str | None]:
 
 
 async def get_account_status(organization_id: int) -> dict[str, Any]:
-    account = await _ready_account(organization_id)
-    account = await caller_id_service.refresh(organization_id, account)
+    organization_id, account = await _checked_account(organization_id)
     allowance = await get_allowance_status(organization_id)
     await packs.request_pack_if_low(organization_id, allowance)
     settings = get_platform_settings()
@@ -266,8 +277,7 @@ async def place_call(
     phone_number = (phone_number or "").strip()
     assert_destination_allowed(phone_number)
 
-    account = await _ready_account(organization_id)
-    account = await caller_id_service.refresh(organization_id, account)
+    organization_id, account = await _checked_account(organization_id)
     from_id, from_number = _from_number(account)
     if from_id is None:
         raise HTTPException(
