@@ -48,6 +48,8 @@ class PlatformSettings:
     oauth_daily_per_address: int
     oauth_hourly_total: int
     oauth_unverified_hours: float
+    # The words of a call are deleted when the call is this old.
+    transcript_days: float
     # Version 1 sells outbound calls only. When true, the MCP server also
     # shows the tools and the fields for inbound calls.
     inbound_tools: bool
@@ -104,6 +106,7 @@ def get_platform_settings() -> PlatformSettings:
         oauth_unverified_hours=float(
             os.getenv("PLATFORM_OAUTH_UNVERIFIED_HOURS", "24")
         ),
+        transcript_days=float(os.getenv("PLATFORM_TRANSCRIPT_DAYS", "30")),
         inbound_tools=os.getenv("PLATFORM_INBOUND_TOOLS", "false").lower() == "true",
         max_call_seconds=int(os.getenv("PLATFORM_MAX_CALL_SECONDS", "600")),
         daily_call_limit=int(os.getenv("PLATFORM_DAILY_CALL_LIMIT", "20")),

@@ -178,6 +178,7 @@ Reads one call, during the call or after it.
 | `transcript` | The record of the words. During a call, the words so far. |
 | `direct_talk` | For each talk: `result`, `user_joined`, `seconds`, `lines` |
 | `direct_talk_now` | Present while the user is on the line |
+| `transcript_deleted` | `true` when the words were deleted (30 days after the call). `transcript` is then empty and `direct_talk` has no `lines`. |
 | `next_step` | What the assistant must do next |
 
 In `transcript`, `assistant:` is the voice agent and `user:` is the person on

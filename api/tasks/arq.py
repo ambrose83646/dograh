@@ -70,6 +70,7 @@ from api.tasks.text_chat_inactivity import (
     sweep_inactive_text_chat_sessions,
 )
 from api.tasks.platform_oauth_cleanup import sweep_unused_oauth_accounts
+from api.tasks.platform_transcript_retention import sweep_old_transcripts
 from api.tasks.webhook_delivery import deliver_webhook, sweep_webhook_deliveries
 from api.tasks.workflow_builder import process_builder_run, sweep_builder_runs
 from api.tasks.workflow_completion import (
@@ -117,6 +118,8 @@ class WorkerSettings:
         # Each consent makes an account and a Twilio subaccount. Close the ones
         # whose person never proved a phone.
         cron(sweep_unused_oauth_accounts, minute=20, second=0),
+        # The privacy policy gives the storage time of transcripts.
+        cron(sweep_old_transcripts, minute=40, second=0, run_at_startup=True),
     ]
     redis_settings = REDIS_SETTINGS
     max_jobs = 10

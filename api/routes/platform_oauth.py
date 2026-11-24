@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field
 
 from api.db import db_client
 from api.routes.platform import _client_address, _require_operator
-from api.services.platform import oauth_accounts
+from api.services.platform import oauth_accounts, transcript_retention
 from api.services.platform.oauth import (
     PlatformOAuthProvider,
     TooManyAccounts,
@@ -154,3 +154,23 @@ async def clean_up_oauth_accounts(request: CleanUpRequest | None = None) -> dict
     if hours is None:
         hours = get_platform_settings().oauth_unverified_hours
     return await oauth_accounts.clean_up(timedelta(hours=hours))
+
+
+class DeleteOldTranscriptsRequest(BaseModel):
+    # None: the age from the settings, as in the timed deletion.
+    older_than_seconds: float | None = Field(default=None, ge=0)
+
+
+@router.post(
+    "/api/v1/platform/operator/transcripts/delete-old",
+    dependencies=[Depends(_require_operator)],
+    include_in_schema=False,
+)
+async def delete_old_transcripts(
+    request: DeleteOldTranscriptsRequest | None = None,
+) -> dict:
+    """Delete the words of the calls that are older than the storage time."""
+    seconds = request.older_than_seconds if request else None
+    if seconds is None:
+        seconds = get_platform_settings().transcript_days * 86400
+    return await transcript_retention.delete_old(timedelta(seconds=seconds))

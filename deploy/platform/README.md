@@ -65,6 +65,7 @@ The first build takes about 10 minutes.
 | `PLATFORM_BILLING_WEBHOOK_SECRET` | empty | Signs each `pack_needed` request (HMAC SHA-256 of the body, header `X-Platform-Signature`). |
 | `PLATFORM_MAX_CALL_SECONDS` | `600` | Longest single call. |
 | `PLATFORM_DAILY_CALL_LIMIT` | `20` | Calls for each account in 24 hours. |
+| `PLATFORM_TRANSCRIPT_DAYS` | `30` | The words of a call are deleted when the call is this old. The privacy policy of the site gives the same time. |
 | `PLATFORM_ALLOWED_PREFIXES` | `+1` | Number prefixes that users can call. |
 | `PLATFORM_LLM_MODEL` | `gpt-4.1` | OpenAI model that holds the conversation. Tested: `gpt-4.1` and `gpt-6-sol`. `gpt-6-luna` ends calls too early. An account gets a new value on its next use. |
 | `PLATFORM_STT_MODEL` | `flux-general-multi` | Deepgram speech recognition model. |

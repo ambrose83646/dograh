@@ -242,7 +242,9 @@ async def get_call_result(
     "phone_menu", or "hold_line" (a recording said to wait; the transcript
     shows if a person answered later); `keys_pressed` lists the keys the agent pressed in a
     menu, in order. With "voicemail" the task was not done: tell the user,
-    and say if a message was left (`voicemail_message_left`).
+    and say if a message was left (`voicemail_message_left`). The words of a
+    call are deleted 30 days after the call; then `transcript_deleted` is
+    true, `transcript` is empty, and `result` stays.
     """
     return await calls.get_call_result(await _organization_id(), call_id)
 

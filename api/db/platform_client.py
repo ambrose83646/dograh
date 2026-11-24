@@ -6,9 +6,9 @@ usage against its free allowance, and listing an organization's calls.
 """
 
 from collections.abc import Sequence
-from datetime import datetime
+from datetime import datetime, timedelta
 
-from sqlalchemy import Float, cast, delete, func, text, update
+from sqlalchemy import Float, and_, cast, delete, func, or_, text, update
 from sqlalchemy.future import select
 
 from api.db.base_client import BaseDBClient
@@ -22,6 +22,12 @@ from api.db.models import (
     WorkflowRunModel,
 )
 from api.utils.telephony_address import normalize_telephony_address
+
+# Where a call record has the words that were said, apart from the transcript
+# file: the lines of a direct talk, and what was heard before the agent spoke.
+_WORD_FIELDS = {"direct_talk": "lines", "answer_supervisor": "transcript"}
+# The other logs of a call (conversation, events, extraction) have the words.
+_LOGS_WITHOUT_WORDS = ("telephony_status_callbacks",)
 
 # One global lock serializes pool assignment. Assignments are rare (one per
 # signup) and the critical section is two statements.
@@ -445,3 +451,65 @@ class PlatformClient(BaseDBClient):
                     f"retired_{int(datetime.now().timestamp())}_{user.provider_id}"
                 )
                 await session.commit()
+
+    async def list_runs_with_old_words(
+        self, started_before: datetime, limit: int
+    ) -> list[tuple[int, str | None, str]]:
+        """Calls older than the storage time whose words are not deleted yet.
+
+        A call that did not get its end is not touched until one more day,
+        so a call in progress is never in this list.
+        """
+        async with self.async_session() as session:
+            rows = await session.execute(
+                select(
+                    WorkflowRunModel.id,
+                    WorkflowRunModel.transcript_url,
+                    WorkflowRunModel.storage_backend,
+                )
+                .where(
+                    WorkflowRunModel.extra.op("->>")("transcript_deleted_at").is_(None),
+                    or_(
+                        and_(
+                            WorkflowRunModel.is_completed.is_(True),
+                            WorkflowRunModel.created_at < started_before,
+                        ),
+                        WorkflowRunModel.created_at
+                        < started_before - timedelta(days=1),
+                    ),
+                )
+                .order_by(WorkflowRunModel.id)
+                .limit(limit)
+            )
+            return [tuple(row) for row in rows]
+
+    async def remove_words_of_run(self, run_id: int, deleted_at: datetime) -> None:
+        """Remove what was said in a call from its record. The rest stays."""
+        async with self.async_session() as session:
+            run = await session.scalar(
+                select(WorkflowRunModel)
+                .where(WorkflowRunModel.id == run_id)
+                .with_for_update()
+            )
+            if run is None:
+                return
+            gathered = dict(run.gathered_context or {})
+            for key, field in _WORD_FIELDS.items():
+                entries = gathered.get(key)
+                if isinstance(entries, list):
+                    gathered[key] = [
+                        {k: v for k, v in entry.items() if k != field}
+                        if isinstance(entry, dict)
+                        else entry
+                        for entry in entries
+                    ]
+            run.gathered_context = gathered
+            run.logs = {
+                k: v for k, v in (run.logs or {}).items() if k in _LOGS_WITHOUT_WORDS
+            }
+            run.transcript_url = None
+            run.extra = {
+                **(run.extra or {}),
+                "transcript_deleted_at": deleted_at.isoformat(),
+            }
+            await session.commit()

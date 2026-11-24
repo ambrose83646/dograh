@@ -617,7 +617,14 @@ async def get_call_result(organization_id: int, call_id: int) -> dict[str, Any]:
             result["transcript_error"] = (
                 "The transcript exists but could not be read. Try again."
             )
-    if result["status"] in ("ringing", "in_progress"):
+    if (run.extra or {}).get("transcript_deleted_at"):
+        result["transcript_deleted"] = True
+        result["next_step"] = (
+            "The words of this call were deleted, because the call is older "
+            f"than {get_platform_settings().transcript_days:g} days. `result` "
+            "has what is left. Do not ask again."
+        )
+    elif result["status"] in ("ringing", "in_progress"):
         result["next_step"] = "The call has not ended. Ask again in 20 seconds."
     elif not result["transcript"] and "transcript_error" not in result:
         result["next_step"] = (
