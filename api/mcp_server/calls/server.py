@@ -22,13 +22,18 @@ This server gives you a phone. You can call a number to carry out a spoken task
 for the user, read what was said, and decide how calls to the user's own number
 are answered when you are not there.
 
-The user manages everything through you. Do not send the user to a web page
-for a setting: caller ID, voice, and inbound rules all have tools here.
+The user manages everything through you. Caller ID, voice, and inbound rules
+all have tools here. Send the user to a web page for one thing only: payment
+(get_billing_link).
 
-Before the first call: calls show the user's own phone number. If
-get_account_status shows no caller_id, ask the user for a phone number they
-own, call start_caller_id_verification, and tell the user the code. Their
-phone rings; they answer and enter the code on the keypad. This is done once.
+First use: call get_account_status before anything else and read `setup`.
+While `setup.done` is false, do what `setup.next_step` says and nothing else.
+The full setup is one phone check: ask the user for their own mobile number,
+call start_caller_id_verification, and tell the user the code. Their phone
+rings; they answer and enter the code on the keypad. Then call
+get_account_status again. After that, calls show the user's own number and
+the free minutes are ready. Do not ask the user for a key, a password, or an
+account: the phone check is the sign-up.
 
 How to make a call:
 1. Call place_call with the number in international format (+14155550123) and
@@ -37,6 +42,9 @@ How to make a call:
 2. place_call returns at once with a call_id. The call takes minutes.
 3. Call get_call_result with that call_id after about 30 seconds, and repeat
    until status is "completed" or "failed". Then tell the user the result.
+4. To stop a call before it ends by itself, call end_call. Do this when the
+   user tells you to stop, or when the transcript shows that the call went
+   wrong.
 
 Write the task the way you would brief a human assistant: who to ask for, what
 to ask, which facts to give, which answers to bring back, and what to do when
@@ -52,7 +60,7 @@ Rules:
   get_account_status and each place_call result show the minutes that are
   left. When `minutes_note` has text, tell the user what it says. When a call
   is refused for minutes, the refusal says what the user must do: give the
-  user that message, with the page address if it has one.
+  user that message, and call get_billing_link for the page address.
 - The voice agent tells people it is an AI assistant if they ask.
 """
 
@@ -284,10 +292,12 @@ async def get_inbound_rules() -> dict:
 
 @_tool
 async def get_account_status() -> dict:
-    """Read the user's caller ID, voice, free call minutes left, and call limits.
+    """Read the setup state, caller ID, voice, call minutes left, and call limits.
 
-    Also completes a caller ID check: after the user entered the code,
-    `caller_id` shows the verified number.
+    Call this first in each new conversation. `setup` gives the state of the
+    first-run steps and the one next step: follow `setup.next_step` while
+    `setup.done` is false. Also completes a phone check: after the user
+    entered the code, `caller_id` shows the verified number.
     """
     return await calls.get_account_status(await _organization_id())
 
@@ -311,6 +321,31 @@ async def start_caller_id_verification(
     call get_account_status to confirm. Needed once, before the first call.
     """
     return await caller_id.start_verification(await _organization_id(), phone_number)
+
+
+@_tool
+async def end_call(
+    call_id: Annotated[
+        int, Field(description="The call_id from place_call or list_calls.")
+    ],
+) -> dict:
+    """Hang up one of the user's calls now.
+
+    Works while the call rings and while it is in progress. The words said
+    before the end stay in the record: read them with get_call_result. A call
+    that is over already is not changed.
+    """
+    return await calls.end_call(await _organization_id(), call_id)
+
+
+@_tool
+async def get_billing_link() -> dict:
+    """Get the web address where the user starts or changes the monthly plan.
+
+    Use it when the minutes are used or low, or when the user asks about
+    price or payment. Give the user the address; the user pays there.
+    """
+    return await calls.get_billing_link(await _organization_id())
 
 
 @_tool
@@ -373,7 +408,22 @@ calls_mcp.tool(
         openWorldHint=True,
     ),
 )
-for _read_tool in (get_call_result, list_calls, get_inbound_rules, get_account_status):
+calls_mcp.tool(
+    end_call,
+    annotations=ToolAnnotations(
+        readOnlyHint=False,
+        idempotentHint=True,
+        destructiveHint=True,
+        openWorldHint=True,
+    ),
+)
+for _read_tool in (
+    get_call_result,
+    list_calls,
+    get_inbound_rules,
+    get_account_status,
+    get_billing_link,
+):
     calls_mcp.tool(_read_tool, annotations=_READ)
 
 

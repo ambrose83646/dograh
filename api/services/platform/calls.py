@@ -33,6 +33,8 @@ from api.services.platform.provisioning import (
     upgrade_outbound_agent,
 )
 from api.services.platform.settings import get_platform_settings
+from api.services.telephony.factory import get_telephony_provider_for_run
+from api.services.telephony.providers.twilio.strategies import TwilioHangupStrategy
 from api.services.workflow_run_artifacts import (
     TranscriptDownloadError,
     download_run_transcript_text,
@@ -100,6 +102,48 @@ def _from_number(account: dict[str, Any]) -> tuple[int | None, str | None]:
     return None, None
 
 
+def _setup(account: dict[str, Any], allowance, from_id: int | None) -> dict[str, Any]:
+    """Where the user is in the first-run steps, and the one next step.
+
+    The assistant leads the setup from this: it does not guess the order.
+    """
+    pending = account.get("caller_id_pending")
+    if not account.get("caller_id"):
+        if pending:
+            return {
+                "state": "waiting_for_code",
+                "done": False,
+                "next_step": (
+                    f"The phone {pending['phone_number']} rings. The user must "
+                    "answer and enter the code on the keypad. Then call "
+                    "get_account_status again. If the user did not get the "
+                    "call, call start_caller_id_verification again."
+                ),
+            }
+        return {
+            "state": "verify_phone",
+            "done": False,
+            "next_step": (
+                "Ask the user for their own mobile number (United States or "
+                "Canada). Call start_caller_id_verification with it and tell "
+                "the user the code before their phone rings. This one check "
+                "is the full setup: no web page and no other step."
+            ),
+        }
+    if allowance.blocked_code is not None or from_id is None:
+        return {
+            "state": "blocked",
+            "done": True,
+            "next_step": allowance.blocked_message
+            or "This account cannot call now. Try again in a minute.",
+        }
+    return {
+        "state": "ready",
+        "done": True,
+        "next_step": "Setup is complete. Ask the user which call to make.",
+    }
+
+
 async def get_account_status(organization_id: int) -> dict[str, Any]:
     organization_id, account = await _checked_account(organization_id)
     allowance = await get_allowance_status(organization_id)
@@ -121,6 +165,7 @@ async def get_account_status(organization_id: int) -> dict[str, Any]:
             "the user owns. Outbound calls then show that number."
         )
     return {
+        "setup": _setup(account, allowance, from_id),
         "caller_id": account.get("caller_id"),
         "caller_id_status": caller_id_status,
         "outbound_calls_from": from_number,
@@ -462,6 +507,8 @@ def _summarize(run, account: dict[str, Any]) -> dict[str, Any]:
             summary["keys_pressed"] = keys
     if direction == "outbound":
         summary["task"] = initial.get("task")
+    if gathered.get("ended_by"):
+        summary["ended_by"] = gathered["ended_by"]
     if error:
         summary["error"] = str(error)
     return summary
@@ -578,6 +625,85 @@ async def get_call_result(organization_id: int, call_id: int) -> dict[str, Any]:
             "a minute; ask again once."
         )
     return result
+
+
+async def end_call(organization_id: int, call_id: int) -> dict[str, Any]:
+    """Hang up one call of this account now. A call that is over stays as it is."""
+    account = await _ready_account(organization_id)
+    run = await db_client.get_workflow_run(
+        run_id=call_id, organization_id=organization_id
+    )
+    if run is None:
+        # Same answer for "does not exist" and "belongs to someone else".
+        raise HTTPException(status_code=404, detail=f"Call {call_id} not found")
+    if run.is_completed:
+        summary = _summarize(run, account)
+        return {
+            "call_id": run.id,
+            "ended_now": False,
+            "status": summary["status"],
+            "next_step": "This call was over already. Nothing changed.",
+        }
+    call_sid = (run.gathered_context or {}).get("call_id")
+    if not call_sid:
+        raise HTTPException(
+            status_code=409,
+            detail="This call has not reached the phone network yet. "
+            "Try again in a few seconds.",
+        )
+    provider = await get_telephony_provider_for_run(run, organization_id)
+    hung_up = await TwilioHangupStrategy().execute_hangup(
+        {
+            "account_sid": provider.account_sid,
+            "auth_token": provider.auth_token,
+            "call_sid": call_sid,
+        }
+    )
+    if not hung_up:
+        raise HTTPException(
+            status_code=502,
+            detail="The phone network did not end the call. Try again.",
+        )
+    await db_client.update_workflow_run(
+        run.id, gathered_context={"ended_by": "assistant"}
+    )
+    return {
+        "call_id": run.id,
+        "ended_now": True,
+        "next_step": (
+            "The call is ending. Call get_call_result in about 10 seconds for "
+            "the record of what was said before the end."
+        ),
+    }
+
+
+async def get_billing_link(organization_id: int) -> dict[str, Any]:
+    """The page where the user starts or changes the monthly plan."""
+    organization_id, account = await _checked_account(organization_id)
+    allowance = await get_allowance_status(organization_id)
+    url = get_platform_settings().billing_url
+    if not url:
+        raise HTTPException(
+            status_code=503, detail="The billing page is not available now."
+        )
+    phone = account.get("caller_id")
+    return {
+        "url": url,
+        "sign_in": (
+            f"The user signs in on that page with the phone {phone}: the page "
+            "sends a code by text message. No password."
+            if phone
+            else "The user must verify a phone number first "
+            "(start_caller_id_verification). The page signs in with that phone."
+        ),
+        "plan": allowance.plan_name,
+        "minutes_remaining": round(allowance.remaining_seconds / 60, 1),
+        "next_step": (
+            "Give the user this address as a link. Payment needs the user: "
+            "you cannot pay for them. After the payment, call "
+            "get_account_status to see the new minutes."
+        ),
+    }
 
 
 async def list_calls(organization_id: int, limit: int = 20) -> list[dict[str, Any]]:

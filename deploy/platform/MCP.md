@@ -269,3 +269,18 @@ These are the steps that need a web page or the operator.
 One conflict in the text: the server instructions say that the assistant must
 not send the user to a web page for a setting. The billing steps and the key
 need a web page.
+
+## Changes on branch `platform-calling` that are not on the live server
+
+These need the owner's approval before a deploy.
+
+| Change | Meaning |
+| --- | --- |
+| OAuth sign-in | A plugin host signs in with OAuth. The API key continues to work. |
+| `get_account_status` → `setup` | `state` (`verify_phone`, `waiting_for_code`, `ready`, `blocked`), `done`, and `next_step`. The assistant follows `next_step` while `done` is false. |
+| `end_call` (new) | Parameter `call_id`. Hangs up a call that rings or is in progress. The record keeps the words said before the end and shows `ended_by: "assistant"`. |
+| `get_billing_link` (new) | No parameters. Gives `url` (the billing page), `sign_in` (how the user signs in), `plan`, and `minutes_remaining`. |
+| Instructions | The first step is `get_account_status`. The only web page for the user is the billing page. |
+
+Check: `platform_verification/assistant_setup.py` (results in
+`platform_verification/results/assistant_setup/`).
