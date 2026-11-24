@@ -26,31 +26,15 @@ owner sends the form.
 
 ## Testing Instructions
 
-> No test account is necessary. The plugin makes the account at sign-in.
-> You need a US or Canada phone that you can answer.
->
-> 1. Add the plugin. A DanaDial page opens. Select "Allow". There is no
->    password and no form.
-> 2. Ask: "Set up DanaDial." The Bot calls `get_account_status` and asks for
->    your phone number. Give it. The Bot calls
->    `start_caller_id_verification` and tells you a 6-digit code.
-> 3. Your phone rings. Answer and enter the code on the keypad. Tell the Bot
->    that you did. It confirms that calls now show your number, and that you
->    have 10 free call minutes.
-> 4. Ask: "Call <a US business number> and ask what time they close today."
->    The Bot calls `place_call`, then `get_call_result` until the call ends,
->    and reports the answer with the transcript.
-> 5. During a longer call, ask: "End that call." The Bot calls `end_call`.
->    The phone call stops in a few seconds.
-> 6. Ask: "Show my recent calls." The Bot calls `list_calls`.
-> 7. Ask: "How do I get more minutes?" The Bot calls `get_billing_link` and
->    gives the billing page. The plan is optional and is sold on
->    danadial.com.
->
-> Limits: 10 minutes for each call, 20 calls each day. The service refuses
-> premium-rate numbers and numbers out of the US and Canada. The voice agent
-> starts each call with "This is Dana Dial, an AI assistant calling for ...".
-> The service deletes the transcript of a call 30 days after the call.
+The form field takes fewer than 600 characters. This text has 552.
+
+> No test account is necessary. You need a US or Canada phone that you can answer.
+> 1. Add the plugin and select "Allow". There is no password.
+> 2. Ask: "Set up DanaDial." Give your phone number. The Bot tells you a 6-digit code.
+> 3. Your phone rings. Answer and enter the code on the keypad.
+> 4. Ask: "Call <a US business number> and ask what time they close today." The Bot reports the answer with the transcript.
+> 5. Ask: "Show my recent calls."
+> Limits: 10 free minutes, 10 minutes for each call. The voice agent says that it is Dana Dial, an AI assistant.
 
 ## Tools
 
@@ -69,7 +53,7 @@ owner sends the form.
 
 OAuth 2.1 with dynamic client registration and PKCE. The server accepts the
 three return addresses that Grok Bot registers. Consent is one "Allow"
-button. The consent makes the account. The phone check in step 2 and 3 joins
+button. The consent makes the account. The phone check in steps 2 and 3 joins
 the person to an account that has that phone already.
 
 ## Logo
@@ -81,7 +65,7 @@ The address in the table is the raw GitHub address of that file.
 
 - The form has a box: "I've tested this plugin locally and in-app". Add
   `https://app.danadial.com/mcp` in Grok Bot as a custom connector (apps
-  icon → custom connector → Remote HTTPS) and do steps 1 to 7.
+  icon → custom connector → Remote HTTPS) and do steps 1 to 5.
 - `https://danadial.com/terms` and `https://danadial.com/privacy` are
   published. Get a legal review of the two texts if you have not done so.
 - Version 1 is for outbound calls only. The server shows no inbound tools
