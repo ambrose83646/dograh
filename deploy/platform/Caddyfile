@@ -9,7 +9,7 @@
 	# What a person hears when they call the conference line back.
 	handle /line-callback {
 		header Content-Type text/xml
-		respond `<?xml version="1.0" encoding="UTF-8"?><Response><Pause length="1"/><Say>This is Dana Dial. Your assistant tried to bring you into a call. You cannot start a call from this number. To make a call, ask your assistant. Goodbye.</Say><Hangup/></Response>` 200
+		respond `<?xml version="1.0" encoding="UTF-8"?><Response><Pause length="1"/><Say>This is Dana Dial. Your assistant tried to bring you into a call. Goodbye.</Say><Hangup/></Response>` 200
 	}
 	# Calls hold a websocket open for their full length.
 	reverse_proxy api:8000 {
