@@ -281,6 +281,7 @@ These need the owner's approval before a deploy.
 | `end_call` (new) | Parameter `call_id`. Hangs up a call that rings or is in progress. The record keeps the words said before the end and shows `ended_by: "assistant"`. |
 | `get_billing_link` (new) | No parameters. Gives `url` (the billing page), `sign_in` (how the user signs in), `plan`, and `minutes_remaining`. |
 | Instructions | The first step is `get_account_status`. The only web page for the user is the billing page. |
+| Outbound only | Version 1 has no inbound calls. The server does not show `set_inbound_rules`, `get_inbound_rules`, `phone_number`, or `phone_number_status`, and no text speaks of inbound calls. `PLATFORM_INBOUND_TOOLS=true` shows them again; `platform_verification/verify.py` needs that value. |
 
 Check: `platform_verification/assistant_setup.py` (results in
 `platform_verification/results/assistant_setup/`).

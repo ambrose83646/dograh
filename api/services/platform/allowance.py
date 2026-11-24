@@ -67,7 +67,7 @@ class AllowanceStatus:
             return (
                 f"The {self.allowed_seconds // 60} free call minutes are used. "
                 f"The user must start the monthly plan{where} before this "
-                f"account can make or answer more calls."
+                f"account can make more calls."
             )
         if code == PLAN_EXHAUSTED_CODE and self.pack_available:
             return (
@@ -92,7 +92,7 @@ class AllowanceStatus:
                 f"The call minutes of the {self.plan_name} plan are used for "
                 f"this period. {packs}The minutes renew on "
                 f"{self.period_end:%B %-d, %Y}. To call before that date, "
-                f"{more}. Until then this account cannot make or answer calls."
+                f"{more}. Until then this account cannot make calls."
             )
         if code == DAILY_LIMIT_CODE:
             return (

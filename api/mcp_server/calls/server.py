@@ -16,15 +16,14 @@ from pydantic import Field
 from api.mcp_server.auth import authenticate_mcp_request, user_for_credential
 from api.mcp_server.tracing import traced_tool
 from api.services.platform import caller_id, calls, oauth
+from api.services.platform.settings import get_platform_settings
 
 INSTRUCTIONS = """\
 This server gives you a phone. You can call a number to carry out a spoken task
-for the user, read what was said, and decide how calls to the user's own number
-are answered when you are not there.
-
-The user manages everything through you. Caller ID, voice, and inbound rules
-all have tools here. Send the user to a web page for one thing only: payment
-(get_billing_link).
+for the user and read what was said.
+{inbound_intro}
+The user manages everything through you. {managed} have tools here. Send the
+user to a web page for one thing only: payment (get_billing_link).
 
 First use: call get_account_status before anything else and read `setup`.
 While `setup.done` is false, do what `setup.next_step` says and nothing else.
@@ -63,6 +62,23 @@ Rules:
   user that message, and call get_billing_link for the page address.
 - The voice agent tells people it is an AI assistant if they ask.
 """
+
+# Version 1 is for outbound calls only: no inbound tools, fields, or words.
+_INBOUND = get_platform_settings().inbound_tools
+INSTRUCTIONS = INSTRUCTIONS.format(
+    inbound_intro=(
+        "You can also decide how calls to the user's own number are answered\n"
+        "when you are not there.\n"
+        if _INBOUND
+        else ""
+    ),
+    managed=(
+        "Caller ID, voice, and inbound rules all"
+        if _INBOUND
+        else "Caller ID and voice both"
+    ),
+)
+_INBOUND_FIELDS = ("phone_number", "phone_number_status")
 
 calls_mcp = FastMCP("phone-calls", instructions=INSTRUCTIONS)
 
@@ -227,7 +243,6 @@ async def get_call_result(
     shows if a person answered later); `keys_pressed` lists the keys the agent pressed in a
     menu, in order. With "voicemail" the task was not done: tell the user,
     and say if a message was left (`voicemail_message_left`).
-    Works for outbound calls and for inbound calls to the user's number.
     """
     return await calls.get_call_result(await _organization_id(), call_id)
 
@@ -238,10 +253,9 @@ async def list_calls(
         int, Field(description="How many calls to return, newest first. Maximum 50.")
     ] = 10,
 ) -> list[dict]:
-    """List the user's recent calls, outbound and inbound, newest first.
+    """List the user's recent calls, newest first.
 
-    Use this to find calls that came in to the user's number while no
-    assistant was connected, then read each one with get_call_result.
+    Read one call in full with get_call_result.
     """
     return await calls.list_calls(await _organization_id(), limit)
 
@@ -299,7 +313,11 @@ async def get_account_status() -> dict:
     `setup.done` is false. Also completes a phone check: after the user
     entered the code, `caller_id` shows the verified number.
     """
-    return await calls.get_account_status(await _organization_id())
+    status = await calls.get_account_status(await _organization_id())
+    if not _INBOUND:
+        for field in _INBOUND_FIELDS:
+            status.pop(field, None)
+    return status
 
 
 @_tool
@@ -362,8 +380,7 @@ async def update_settings(
 ) -> dict:
     """Change how the user's voice agent sounds. Returns the settings in use.
 
-    Applies to the next call, outbound and inbound. Call it with no arguments
-    to read the settings.
+    Applies to the next call. Call it with no arguments to read the settings.
     """
     return await calls.update_settings(await _organization_id(), voice=voice)
 
@@ -390,15 +407,17 @@ calls_mcp.tool(
         openWorldHint=False,
     ),
 )
-calls_mcp.tool(
-    set_inbound_rules,
-    annotations=ToolAnnotations(
-        readOnlyHint=False,
-        idempotentHint=True,
-        destructiveHint=True,
-        openWorldHint=False,
-    ),
-)
+if _INBOUND:
+    calls_mcp.tool(
+        set_inbound_rules,
+        annotations=ToolAnnotations(
+            readOnlyHint=False,
+            idempotentHint=True,
+            destructiveHint=True,
+            openWorldHint=False,
+        ),
+    )
+    calls_mcp.tool(get_inbound_rules, annotations=_READ)
 calls_mcp.tool(
     start_caller_id_verification,
     annotations=ToolAnnotations(
@@ -420,7 +439,6 @@ calls_mcp.tool(
 for _read_tool in (
     get_call_result,
     list_calls,
-    get_inbound_rules,
     get_account_status,
     get_billing_link,
 ):

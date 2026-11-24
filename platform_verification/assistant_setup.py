@@ -28,12 +28,16 @@ How this can fail (written before the code):
     page of the service.
 12. With the free minutes used, `setup` still says "ready", so the assistant
     tries calls and does not tell the person about the plan.
+13. Version 1 is for outbound calls only, but the assistant still sees
+    inbound calls: in the instructions, in a tool, in a tool description, or
+    in an answer of a tool. Or a hidden inbound tool still runs by its name.
 """
 
 import argparse
 import asyncio
 import json
 import os
+import re
 import sys
 import time
 from pathlib import Path
@@ -110,7 +114,9 @@ async def run(args, report: Report) -> None:
 
             async with session(mcp_url, lena) as client:
                 instructions = client.instructions or ""
-                tools = {t.name for t in await client.list_tools()}
+                listed = await client.list_tools()
+                tools = {t.name for t in listed}
+            shown = [instructions] + [t.model_dump_json() for t in listed]
             report.evidence["instructions"] = instructions
             report.check(
                 "The instructions name the setup state and the new tools, and "
@@ -302,6 +308,12 @@ async def run(args, report: Report) -> None:
 
             # --- Payment: the page address, and setup when the minutes are used
             link = await lena_tool("get_billing_link")
+            shown += [
+                json.dumps(x)
+                for x in (first, during, status, record, ring_record, link, ended)
+            ]
+            shown.append(json.dumps(await lena_tool("list_calls")))
+            shown.append(json.dumps(await lena_tool("update_settings")))
             (
                 await op("PUT", f"accounts/{lena_org}/allowance", free_seconds=0)
             ).raise_for_status()
@@ -327,6 +339,29 @@ async def run(args, report: Report) -> None:
                 and empty["can_call"] is False
                 and "refused" in refused,
                 empty["setup"]["next_step"][:150],
+            )
+            shown += [json.dumps(x) for x in (empty, refused, link_empty)]
+            hidden = await lena_tool("set_inbound_rules", rules="Take a message.")
+            words = sorted(
+                {
+                    w.lower()
+                    for text in shown
+                    for w in re.findall(
+                        r"inbound|incoming|answers? (?:more )?calls",
+                        text,
+                        re.IGNORECASE,
+                    )
+                }
+            )
+            report.check(
+                "Outbound only: the instructions, the tools, and the tool "
+                "answers do not speak of inbound calls, and an inbound tool "
+                "does not run",
+                not words
+                and not {"set_inbound_rules", "get_inbound_rules"} & tools
+                and "unknown tool" in str(hidden.get("refused", "")).lower(),
+                f"{len(shown)} texts read; inbound words found: {words or 'none'}; "
+                f"set_inbound_rules: {str(hidden)[:80]}",
             )
         finally:
             await phone.hang_up()

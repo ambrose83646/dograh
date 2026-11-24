@@ -63,7 +63,6 @@ owner sends the form. The fields marked **owner** need the owner's details.
 | `list_calls` | Recent calls. |
 | `update_settings` | Change the voice of the agent. |
 | `get_billing_link` | The page where the user starts or changes the monthly plan. |
-| `set_inbound_rules`, `get_inbound_rules` | Rules for calls to the user's inbound number, when the account has one. |
 
 ## Authentication
 
@@ -85,7 +84,7 @@ Use the raw GitHub address of the file at the commit that contains it.
 - `https://danadial.com/terms` and `/privacy` show "not in service". Publish
   the two pages before the submission. The Publisher Terms and the reviewers
   expect them.
-- An inbound number is added by the operator on request. Decide if the
-  listing mentions inbound calls. The text above does not.
+- Version 1 is for outbound calls only. The server shows no inbound tools
+  (`PLATFORM_INBOUND_TOOLS` is off).
 - After the listing, put the plugin link `https://x.ai/bot/plugin/<plugin-id>`
   on the "Add to Grok Bot" button of the site.

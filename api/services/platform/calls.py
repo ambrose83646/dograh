@@ -223,7 +223,7 @@ async def update_settings(
     return {
         "voice": current,
         "voice_options": list(VOICES) if current else [],
-        "note": "The voice applies to the next call, outbound and inbound.",
+        "note": "The voice applies to the next call.",
     }
 
 

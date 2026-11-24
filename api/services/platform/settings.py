@@ -48,6 +48,9 @@ class PlatformSettings:
     oauth_daily_per_address: int
     oauth_hourly_total: int
     oauth_unverified_hours: float
+    # Version 1 sells outbound calls only. When true, the MCP server also
+    # shows the tools and the fields for inbound calls.
+    inbound_tools: bool
     max_call_seconds: int
     daily_call_limit: int
     # E.164 prefixes users may dial, e.g. "+1". Empty means no restriction.
@@ -101,6 +104,7 @@ def get_platform_settings() -> PlatformSettings:
         oauth_unverified_hours=float(
             os.getenv("PLATFORM_OAUTH_UNVERIFIED_HOURS", "24")
         ),
+        inbound_tools=os.getenv("PLATFORM_INBOUND_TOOLS", "false").lower() == "true",
         max_call_seconds=int(os.getenv("PLATFORM_MAX_CALL_SECONDS", "600")),
         daily_call_limit=int(os.getenv("PLATFORM_DAILY_CALL_LIMIT", "20")),
         allowed_prefixes=_csv("PLATFORM_ALLOWED_PREFIXES"),
