@@ -24,57 +24,109 @@ provider = PlatformOAuthProvider()
 _HEADERS = {
     "Cache-Control": "no-store",
     "X-Frame-Options": "DENY",
-    "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; "
+    # The two font hosts are the ones that danadial.com uses.
+    "Content-Security-Policy": "default-src 'none'; "
+    "style-src 'unsafe-inline' https://fonts.googleapis.com; "
+    "font-src https://fonts.gstatic.com; "
     "form-action *; frame-ancestors 'none'",
     "Referrer-Policy": "no-referrer",
 }
 
+# The look of danadial.com: paper background, ink text, serif headings, the
+# dial mark, and one red accent.
 _PAGE = """<!doctype html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#f3eee4">
 <title>DanaDial</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&amp;family=Instrument+Serif:ital@0;1&amp;family=JetBrains+Mono:wght@500&amp;display=swap">
 <style>
-body{{font:16px/1.5 system-ui,sans-serif;margin:0;background:#f4f5f7;color:#16181d}}
-main{{max-width:30rem;margin:8vh auto;padding:2rem;background:#fff;border-radius:12px;
-box-shadow:0 1px 4px rgba(0,0,0,.12)}}
-h1{{font-size:1.35rem;margin:0 0 1rem}}
-ul{{padding-left:1.2rem}} li{{margin:.35rem 0}}
+*{{box-sizing:border-box}}
+body{{font:16px/1.55 "Geist","DM Sans",system-ui,sans-serif;margin:0;
+background:#f3eee4;color:#161b27;-webkit-font-smoothing:antialiased;
+background-image:repeating-linear-gradient(#f3eee4 0 33px,#ece6da 33px 34px)}}
+.wrap{{max-width:32rem;margin:0 auto;padding:6vh 1.25rem 3rem}}
+.brand{{display:flex;align-items:center;gap:.6rem;margin:0 0 1.5rem .25rem;
+font:1.5rem/1 "Instrument Serif",Georgia,serif}}
+.brand svg{{width:30px;height:30px}}
+main{{padding:2.25rem 2rem 2rem;background:#faf8f3;border:1px solid #d8d1c4;
+border-radius:10px;box-shadow:0 14px 30px -12px rgba(22,27,39,.2)}}
+.eyebrow{{font:500 .7rem/1 "JetBrains Mono",ui-monospace,monospace;
+letter-spacing:.2em;text-transform:uppercase;color:#2c6360;margin:0 0 1rem}}
+h1{{font:400 2.5rem/1.05 "Instrument Serif",Georgia,serif;
+letter-spacing:-.01em;margin:0 0 1.25rem}}
+h1 em{{color:#ea3a14;white-space:nowrap}}
+p{{margin:0 0 1rem}}
+ul{{list-style:none;padding:0;margin:0 0 1.25rem;border-top:1px solid #e3ddd1}}
+li{{position:relative;padding:.7rem 0 .7rem 1.4rem;border-bottom:1px solid #e3ddd1}}
+li::before{{content:"";position:absolute;left:.15rem;top:1.25rem;width:7px;
+height:7px;border-radius:50%;background:#ea3a14}}
 .who{{font-weight:600;overflow-wrap:anywhere}}
-.to{{color:#5b6270;font-size:.85rem;overflow-wrap:anywhere}}
-.row{{display:flex;gap:.75rem;margin-top:1.5rem}}
-button{{flex:1;font:inherit;padding:.75rem;border-radius:8px;border:1px solid #c5cad3;
-background:#fff;cursor:pointer}}
-button.allow{{background:#1456d9;border-color:#1456d9;color:#fff;font-weight:600}}
-</style></head><body><main>
+.free{{display:inline-block;background:#e9e3d7;border-radius:6px;
+padding:.45rem .7rem;font-size:.92rem}}
+.to{{color:#5c6270;font-size:.82rem;overflow-wrap:anywhere;margin:1.25rem 0 0}}
+.row{{display:flex;gap:.75rem;margin-top:1.25rem}}
+button{{flex:1;font:inherit;font-weight:500;line-height:1;padding:.95rem;
+border-radius:6px;border:1px solid #c9c2b4;background:transparent;color:#161b27;
+cursor:pointer}}
+button:hover{{background:#eee9de}}
+button.allow{{flex:2;background:#1c2230;border-color:#1c2230;color:#faf8f3;
+font-weight:600}}
+button.allow:hover{{background:#2a3244}}
+button:focus-visible{{outline:2px solid #ea3a14;outline-offset:2px}}
+.foot{{margin:1.25rem .25rem 0;color:#5c6270;font-size:.82rem}}
+.foot a{{color:inherit}}
+@media (max-width:420px){{.wrap{{padding-top:1.25rem}}
+.brand{{margin-bottom:1rem}}li{{padding-top:.5rem;padding-bottom:.5rem}}
+li::before{{top:1.05rem}}main{{padding:1.5rem 1.25rem 1.25rem}}
+h1{{font-size:2.1rem}}}}
+</style></head><body><div class="wrap">
+<div class="brand"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"
+aria-hidden="true"><circle cx="16" cy="16" r="15" fill="#1c2230"/>
+<g fill="#f3eee4"><circle cx="21" cy="7.3" r="2.3"/><circle cx="25.4" cy="12" r="2.3"/>
+<circle cx="25.8" cy="18.3" r="2.3"/><circle cx="22.4" cy="23.6" r="2.3"/>
+<circle cx="16.6" cy="26" r="2.3"/><circle cx="10.6" cy="24.4" r="2.3"/>
+<circle cx="6.6" cy="19.6" r="2.3"/><circle cx="6.3" cy="13.4" r="2.3"/>
+<circle cx="9.6" cy="8.2" r="2.3"/></g><circle cx="16" cy="16" r="4" fill="#ea3e1c"/>
+</svg>DanaDial</div>
+<main>
 {body}
-</main></body></html>"""
+</main>
+<p class="foot"><a href="https://danadial.com/terms">Terms</a> ·
+<a href="https://danadial.com/privacy">Privacy</a> ·
+<a href="https://danadial.com">danadial.com</a></p>
+</div></body></html>"""
 
-_CONSENT = """<h1>Give your assistant a phone</h1>
-<p><span class="who">{client}</span> asks to use DanaDial for you.</p>
-<p>If you allow this, your assistant can:</p>
+_CONSENT = """<p class="eyebrow">Permission</p>
+<h1>Give your assistant <em>a phone.</em></h1>
+<p><span class="who">{client}</span> asks to use DanaDial for you.
+If you allow this, your assistant can:</p>
 <ul>
-<li>Make phone calls for you with an AI voice. The voice says that it is an
-AI assistant if a person asks.</li>
+<li>Make phone calls for you with an AI voice. The voice says that it is
+Dana Dial, an AI assistant.</li>
 <li>Show your own phone number on those calls, after you prove that the
 number is yours.</li>
 <li>Read what was said on your calls. DanaDial writes down the words of
-each call.</li>
+each call and deletes them after 30 days.</li>
 <li>Phone you to bring you into a call.</li>
 </ul>
-<p>You get 10 free call minutes. You are not asked to pay on this page.</p>
-<p class="to">After this step you go back to: {target}</p>
+<p class="free">You get 10 free call minutes. You are not asked to pay on
+this page.</p>
 <form method="post" action="/oauth/consent">
 <input type="hidden" name="request" value="{request}">
 <div class="row">
 <button type="submit" name="decision" value="cancel">Cancel</button>
 <button type="submit" name="decision" value="allow" class="allow">Allow</button>
-</div></form>"""
+</div></form>
+<p class="to">After this step you go back to: {target}</p>"""
 
-_TOO_MANY = """<h1>Too many new accounts</h1>
+_TOO_MANY = """<p class="eyebrow">Not now</p>
+<h1>Too many new accounts <em>today.</em></h1>
 <p>Too many new DanaDial accounts were made from your network today. No
 account was made for you. Try again tomorrow.</p>"""
 
-_EXPIRED = """<h1>This step is not valid now</h1>
+_EXPIRED = """<p class="eyebrow">Expired</p>
+<h1>This step is <em>not valid now.</em></h1>
 <p>Go back to your assistant and connect DanaDial again.</p>"""
 
 
