@@ -2,7 +2,6 @@
 
 from datetime import timedelta
 from html import escape
-from urllib.parse import urlsplit
 
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
@@ -64,7 +63,6 @@ height:7px;border-radius:50%;background:#ea3a14}}
 .who{{font-weight:600;overflow-wrap:anywhere}}
 .free{{display:inline-block;background:#e9e3d7;border-radius:6px;
 padding:.45rem .7rem;font-size:.92rem}}
-.to{{color:#5c6270;font-size:.82rem;overflow-wrap:anywhere;margin:1.25rem 0 0}}
 .row{{display:flex;gap:.75rem;margin-top:1.25rem}}
 button{{flex:1;font:inherit;font-weight:500;line-height:1;padding:.95rem;
 border-radius:6px;border:1px solid #c9c2b4;background:transparent;color:#161b27;
@@ -102,12 +100,9 @@ _CONSENT = """<p class="eyebrow">Permission</p>
 <p><span class="who">{client}</span> asks to use DanaDial for you.
 If you allow this, your assistant can:</p>
 <ul>
-<li>Make phone calls for you with an AI voice. The voice says that it is
-Dana Dial, an AI assistant.</li>
-<li>Show your own phone number on those calls, after you prove that the
-number is yours.</li>
-<li>Read what was said on your calls. DanaDial writes down the words of
-each call and deletes them after 30 days.</li>
+<li>Make phone calls for you with an AI voice.</li>
+<li>Show your own phone number on those calls.</li>
+<li>Read what was said on your calls.</li>
 <li>Phone you to bring you into a call.</li>
 </ul>
 <p class="free">You get 10 free call minutes.</p>
@@ -116,8 +111,7 @@ each call and deletes them after 30 days.</li>
 <div class="row">
 <button type="submit" name="decision" value="cancel">Cancel</button>
 <button type="submit" name="decision" value="allow" class="allow">Allow</button>
-</div></form>
-<p class="to">After this step you go back to: {target}</p>"""
+</div></form>"""
 
 _TOO_MANY = """<p class="eyebrow">Not now</p>
 <h1>Too many new accounts <em>today.</em></h1>
@@ -138,11 +132,9 @@ async def consent_page(request: str = "") -> HTMLResponse:
     saved = await provider.consent_request(request) if request else None
     if saved is None:
         return _page(_EXPIRED, 400)
-    target = urlsplit(saved["redirect_uri"])
     return _page(
         _CONSENT.format(
             client=escape(saved["client_name"][:80] or "An assistant"),
-            target=escape(f"{target.scheme}://{target.netloc}"),
             request=escape(request),
         )
     )
