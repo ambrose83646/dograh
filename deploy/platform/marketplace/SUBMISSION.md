@@ -1,72 +1,91 @@
 # Marketplace submission package
 
 Answers for the form at <https://x.ai/bot/marketplace/submit-a-plugin>. The
-form lists MCP servers for Grok Bot, Grok, and Cursor. The fields marked
-**operator** need the operator's own details.
+owner sends the form. The fields marked **owner** need the owner's details.
 
 | Form field | Value |
 | --- | --- |
-| First Name, Last Name | **operator** |
-| Work Email | **operator** |
-| Organization Name | **operator** |
-| Organization Handle | **operator** (lower case, no spaces) |
-| Website URL | `https://app.danadial.com/` |
-| Logotype URL | `https://raw.githubusercontent.com/ambrose83646/dograh/cd0f59b8d59c936889028534d302e2e9dfdb61a7/deploy/platform/marketplace/logo.svg` |
+| First Name, Last Name | **owner** |
+| Work Email | **owner** |
+| Organization Name | DanaDial |
+| Organization Handle | `danadial` |
+| Website URL | `https://danadial.com` |
+| Logotype URL | See "Logo" below |
 | Where do you want to be listed? | Grok Bot |
-| MCP Server URL | `https://app.danadial.com/mcp/` |
+| MCP Server URL | `https://app.danadial.com/mcp` |
 
 ## Brief Description
 
-> Gives your assistant a phone. It makes calls for you: it books an
-> appointment, asks a business a question, or confirms an order, and then
-> reports what was said. Calls show your own phone number, which you verify
-> with a code. It can also answer calls with rules that you save. Each
-> account gets free call minutes.
+> DanaDial gives your Bot a phone. Ask it to book an appointment, ask a
+> business a question, or confirm an order. It makes the call, speaks for
+> you, and reports what was said with the transcript. Calls show your own
+> phone number, which you confirm with one short call. It can also bring you
+> into a call when a person asks for you. No account form and no key: select
+> Add, and your Bot does the setup. 10 free call minutes. US and Canada
+> numbers.
 
 ## Testing Instructions
 
-> 1. Go to https://app.danadial.com/ and sign in with the reviewer account:
->    REVIEWER_EMAIL / REVIEWER_PASSWORD.
-> 2. Select "Create an access key" and copy the key.
-> 3. Add the MCP server https://app.danadial.com/mcp/ (Streamable HTTP) with the
->    header `Authorization: Bearer <key>`.
-> 4. Ask: "Which number do my calls show and how many call minutes do I have?"
->    The assistant calls `get_account_status`. The reviewer account has a
->    caller ID and a number for inbound calls already. A new user asks
->    "Verify my phone number +1..." and the assistant calls
->    `start_caller_id_verification`.
-> 5. Ask: "When someone calls my number, answer as the front desk of Riverside
->    Dental. We are open Monday to Friday, 8 to 5." The assistant calls
->    `set_inbound_rules`. Call the account's number from a phone to hear it.
-> 6. Ask: "Call REVIEWER_TEST_NUMBER and ask what time they close today."
->    The assistant calls `place_call`, then `get_call_result` until the call
->    ends, and reports the answer with the transcript.
-> 7. Ask: "Show my recent calls." The assistant calls `list_calls`.
+> No test account is necessary. The plugin makes the account at sign-in.
+> You need a US or Canada phone that you can answer.
+>
+> 1. Add the plugin. A DanaDial page opens. Select "Allow". There is no
+>    password and no form.
+> 2. Ask: "Set up DanaDial." The Bot calls `get_account_status` and asks for
+>    your phone number. Give it. The Bot calls
+>    `start_caller_id_verification` and tells you a 6-digit code.
+> 3. Your phone rings. Answer and enter the code on the keypad. Tell the Bot
+>    that you did. It confirms that calls now show your number, and that you
+>    have 10 free call minutes.
+> 4. Ask: "Call <a US business number> and ask what time they close today."
+>    The Bot calls `place_call`, then `get_call_result` until the call ends,
+>    and reports the answer with the transcript.
+> 5. During a longer call, ask: "End that call." The Bot calls `end_call`.
+>    The phone call stops in a few seconds.
+> 6. Ask: "Show my recent calls." The Bot calls `list_calls`.
+> 7. Ask: "How do I get more minutes?" The Bot calls `get_billing_link` and
+>    gives the billing page. The plan is optional and is sold on
+>    danadial.com.
+>
+> Limits: 10 minutes for each call, 20 calls each day. The service refuses
+> emergency and premium-rate numbers. The voice agent says that it is an AI
+> assistant if a person asks.
 
 ## Tools
 
 | Tool | Purpose |
 | --- | --- |
-| `place_call` | Start a call with a task for the voice agent. Returns a call id at once. Leaves a message on voicemail and passes a call screener. |
-| `get_call_result` | Status, result, and transcript of one call. |
-| `list_calls` | Recent inbound and outbound calls. |
-| `set_inbound_rules` | Save the greeting and rules for calls to the user's number. |
-| `get_inbound_rules` | Read the saved rules. |
-| `get_account_status` | Caller ID, inbound number, free minutes left, and limits. |
-| `update_settings` | Change the voice the agent speaks with. |
+| `get_account_status` | Setup state with the next step, caller ID, minutes, limits. |
 | `start_caller_id_verification` | Call the user's own phone with a code, so that calls show that number. |
+| `place_call` | Start a call with a task for the voice agent. Returns a call id at once. |
+| `get_call_result` | Status, result, and transcript of one call. |
+| `end_call` | Hang up a call that rings or is in progress. |
+| `list_calls` | Recent calls. |
+| `update_settings` | Change the voice of the agent. |
+| `get_billing_link` | The page where the user starts or changes the monthly plan. |
+| `set_inbound_rules`, `get_inbound_rules` | Rules for calls to the user's inbound number, when the account has one. |
 
 ## Authentication
 
-The server uses a Bearer access key that the user creates on the account
-page. It answers HTTP 401 without a valid key. It does not use OAuth.
+OAuth 2.1 with dynamic client registration and PKCE. The server accepts the
+three return addresses that Grok Bot registers. Consent is one "Allow"
+button. The consent makes the account. The phone check in step 2 and 3 joins
+the person to an account that has that phone already.
 
-## Before you submit
+## Logo
 
-- Check that `app.danadial.com` is still the production address.
-- Create the reviewer account and give it a number from the pool.
-- Decide which number reviewers can call. While
-  `PLATFORM_DESTINATION_ALLOWLIST` is set, calls go only to the numbers in it.
-- Run `platform_verification/verify.py` against production.
-- The form asks you to confirm that you tested the plugin in the app. Connect
-  the server in Grok Bot and run the steps above first.
+`logo.svg` in this directory: the DanaDial dial on a square dark plate, 1:1.
+Use the raw GitHub address of the file at the commit that contains it.
+
+## Before the owner submits
+
+- The form has a box: "I've tested this plugin locally and in-app". Add
+  `https://app.danadial.com/mcp` in Grok Bot as a custom connector (apps
+  icon → custom connector → Remote HTTPS) and do steps 1 to 7.
+- `https://danadial.com/terms` and `/privacy` show "not in service". Publish
+  the two pages before the submission. The Publisher Terms and the reviewers
+  expect them.
+- An inbound number is added by the operator on request. Decide if the
+  listing mentions inbound calls. The text above does not.
+- After the listing, put the plugin link `https://x.ai/bot/plugin/<plugin-id>`
+  on the "Add to Grok Bot" button of the site.
