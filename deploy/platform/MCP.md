@@ -70,7 +70,9 @@ The server sends this text when the assistant connects:
   the `task` and the `background`.
 - Call only numbers that the user asked for. No sales, survey, or bulk calls.
 - How minutes, the monthly plan, and automatic minute packs work.
-- The voice agent says that it is an AI assistant if a person asks.
+- The voice agent gives its name, "Dana Dial", at the start of each call, and
+  says that it is an AI assistant. If your `voicemail_message` does not have
+  the name, the service says "This is Dana Dial, an AI assistant." before it.
 
 ## 4. Tools
 

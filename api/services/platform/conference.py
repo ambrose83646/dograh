@@ -445,10 +445,10 @@ def user_answer_twiml(token: str, backend: str) -> str:
     conference = _waiting(token)
     if conference is None:
         return _say_and_hang_up(
-            "This is your AI assistant. The other person ended the call. Goodbye."
+            "This is Dana Dial, your AI assistant. The other person ended the call. Goodbye."
         )
     words = escape(
-        "Hello. This is your AI assistant. I am on a call for you, and I need "
+        "Hello. This is Dana Dial, your AI assistant. I am on a call for you, and I need "
         f"you on the line. {conference.summary} To join the call now, press 1. "
         "After you join, I listen and do not speak. To make me stop listening, "
         "say: assistant, leave the call."

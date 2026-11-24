@@ -10,7 +10,7 @@ owner sends the form. The fields marked **owner** need the owner's details.
 | Organization Name | DanaDial |
 | Organization Handle | `danadial` |
 | Website URL | `https://danadial.com` |
-| Logotype URL | See "Logo" below |
+| Logotype URL | `https://raw.githubusercontent.com/ambrose83646/dograh/c6ab645390d99c402751106c48e53516f88d7ab7/deploy/platform/marketplace/logo.svg` |
 | Where do you want to be listed? | Grok Bot |
 | MCP Server URL | `https://app.danadial.com/mcp` |
 
@@ -49,7 +49,8 @@ owner sends the form. The fields marked **owner** need the owner's details.
 >
 > Limits: 10 minutes for each call, 20 calls each day. The service refuses
 > premium-rate numbers and numbers out of the US and Canada. The voice agent
-> starts each call with "This is an AI assistant calling for ...".
+> starts each call with "This is Dana Dial, an AI assistant calling for ...".
+> The service deletes the transcript of a call 30 days after the call.
 
 ## Tools
 
@@ -74,16 +75,15 @@ the person to an account that has that phone already.
 ## Logo
 
 `logo.svg` in this directory: the DanaDial dial on a square dark plate, 1:1.
-Use the raw GitHub address of the file at the commit that contains it.
+The address in the table is the raw GitHub address of that file.
 
 ## Before the owner submits
 
 - The form has a box: "I've tested this plugin locally and in-app". Add
   `https://app.danadial.com/mcp` in Grok Bot as a custom connector (apps
   icon → custom connector → Remote HTTPS) and do steps 1 to 7.
-- `https://danadial.com/terms` and `/privacy` show "not in service". Publish
-  the two pages before the submission. The Publisher Terms and the reviewers
-  expect them.
+- `https://danadial.com/terms` and `https://danadial.com/privacy` are
+  published. Get a legal review of the two texts if you have not done so.
 - Version 1 is for outbound calls only. The server shows no inbound tools
   (`PLATFORM_INBOUND_TOOLS` is off).
 - After the listing, put the plugin link `https://x.ai/bot/plugin/<plugin-id>`

@@ -60,7 +60,8 @@ Rules:
   left. When `minutes_note` has text, tell the user what it says. When a call
   is refused for minutes, the refusal says what the user must do: give the
   user that message, and call get_billing_link for the page address.
-- The voice agent tells people it is an AI assistant if they ask.
+- The voice agent gives its name, "Dana Dial", on each call, and says that
+  it is an AI assistant.
 """
 
 # Version 1 is for outbound calls only: no inbound tools, fields, or words.

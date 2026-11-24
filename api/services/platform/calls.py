@@ -17,6 +17,7 @@ from api.db import db_client
 from api.services.platform import caller_id as caller_id_service
 from api.services.platform import conference, live_calls, packs
 from api.services.platform.agent_definitions import (
+    AGENT_NAME,
     DEFAULT_INBOUND_RULES,
     inbound_agent_definition,
     inbound_rules_from_definition,
@@ -62,6 +63,7 @@ BRING_USER_INSTRUCTIONS = (
     "client leaves, you get what was said and you continue the call."
 )
 MAX_GREETING_CHARS = 300
+_AGENT_NAME_SPOKEN = re.compile(r"\bdana\s*dial\b", re.IGNORECASE)
 
 
 async def _ready_account(organization_id: int) -> dict[str, Any]:
@@ -230,8 +232,8 @@ async def update_settings(
 _VOICEMAIL_INSTRUCTIONS = """You write the message that an AI phone assistant \
 leaves when a voicemail box answers its call. You get the task of the call.
 Write the exact words to speak, and nothing else.
-- Start with: "Hello. This is an AI assistant calling for <the person or \
-business the call is for>."
+- Start with: "Hello. This is Dana Dial, an AI assistant calling for <the \
+person or business the call is for>." Say the name "Dana Dial" one time only.
 - If the task names the person to reach, say that the message is for that person.
 - Give the reason for the call in one short sentence of general words. Other \
 people can hear a voicemail: give no details about health, money, accounts, \
@@ -252,7 +254,7 @@ async def _write_voicemail_message(task: str, principal: str, reason: str) -> st
     model is used.
     """
     fallback = (
-        f"Hello. This is an AI assistant calling for {principal}"
+        f"Hello. This is {AGENT_NAME}, an AI assistant calling for {principal}"
         + (f", {reason}" if reason else "")
         + f". Please contact {principal} when you can. Thank you. Goodbye."
     )
@@ -282,7 +284,7 @@ async def _write_voicemail_message(task: str, principal: str, reason: str) -> st
             response.raise_for_status()
             text = response.json()["choices"][0]["message"]["content"]
         text = " ".join((text or "").split()).strip('"')
-        if len(text) < 20:
+        if len(text) < 20 or not _AGENT_NAME_SPOKEN.search(text):
             return fallback
         return text[:MAX_VOICEMAIL_CHARS]
     except Exception as e:
@@ -366,13 +368,18 @@ async def place_call(
     # the first to a call screener, the second to a voicemail box.
     principal = context.get("principal_name", "a client")
     reason = (call_reason or "").strip().rstrip(".")[:MAX_REASON_CHARS]
-    introduction = f"This is an AI assistant calling for {principal}" + (
+    introduction = f"This is {AGENT_NAME}, an AI assistant calling for {principal}" + (
         f", {reason}." if reason else "."
     )
     context["screening_introduction"] = introduction
-    context["voicemail_message"] = (voicemail_message or "").strip()[
-        :MAX_VOICEMAIL_CHARS
-    ] or await _write_voicemail_message(task, principal, reason)
+    given_message = (voicemail_message or "").strip()[:MAX_VOICEMAIL_CHARS]
+    if given_message and not _AGENT_NAME_SPOKEN.search(given_message):
+        # The agent gives its name on each call, also in a message that the
+        # client wrote.
+        given_message = f"This is {AGENT_NAME}, an AI assistant. {given_message}"
+    context["voicemail_message"] = given_message or await _write_voicemail_message(
+        task, principal, reason
+    )
 
     # The public agent route owns Dograh's one outbound dial path (concurrency
     # slot, quota, provider call). It is reused as-is so platform calls cannot
