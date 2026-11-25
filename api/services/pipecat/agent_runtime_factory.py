@@ -67,6 +67,7 @@ class AgentGenerationCallbacks:
 
     generation_started: Callable[[], Any]
     llm_text_frame: Callable[[str], Any]
+    generation_ended: Callable[[], Any] | None = None
 
 
 class AgentRuntimeFactory:
@@ -369,6 +370,7 @@ class AgentRuntimeFactory:
         generation_callbacks = AgentGenerationProcessor(
             generation_started_callback=callbacks.generation_started,
             llm_text_frame_callback=callbacks.llm_text_frame,
+            generation_ended_callback=callbacks.generation_ended,
         )
         pipeline = build_agent_generation_pipeline(
             runtime.llm,

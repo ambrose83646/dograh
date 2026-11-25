@@ -1,0 +1,77 @@
+{
+  "checks": [
+    {
+      "name": "Maria has a web site account with a plan and no caller ID",
+      "passed": true,
+      "detail": "account 500060; plan HTTP 200"
+    },
+    {
+      "name": "\"Allow\" makes a new account that does not see her plan",
+      "passed": true,
+      "detail": "new account 500061; plan None"
+    },
+    {
+      "name": "An account with its own sign-in cannot start a check of her phone number",
+      "passed": true,
+      "detail": "HTTP 409: {\"detail\":\"This phone number belongs to another account. One phone number can be used on one account only.\"}"
+    },
+    {
+      "name": "The start of a check and a wrong code on the phone give no access: the assistant stays on the empty account",
+      "passed": true,
+      "detail": "plan None; caller ID None"
+    },
+    {
+      "name": "After one phone check, the assistant works for her first account: it reads her plan and her caller ID",
+      "passed": true,
+      "detail": "plan 'Join check plan'; caller ID '+12088864742'"
+    },
+    {
+      "name": "The same phone call gave her first account its caller ID, so she is not phoned a second time",
+      "passed": true,
+      "detail": "web site view: caller ID '+12088864742'"
+    },
+    {
+      "name": "The empty account is closed: its Twilio subaccount is not open, and it is not in the list of assistant accounts",
+      "passed": true,
+      "detail": "open subaccounts of 500061: 0"
+    },
+    {
+      "name": "A refresh after the join gives a token of her first account",
+      "passed": true,
+      "detail": "refresh HTTP 200; plan 'Join check plan'"
+    },
+    {
+      "name": "A second assistant joins the same account with one phone check, and her caller ID stays as it was",
+      "passed": true,
+      "detail": "second account 500063; plan 'Join check plan'"
+    },
+    {
+      "name": "The first assistant still works after the second one joined",
+      "passed": true,
+      "detail": "plan 'Join check plan'"
+    },
+    {
+      "name": "The timed clean-up does not remove an account that is new",
+      "passed": true,
+      "detail": "removed by the timed clean-up: []"
+    },
+    {
+      "name": "The clean-up removes an old account with no phone: its tokens stop and its Twilio subaccount is closed",
+      "passed": true,
+      "detail": "removed: [500040, 500041, 500042, 500043, 500045, 500046, 500047, 500049, 500050, 500051, 500052, 500053, 500058, 500064]; Omar's token connects: False; refresh HTTP 401"
+    },
+    {
+      "name": "The clean-up keeps an account with a verified phone and an account that a person paid for",
+      "passed": true,
+      "detail": "Maria's caller ID '+12088864742'; Priya's account 500065 is open"
+    }
+  ],
+  "evidence": {
+    "maria": 500060,
+    "first_assistant": 500061,
+    "second_assistant": 500063,
+    "omar": 500064,
+    "priya": 500065,
+    "clinic": 500062
+  }
+}

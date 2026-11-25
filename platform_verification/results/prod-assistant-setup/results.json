@@ -1,0 +1,138 @@
+{
+  "checks": [
+    {
+      "name": "The instructions name the setup state and the new tools, and do not ask for a key",
+      "passed": true,
+      "detail": "8 tools: ['end_call', 'get_account_status', 'get_billing_link', 'get_call_result', 'list_calls', 'place_call', 'start_caller_id_verification', 'update_settings']"
+    },
+    {
+      "name": "A new account: setup is not complete, the next step is the phone check, and a call is refused",
+      "passed": true,
+      "detail": "state 'verify_phone'; early call: {'refused': 'This account has no caller ID yet. Use start_caller_id_verification with a phone number the user "
+    },
+    {
+      "name": "While the phone rings, setup says to wait for the code and not to start a new check",
+      "passed": true,
+      "detail": "The phone +12085050523 rings. The user must answer and enter the code on the keypad. Then call get_account_status again."
+    },
+    {
+      "name": "After the code, setup is complete with one phone call: the caller ID is her phone and the account can call",
+      "passed": true,
+      "detail": "state 'ready'; caller ID +12085050523; minutes 10.0"
+    },
+    {
+      "name": "The assistant of a different person cannot end her call",
+      "passed": true,
+      "detail": "his end_call: {'refused': 'Call 122 not found'}; her call after 6 s: in_progress, 59 s"
+    },
+    {
+      "name": "end_call ends the phone call itself in a few seconds (Twilio's own record)",
+      "passed": true,
+      "detail": "Twilio status 'completed' after 2 s; Twilio duration 61 s"
+    },
+    {
+      "name": "The record keeps the words said before the end, and says that the assistant ended the call",
+      "passed": true,
+      "detail": "status completed; ended_by 'assistant'; 719 characters of transcript"
+    },
+    {
+      "name": "The minutes stop at the end of the call",
+      "passed": true,
+      "detail": "1.0 minutes used for a call that was stopped 64 s after the request; 25 s later: 1.0"
+    },
+    {
+      "name": "A second end_call changes nothing",
+      "passed": true,
+      "detail": "{'call_id': 122, 'ended_now': False, 'status': 'completed', 'next_step': 'This call was over already. Nothing changed.'}"
+    },
+    {
+      "name": "end_call on a call that was just started: the phone call ends and the record gets an end",
+      "passed": true,
+      "detail": "end_call 3.0 s after place_call; record 'completed'; Twilio 'canceled', 0 s"
+    },
+    {
+      "name": "That stopped call uses no more than 0.1 call minutes",
+      "passed": true,
+      "detail": "minutes used before 1.0, after 1.0"
+    },
+    {
+      "name": "get_billing_link gives the billing page and how she signs in",
+      "passed": true,
+      "detail": "https://danadial.com/dashboard/billing; The user signs in on that page with the phone +12085050523: the page sends a code by text "
+    },
+    {
+      "name": "With the free minutes used, setup says that calls are blocked and that she needs the plan; a call is refused",
+      "passed": true,
+      "detail": "The 0 free call minutes are used. The user must start the monthly plan at https://danadial.com/dashboard/billing before this account can make more cal"
+    },
+    {
+      "name": "Outbound only: the instructions, the tools, and the tool answers do not speak of inbound calls, and an inbound tool does not run",
+      "passed": true,
+      "detail": "21 texts read; inbound words found: none; set_inbound_rules: {'refused': \"Unknown tool: 'set_inbound_rules'\"}"
+    }
+  ],
+  "evidence": {
+    "instructions": "This server gives you a phone. You can call a number to carry out a spoken task\nfor the user and read what was said.\n\nThe user manages everything through you. Caller ID and voice both have tools here. Send the\nuser to a web page for one thing only: payment (get_billing_link).\n\nFirst use: call get_account_status before anything else and read `setup`.\nWhile `setup.done` is false, do what `setup.next_step` says and nothing else.\nThe full setup is one phone check: ask the user for their own mobile number,\ncall start_caller_id_verification, and tell the user the code. Their phone\nrings; they answer and enter the code on the keypad. Then call\nget_account_status again. After that, calls show the user's own number and\nthe free minutes are ready. Do not ask the user for a key, a password, or an\naccount: the phone check is the sign-up.\n\nHow to make a call:\n1. Call place_call with the number in international format (+14155550123) and\n   a task that stands on its own. The voice agent on the call knows only what\n   you put in `task` and `background`; it cannot see this conversation.\n2. place_call returns at once with a call_id. The call takes minutes.\n3. Call get_call_result with that call_id after about 30 seconds, and repeat\n   until status is \"completed\" or \"failed\". Then tell the user the result.\n4. To stop a call before it ends by itself, call end_call. Do this when the\n   user tells you to stop, or when the transcript shows that the call went\n   wrong.\n\nWrite the task the way you would brief a human assistant: who to ask for, what\nto ask, which facts to give, which answers to bring back, and what to do when\nthe first choice is not possible.\n\nRules:\n- Call only numbers the user asked you to call. Never place sales, survey, or\n  bulk calls.\n- Each account starts with free call minutes. They do not renew. After them\n  the user needs the monthly plan, which gives minutes for each period. When\n  fewer than 5 minutes remain, a paid pack of more minutes is added\n  automatically, up to a limit that the user sets on the billing page.\n  get_account_status and each place_call result show the minutes that are\n  left. When `minutes_note` has text, tell the user what it says. When a call\n  is refused for minutes, the refusal says what the user must do: give the\n  user that message, and call get_billing_link for the page address.\n- The voice agent tells people it is an AI assistant if they ask.\n",
+    "setup_new_account": {
+      "state": "verify_phone",
+      "done": false,
+      "next_step": "Ask the user for their own mobile number (United States or Canada). Call start_caller_id_verification with it and tell the user the code before their phone rings. This one check is the full setup: no web page and no other step."
+    },
+    "setup_during_check": {
+      "state": "waiting_for_code",
+      "done": false,
+      "next_step": "The phone +12085050523 rings. The user must answer and enter the code on the keypad. Then call get_account_status again. If the user did not get the call, call start_caller_id_verification again."
+    },
+    "setup_after_check": {
+      "state": "ready",
+      "done": true,
+      "next_step": "Setup is complete. Ask the user which call to make."
+    },
+    "stopped_call": {
+      "call_id": 122,
+      "direction": "outbound",
+      "status": "completed",
+      "started_at": "2026-11-24T05:13:55.108988+00:00",
+      "duration_seconds": 62,
+      "to": "+12088864742",
+      "from": "+12085050523",
+      "disposition": "user_hangup",
+      "answered_by": "hold_line",
+      "task": "Call Bright Bikes and ask if the shop is open on Saturday. If you are put on hold, wait on the line for up to three minutes until a person answers.",
+      "ended_by": "assistant",
+      "result": {
+        "task_completed": false,
+        "outcome_summary": "I called Bright Bikes on behalf of Lena Fischer to ask whether they were open, but the call reached a hold message. No one answered the question before the call record ended.",
+        "follow_up_needed": "Call Bright Bikes again to confirm whether they are open."
+      },
+      "transcript": "[2026-11-24T05:13:57.858+00:00] user: Thank you for calling Bright Bikes. All of our staff are with other customers. Please stay on the line.\nYour call is important to us. Someone will be with you in less than two minutes. Please stay on the line.\nYour call is important to us. Someone will be with you in less than two minutes. Please stay on the line.\nYour call is important to us. Someone will be with you in less than two minutes. Please stay on the line.\n[2026-11-24T05:14:41.303+00:00] assistant: Hi, I\u2019m calling for Lena Fischer to ask whether Bright Bikes is open on\n[2026-11-24T05:14:45.937+00:00] user: Your call is important to us. Someone will be with you in less than two minutes. Please stay on the line.\n"
+    },
+    "stopped_while_ringing": {
+      "call_id": 123,
+      "direction": "outbound",
+      "status": "completed",
+      "started_at": "2026-11-24T05:15:32.690585+00:00",
+      "duration_seconds": 0,
+      "to": "+12088864742",
+      "from": "+12085050523",
+      "disposition": "canceled",
+      "task": "Call Bright Bikes and ask if the shop is open on Saturday. If you are put on hold, wait on the line for up to three minutes until a person answers.",
+      "ended_by": "assistant",
+      "result": {},
+      "transcript": "",
+      "next_step": "The call ended. If it was answered, the transcript appears within a minute; ask again once."
+    },
+    "billing_link": {
+      "url": "https://danadial.com/dashboard/billing",
+      "sign_in": "The user signs in on that page with the phone +12085050523: the page sends a code by text message. No password.",
+      "plan": null,
+      "minutes_remaining": 9.0,
+      "next_step": "Give the user this address as a link. Payment needs the user: you cannot pay for them. After the payment, call get_account_status to see the new minutes."
+    },
+    "setup_minutes_used": {
+      "state": "blocked",
+      "done": true,
+      "next_step": "The 0 free call minutes are used. The user must start the monthly plan at https://danadial.com/dashboard/billing before this account can make more calls."
+    }
+  }
+}

@@ -1,0 +1,4 @@
+2026-11-19 21:34:44.732 | [1mINFO[0m | [run_id=20] | stt_base.py:770 | DeepgramFluxSTTService#0: Connected to Flux - ready to stream audio (request_id='01a1f5bb-bfd8-73e7-97c8-ff66dedb1b89')
+2026-11-19 21:34:44.841 | [1mINFO[0m | [run_id=20] | service_factory.py:917 | Creating TTS service: provider=ServiceProviders.XAI, model=xai-tts, voice=eve
+2026-11-19 21:34:45.158 | [1mINFO[0m | [run_id=19] | stt_base.py:770 | DeepgramFluxSTTService#1: Connected to Flux - ready to stream audio (request_id='01a1f5bb-c186-717b-9db3-d72a0289c061')
+2026-11-19 21:34:45.180 | [1mINFO[0m | [run_id=19] | service_factory.py:917 | Creating TTS service: provider=ServiceProviders.XAI, model=xai-tts, voice=eve

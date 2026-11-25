@@ -457,7 +457,11 @@ class AnswerSupervisor(FrameProcessor):
             ),
             MachineSubtype.NO_MESSAGE: AnswerAction.DROP,
             MachineSubtype.SCREENER: AnswerAction.SCREEN_THEN_REARM,
-            MachineSubtype.IVR: AnswerAction.DROP,
+            MachineSubtype.IVR: (
+                AnswerAction.RELEASE
+                if self.config.ivr_action == "continue"
+                else AnswerAction.DROP
+            ),
             MachineSubtype.CONVERSATION: AnswerAction.RELEASE,
             MachineSubtype.UNKNOWN: AnswerAction.RELEASE,
         }
@@ -606,7 +610,12 @@ class AnswerSupervisor(FrameProcessor):
         if self._verdict is not None:
             return
         self._publish(
-            AnswerVerdict(AnswerAction.DROP, "screening_timeout"),
+            AnswerVerdict(
+                AnswerAction.RELEASE
+                if self.config.screening_timeout_action == "continue"
+                else AnswerAction.DROP,
+                "screening_timeout",
+            ),
             strategy="screening_timeout",
             screening_wait_ms=self.config.screening_wait_ms,
         )

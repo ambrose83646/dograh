@@ -1,0 +1,177 @@
+# Production stack for platform mode (the shared calling service).
+#
+# One public entry point: Caddy gets a TLS certificate for PUBLIC_HOST and sends
+# all traffic to the API, which serves the account page, the REST API, the MCP
+# server at /mcp, and Twilio's webhooks and media sockets. The Dograh builder UI
+# is not deployed: platform mode closes the routes it needs.
+#
+# Start with ./setup.sh, which writes .env. See README.md.
+
+name: dograh-platform
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg17
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:?run setup.sh}"
+      POSTGRES_DB: postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    logging: *logging
+
+  redis:
+    image: redis:7
+    restart: unless-stopped
+    command: ["--requirepass", "${REDIS_PASSWORD:?run setup.sh}"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "--no-auth-warning", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    logging: *logging
+
+  minio:
+    image: dograhai/minio:2026.09.22
+    restart: unless-stopped
+    command: server /data
+    environment:
+      MINIO_ROOT_USER: "${MINIO_ROOT_USER:?run setup.sh}"
+      MINIO_ROOT_PASSWORD: "${MINIO_ROOT_PASSWORD:?run setup.sh}"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    logging: *logging
+
+  api:
+    build:
+      context: ../..
+      dockerfile: api/Dockerfile
+    image: dograh-platform-api:local
+    restart: unless-stopped
+    environment:
+      ENVIRONMENT: production
+      LOG_LEVEL: INFO
+      DEPLOYMENT_MODE: oss
+      AUTH_PROVIDER: local
+
+      PUBLIC_HOST: "${PUBLIC_HOST:?run setup.sh}"
+      PUBLIC_BASE_URL: "https://${PUBLIC_HOST}"
+      BACKEND_API_ENDPOINT: "https://${PUBLIC_HOST}"
+      # Caddy reaches uvicorn from a Docker address. Without this, uvicorn
+      # ignores X-Forwarded-Proto and Twilio signature checks fail.
+      FORWARDED_ALLOW_IPS: "*"
+
+      DATABASE_URL: "postgresql+asyncpg://postgres:${POSTGRES_PASSWORD}@postgres:5432/postgres"
+      REDIS_URL: "redis://:${REDIS_PASSWORD}@redis:6379"
+      ENABLE_AWS_S3: "false"
+      MINIO_ENDPOINT: "minio:9000"
+      MINIO_PUBLIC_ENDPOINT: "https://${PUBLIC_HOST}"
+      MINIO_ACCESS_KEY: "${MINIO_ROOT_USER}"
+      MINIO_SECRET_KEY: "${MINIO_ROOT_PASSWORD}"
+      MINIO_BUCKET: voice-audio
+      MINIO_SECURE: "false"
+
+      OSS_JWT_SECRET: "${OSS_JWT_SECRET:?run setup.sh}"
+      TELEPHONY_WS_TOKEN_SECRET: "${TELEPHONY_WS_TOKEN_SECRET:-}"
+      TELEPHONY_WS_TOKEN_ENFORCE: "${TELEPHONY_WS_TOKEN_ENFORCE:-false}"
+      ENABLE_TELEMETRY: "false"
+      ENABLE_COTURN: "false"
+      # Asterisk and outbound campaigns are not part of the calling service.
+      ENABLE_ARI_MANAGER: "false"
+      ENABLE_CAMPAIGN_ORCHESTRATOR: "false"
+      FASTAPI_WORKERS: "1"
+
+      # Closed until the operator opens registration. The operator can still
+      # create accounts with the X-Operator-Token header.
+      ENABLE_SIGNUP: "${ENABLE_SIGNUP:-false}"
+      # Calls are not recorded. Transcripts are kept.
+      ENABLE_CALL_RECORDING_UPLOAD: "${ENABLE_CALL_RECORDING_UPLOAD:-false}"
+
+      PLATFORM_MODE: "true"
+      PLATFORM_TWILIO_ACCOUNT_SID: "${PLATFORM_TWILIO_ACCOUNT_SID:?set in .env}"
+      PLATFORM_TWILIO_AUTH_TOKEN: "${PLATFORM_TWILIO_AUTH_TOKEN:?set in .env}"
+      PLATFORM_OPENAI_API_KEY: "${PLATFORM_OPENAI_API_KEY:?set in .env}"
+      PLATFORM_DEEPGRAM_API_KEY: "${PLATFORM_DEEPGRAM_API_KEY:?set in .env}"
+      # Optional. With a key, speech uses xAI (Grok) voices; without, Deepgram.
+      PLATFORM_XAI_API_KEY: "${PLATFORM_XAI_API_KEY:-}"
+      PLATFORM_LLM_MODEL: "${PLATFORM_LLM_MODEL:-}"
+      PLATFORM_TTS_VOICE: "${PLATFORM_TTS_VOICE:-}"
+      PLATFORM_STT_MODEL: "${PLATFORM_STT_MODEL:-flux-general-multi}"
+      PLATFORM_TWILIO_NUMBER_POOL: "${PLATFORM_TWILIO_NUMBER_POOL:?set in .env}"
+      PLATFORM_DESTINATION_ALLOWLIST: "${PLATFORM_DESTINATION_ALLOWLIST:-}"
+      PLATFORM_ALLOWED_PREFIXES: "${PLATFORM_ALLOWED_PREFIXES:-+1}"
+      PLATFORM_FREE_SECONDS: "${PLATFORM_FREE_SECONDS:-600}"
+      PLATFORM_BILLING_URL: "${PLATFORM_BILLING_URL:-}"
+      PLATFORM_BILLING_WEBHOOK_URL: "${PLATFORM_BILLING_WEBHOOK_URL:-}"
+      PLATFORM_BILLING_WEBHOOK_SECRET: "${PLATFORM_BILLING_WEBHOOK_SECRET:-}"
+      PLATFORM_SMS_FROM: "${PLATFORM_SMS_FROM:-}"
+      PLATFORM_CONFERENCE_FROM: "${PLATFORM_CONFERENCE_FROM:-}"
+      PLATFORM_OTP_DAILY_PER_NUMBER: "${PLATFORM_OTP_DAILY_PER_NUMBER:-6}"
+      PLATFORM_OTP_HOURLY_PER_ADDRESS: "${PLATFORM_OTP_HOURLY_PER_ADDRESS:-20}"
+      PLATFORM_OTP_EXEMPT_NUMBERS: "${PLATFORM_OTP_EXEMPT_NUMBERS:-}"
+      # Version 1 is for outbound calls only. "true" also shows the inbound
+      # tools on the MCP server.
+      PLATFORM_INBOUND_TOOLS: "${PLATFORM_INBOUND_TOOLS:-false}"
+      PLATFORM_MAX_CALL_SECONDS: "${PLATFORM_MAX_CALL_SECONDS:-600}"
+      PLATFORM_DAILY_CALL_LIMIT: "${PLATFORM_DAILY_CALL_LIMIT:-20}"
+      PLATFORM_TRANSCRIPT_DAYS: "${PLATFORM_TRANSCRIPT_DAYS:-30}"
+      PLATFORM_PUBLIC_MCP_URL: "https://${PUBLIC_HOST}/mcp"
+      PLATFORM_OPERATOR_TOKEN: "${PLATFORM_OPERATOR_TOKEN:?run setup.sh}"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health').read()"
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 90s
+    logging: *logging
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    environment:
+      PUBLIC_HOST: "${PUBLIC_HOST}"
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - api
+    logging: *logging
+
+volumes:
+  postgres_data:
+  redis_data:
+  minio_data:
+  caddy_data:
+  caddy_config:

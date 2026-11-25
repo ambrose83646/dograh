@@ -20,6 +20,8 @@ from pipecat.frames.frames import (
     CancelFrame,
     EndFrame,
     FunctionCallResultProperties,
+    LLMMessagesAppendFrame,
+    OutputDTMFFrame,
     SpeechBoundaryFrame,
 )
 from pipecat.pipeline.worker import PipelineWorker
@@ -61,11 +63,16 @@ if TYPE_CHECKING:
     LLMService = Union[OpenAILLMService, AnthropicLLMService, GoogleLLMService]
 
 import asyncio
+import re
 import time
 
 from loguru import logger
 
 from api.services.managed_model_services import MPS_CORRELATION_ID_CONTEXT_KEY
+from api.services.telephony.providers.twilio.native_keys import (
+    KeyPressFailed,
+    presser_for_run,
+)
 from api.services.workflow import pipecat_engine_callbacks as engine_callbacks
 from api.services.workflow.answer_handling import ANSWER_TERMINAL_REASONS, handle_answer
 from api.services.workflow.conversation_history import (
@@ -103,6 +110,18 @@ from api.services.workflow.prompt_variables import (
     resolve_call_variables,
     update_call_context,
 )
+from api.services.workflow.tools.bring_user import (
+    BRING_USER_CONTEXT_KEY,
+    BRING_USER_FUNCTION_NAME,
+)
+from api.services.workflow.tools.keypad import (
+    KEYPAD_CONTEXT_KEY,
+    KEYPAD_FUNCTION_NAME,
+    LISTEN_FUNCTION_NAME,
+    MAX_KEYS_PER_CALL,
+    KeypadError,
+    normalize_keys,
+)
 from api.services.workflow.tools.knowledge_base import (
     retrieve_from_knowledge_base,
 )
@@ -126,6 +145,31 @@ class NodeOpeningResult:
 
     action: Literal["none", "greeting", "llm"]
     playback: SpeechPlayback | None = None
+
+
+_GET_CLIENT = re.compile(
+    r"\b(?:get|bring|put|connect|call|phone|reach)\w*\b[^.?!]{0,60}"
+    r"\b(?:on the line|on the call|on the phone|in(?:to)? the call|through)\b"
+    r"|\bconnect you (?:with|to)\b",
+    re.IGNORECASE,
+)
+_NEGATION = re.compile(
+    r"\b(?:not|cannot|unable|could|couldn|can't|didn|did|was|were)\b|n't", re.I
+)
+
+
+def _promises_to_get_client(text: str) -> bool:
+    """True for "I'll get Adam on the line".
+
+    False for "I could not get him on the line" and for the question
+    "Shall I get him on the line?".
+    """
+    return any(
+        not sentence.endswith("?")
+        and _GET_CLIENT.search(sentence)
+        and not _NEGATION.search(sentence)
+        for sentence in re.findall(r"[^.?!]+[.?!]?", (text or "").replace("’", "'"))
+    )
 
 
 class PipecatEngine:
@@ -156,8 +200,19 @@ class PipecatEngine:
         call_dispositions: Sequence[CallDispositionOption] | None = None,
         defer_final_extraction: bool = False,
         prompt_variables: PromptVariablesConfiguration | None = None,
+        keypad_enabled: bool = False,
+        bring_user_call_seconds: int | None = None,
     ):
         self._call_worker = task
+        self._keypad_enabled = keypad_enabled
+        # Set when the agent can bring the account's user into the call: the
+        # longest that such a call can run.
+        self._bring_user_call_seconds = bring_user_call_seconds
+        self._bring_user_attempts = 0
+        self._bring_user_tool_calls = 0
+        self._bring_user_active = False
+        self._hold_reminders = 0
+        self._keys_pressed_count = 0
         self._is_realtime = is_realtime
         # LLM used for out-of-band inference (variable extraction, context
         # summarization). Falls back to the pipeline LLM when not provided.
@@ -574,6 +629,208 @@ class PipecatEngine:
             name,
             transition_func,
             is_node_transition=True,
+        )
+
+    def _register_keypad_function(self, agent: AgentRuntime) -> None:
+        """Let the agent press phone keys to get through an automated menu."""
+
+        async def press_keys_func(function_call_params: FunctionCallParams) -> None:
+            raw = function_call_params.arguments.get("keys")
+            # The model listens to the menu after the press; a spoken answer
+            # to the tool result would talk over the menu's next prompt.
+            listen = FunctionCallResultProperties(run_llm=False)
+            try:
+                keys = normalize_keys(raw)
+                if self._keys_pressed_count + len(keys) > MAX_KEYS_PER_CALL:
+                    raise KeypadError(
+                        "The key press limit of this call is reached. Nothing "
+                        "was pressed. If the menu cannot be passed, end the call."
+                    )
+                if self.call_worker is None:
+                    raise KeypadError("The call is not connected. Nothing was pressed.")
+            except KeypadError as e:
+                logger.info(f"press_keys refused ({raw!r}): {e}")
+                await function_call_params.result_callback(
+                    {"status": "error", "error": str(e)}
+                )
+                return
+            self._keys_pressed_count += len(keys)
+            logger.info(f"LLM Function Call EXECUTED: press_keys {keys}")
+            # Twilio menus and carrier menus take presses as signalling, not
+            # as tones in the audio, so the carrier sends them where it can.
+            native_press = presser_for_run(self._workflow_run_id)
+            if native_press is not None:
+                try:
+                    await native_press(keys)
+                except KeyPressFailed as e:
+                    logger.warning(f"press_keys {keys} failed: {e}")
+                    await function_call_params.result_callback(
+                        {
+                            "status": "error",
+                            "error": "The keys could not be pressed. Try one "
+                            "more time; if it fails again, end the call.",
+                        }
+                    )
+                    return
+            else:
+                await self.call_worker.queue_frame(OutputDTMFFrame.from_string(keys))
+            self._gathered_context.setdefault(KEYPAD_CONTEXT_KEY, []).append(keys)
+            await function_call_params.result_callback(
+                {
+                    "status": "pressed",
+                    "keys": keys,
+                    "next": (
+                        "This request is answered. Do not press again unless "
+                        "the menu asks for keys again. Listen: if the "
+                        "recording confirms or says to wait, use "
+                        f"{LISTEN_FUNCTION_NAME}; if a person speaks, talk."
+                    ),
+                },
+                properties=listen,
+            )
+
+        async def keep_listening_func(
+            function_call_params: FunctionCallParams,
+        ) -> None:
+            await function_call_params.result_callback(
+                {"status": "listening"},
+                properties=FunctionCallResultProperties(run_llm=False),
+            )
+
+        agent.llm.register_function(
+            KEYPAD_FUNCTION_NAME, agent.bind_tool(self, press_keys_func)
+        )
+        agent.llm.register_function(
+            LISTEN_FUNCTION_NAME, agent.bind_tool(self, keep_listening_func)
+        )
+
+    def _register_bring_user_function(self, agent: AgentRuntime) -> None:
+        """Let the agent connect the account's user with the other party."""
+
+        async def bring_user_func(function_call_params: FunctionCallParams) -> None:
+            from api.services.platform import conference, live_calls
+
+            self._bring_user_tool_calls += 1
+            if self._bring_user_active:
+                # A second call of the tool during the first one.
+                await function_call_params.result_callback(
+                    {"status": "already_in_progress"},
+                    properties=FunctionCallResultProperties(run_llm=False),
+                )
+                return
+            monitor = self.call_monitor
+            limit = self._bring_user_call_seconds
+            started = monitor._start_time or time.monotonic()
+            seconds_left = limit - (time.monotonic() - started) - 30
+            if self._bring_user_attempts >= 2 or seconds_left < 60:
+                await function_call_params.result_callback(
+                    {
+                        "status": "not_available",
+                        "next": "Your client cannot be brought on the line "
+                        "now. Tell the other person, and offer to take a "
+                        "message for your client.",
+                    }
+                )
+                return
+            self._bring_user_attempts += 1
+            logger.info("LLM Function Call EXECUTED: bring_user_on_line")
+            previous_limit = monitor.max_call_duration_seconds
+            monitor.max_call_duration_seconds = max(previous_limit, limit)
+            # The agent hears silence during the direct talk: that is not an
+            # idle caller.
+            monitor.suspend()
+
+            # No speech goes through the pipeline during the direct talk.
+            # Without this, the worker's idle timer ends the call after
+            # five minutes.
+            async def keep_call_awake() -> None:
+                while True:
+                    worker = self.call_worker
+                    if worker is not None and hasattr(worker, "note_activity"):
+                        worker.note_activity()
+                    await asyncio.sleep(30)
+
+            awake = asyncio.create_task(keep_call_awake())
+            self._bring_user_active = True
+            try:
+                result = await conference.bring_in_user(
+                    workflow_run_id=self._workflow_run_id,
+                    organization_id=await self._get_organization_id(),
+                    called_number=self._call_context_vars.get("called_number"),
+                    summary=str(function_call_params.arguments.get("summary") or ""),
+                    max_seconds=seconds_left,
+                )
+            finally:
+                self._bring_user_active = False
+                awake.cancel()
+                monitor.resume()
+            status = result["status"]
+            logger.info(f"bring_user_on_line: {status}")
+            if not result.get("user_joined"):
+                monitor.max_call_duration_seconds = previous_limit
+            lines = result.pop("direct_talk", None)
+            talk = {**result, "lines": lines or []}
+            self._gathered_context.setdefault(BRING_USER_CONTEXT_KEY, []).append(talk)
+            live_calls.add_direct_talk(self._workflow_run_id, talk)
+            if lines is not None:
+                result["what_was_said"] = [
+                    ("Your client: " if line["speaker"] == "user" else "Other person: ")
+                    + line["text"]
+                    for line in lines
+                ]
+            if status == "call_ended":
+                await function_call_params.result_callback(
+                    result, properties=FunctionCallResultProperties(run_llm=False)
+                )
+                return
+            if status == "assistant_told_to_leave":
+                # The client sent the assistant away: it does not speak again.
+                # The call ends after this handler returns; inside it, the
+                # end of the call would wait for this tool.
+                async def end_call() -> None:
+                    await self.end_call_with_reason(EndTaskReason.END_CALL.value)
+
+                await function_call_params.result_callback(
+                    result,
+                    properties=FunctionCallResultProperties(
+                        run_llm=False, on_context_updated=end_call
+                    ),
+                )
+                return
+            result["next"] = {
+                "user_left": (
+                    "Your client has left the call. The other person is still "
+                    "on the line and you speak with them again. Read "
+                    "what_was_said: it counts as part of this call. If the "
+                    "task is now done, confirm the result in one sentence and "
+                    "move to the closing step. If not, continue the task."
+                ),
+                "time_limit": (
+                    "The time limit of this call is reached and your client "
+                    "is off the line. Tell the other person that the call "
+                    "must end now, and move to the closing step."
+                ),
+                "user_not_reached": (
+                    "Your client did not join. Tell the other person that "
+                    "you could not reach your client. Ask what your client "
+                    "must do, or take a message, and continue the task as "
+                    "far as you can."
+                ),
+            }.get(
+                status,
+                "Your client could not be called. Tell the other person, and "
+                "offer to take a message for your client.",
+            )
+            await function_call_params.result_callback(result)
+
+        agent.llm.register_function(
+            BRING_USER_FUNCTION_NAME,
+            # The tool runs as long as the direct talk; it has its own limit.
+            agent.bind_tool(
+                self,
+                bring_user_func,
+                timeout_secs=self._bring_user_call_seconds + 120,
+            ),
         )
 
     async def _register_knowledge_base_function(
@@ -1004,6 +1261,10 @@ class PipecatEngine:
             await self._register_knowledge_base_function(
                 node.document_uuids, agent=agent
             )
+        if self._keypad_enabled and not node.is_end:
+            self._register_keypad_function(agent)
+        if self._bring_user_call_seconds and not node.is_end:
+            self._register_bring_user_function(agent)
         prompt = compose_system_prompt_for_node(
             node=node,
             workflow=agent.workflow,
@@ -1012,7 +1273,10 @@ class PipecatEngine:
             prompt_variables=agent.prompt_variables,
         )
         functions = await compose_functions_for_node(
-            node=node, custom_tool_manager=manager
+            node=node,
+            custom_tool_manager=manager,
+            keypad_enabled=self._keypad_enabled,
+            bring_user_enabled=bool(self._bring_user_call_seconds),
         )
         agent.tools = ToolsSchema(standard_tools=functions)
         agent.system_prompt = prompt.text
@@ -1070,7 +1334,10 @@ class PipecatEngine:
                     prompt_variables=agent.prompt_variables,
                 )
                 functions = await compose_functions_for_node(
-                    node=target, custom_tool_manager=manager
+                    node=target,
+                    custom_tool_manager=manager,
+                    keypad_enabled=self._keypad_enabled,
+                    bring_user_enabled=bool(self._bring_user_call_seconds),
                 )
                 agent.llm.prewarm_prompt_cache(
                     node_id=target.id,
@@ -1975,6 +2242,67 @@ class PipecatEngine:
         return engine_callbacks.create_generation_started_callback(
             self, visit_id=visit_id
         )
+
+    def create_generation_ended_callback(self, visit_id: Optional[str] = None):
+        """Return the check that runs when one LLM generation is complete."""
+
+        async def ended() -> None:
+            if self.owns_generation(visit_id):
+                self._check_hold_promise()
+
+        return ended
+
+    def _check_hold_promise(self) -> None:
+        """The agent said "I will get my client" but did not phone the client.
+
+        The other person then waits in silence. Tell the agent to use the
+        tool, at most two times in one call.
+        """
+        if (
+            not self._bring_user_call_seconds
+            or self._bring_user_active
+            or self._bring_user_attempts >= 2
+            or self._hold_reminders >= 2
+            or not _promises_to_get_client(self._current_llm_generation_reference_text)
+        ):
+            return
+        tool_calls = self._bring_user_tool_calls
+
+        async def remind() -> None:
+            # A tool call of the same generation starts in this time.
+            await asyncio.sleep(1.5)
+            aggregator = self.call_monitor.user_aggregator
+            if (
+                self._bring_user_tool_calls != tool_calls
+                or self._call_disposed
+                or aggregator is None
+            ):
+                return
+            self._hold_reminders += 1
+            logger.warning(
+                "The agent promised to get the client but did not use "
+                f"{BRING_USER_FUNCTION_NAME}; reminder {self._hold_reminders}"
+            )
+            await aggregator.push_frame(
+                LLMMessagesAppendFrame(
+                    [
+                        {
+                            "role": "user",
+                            "content": "(Note from the phone system, not from "
+                            "the other person.) You said that you will get "
+                            "your client on the line, but you did not use "
+                            f"the {BRING_USER_FUNCTION_NAME} tool, so your "
+                            "client's phone does not ring and the other "
+                            "person waits in silence. Use the tool now. Do "
+                            "not speak first.",
+                        }
+                    ],
+                    run_llm=True,
+                )
+            )
+
+        task = asyncio.create_task(remind())
+        self._hold_reminder_task = task  # keep a reference
 
     def create_llm_text_frame_callback(self, visit_id: Optional[str] = None):
         """Return the text accumulator for one agent visit's generation stage."""

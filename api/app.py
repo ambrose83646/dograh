@@ -1,5 +1,7 @@
 """Set up logging before importing anything else"""
 
+from pathlib import Path
+
 import sentry_sdk
 
 from api.constants import (
@@ -25,11 +27,11 @@ if SENTRY_DSN and (
     print(f"Sentry initialized in environment: {ENVIRONMENT}")
 
 
-from contextlib import asynccontextmanager
+from contextlib import AsyncExitStack, asynccontextmanager
 
 from fastapi import APIRouter, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 from loguru import logger
 
 from api.constants import REDIS_URL
@@ -43,6 +45,7 @@ from api.services.pipecat.tracing_config import (
     load_all_org_langfuse_credentials,
 )
 from api.services.pipecat.tts_cache.runtime import close_speech_cache
+from api.services.platform.settings import get_platform_settings
 from api.services.worker_sync.manager import (
     WorkerSyncManager,
     set_worker_sync_manager,
@@ -54,10 +57,19 @@ API_PREFIX = "/api/v1"
 
 mcp_app = mcp.http_app(path="/", stateless_http=True)
 
+PLATFORM_MODE = get_platform_settings().enabled
+if PLATFORM_MODE:
+    from api.mcp_server.calls import RequireApiKey, calls_mcp
+
+    calls_mcp_app = calls_mcp.http_app(path="/", stateless_http=True)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    async with mcp_app.lifespan(app):
+    async with AsyncExitStack() as mcp_lifespans:
+        await mcp_lifespans.enter_async_context(mcp_app.lifespan(app))
+        if PLATFORM_MODE:
+            await mcp_lifespans.enter_async_context(calls_mcp_app.lifespan(app))
         # warmup arq pool
         await get_arq_redis()
 
@@ -192,3 +204,26 @@ app.include_router(api_router, prefix=API_PREFIX)
 # Mounted under /api/v1 so existing reverse-proxy rules (nginx etc.) route it
 # without any extra configuration.
 app.mount(f"{API_PREFIX}/mcp", mcp_app)
+
+if PLATFORM_MODE:
+    from api.services.platform.surface import PlatformSurfaceMiddleware
+
+    # The calling tools live at /mcp: the short URL users paste into their
+    # assistant. The workflow-authoring server above stays mounted but the
+    # surface middleware closes it, together with every other tenant-facing
+    # Dograh route that is not part of the calling service.
+    app.mount("/mcp", RequireApiKey(calls_mcp_app))
+    app.add_middleware(PlatformSurfaceMiddleware)
+
+    # OAuth sign-in for plugin hosts: discovery, registration, token, and
+    # revoke routes from the MCP library, and our consent page.
+    from api.routes import platform_oauth
+
+    app.router.routes.extend(platform_oauth.provider.get_routes(mcp_path="/mcp"))
+    app.include_router(platform_oauth.router)
+
+    _PLATFORM_PAGE = Path(__file__).parent / "services/platform/web/index.html"
+
+    @app.get("/", include_in_schema=False)
+    async def platform_account_page() -> FileResponse:
+        return FileResponse(_PLATFORM_PAGE, headers={"Cache-Control": "no-cache"})

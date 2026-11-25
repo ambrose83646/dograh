@@ -20,6 +20,7 @@ from api.services.call_concurrency import (
     CallConcurrencyLimitError,
     call_concurrency,
 )
+from api.services.platform.destinations import assert_destination_allowed
 from api.services.quota_service import authorize_workflow_run_start
 from api.services.telephony.factory import get_telephony_provider_by_id
 from api.services.telephony.outbound_readiness import (
@@ -194,6 +195,9 @@ async def _execute_resolved_target(
 ) -> TriggerCallResponse:
     """Shared execution path once the target workflow has been resolved."""
     execution_user_id = _get_execution_user_id(target.workflow)
+    # Before any run row or provider call exists: a refused destination must
+    # leave no trace and cost nothing. No-op outside platform mode.
+    assert_destination_allowed(request.phone_number)
 
     # An explicit config remains authoritative. Legacy callers that omit it
     # get the first active configuration that passes outbound pre-flight.

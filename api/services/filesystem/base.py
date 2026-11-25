@@ -139,3 +139,11 @@ class BaseFileSystem(ABC):
             bool: True if file was copied successfully, False otherwise
         """
         pass
+
+    async def adelete_file(self, file_path: str) -> bool:
+        """Delete a file. A file that does not exist counts as deleted.
+
+        Returns:
+            bool: True if the file is gone, False if the delete failed
+        """
+        raise NotImplementedError(f"{type(self).__name__} cannot delete files")

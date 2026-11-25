@@ -20,7 +20,7 @@ TEMPERATURE_DESCRIPTION = (
 # do not support it at all.
 # https://developers.openai.com/api/docs/guides/latest-model?model=gpt-5.4
 OPENAI_REASONING_RULE = {
-    "pattern": r"(^|/)(gpt-5|o[134](?:-|$))",
+    "pattern": r"(^|/)(gpt-5|gpt-6-(?:sol|luna)|o[134](?:-|$))",
     "supported": False,
 }
 # Azure uses deployment names. Recognizable GPT-5/o-series names can be

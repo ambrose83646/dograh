@@ -1,0 +1,213 @@
+{
+  "passed": true,
+  "checks": [
+    {
+      "name": "MCP refuses a client with no key and a client with a made-up key",
+      "passed": true,
+      "detail": "no key: HTTP 401; made-up key: HTTP 401"
+    },
+    {
+      "name": "A standard MCP client connects with a user's key and lists the calling tools",
+      "passed": true,
+      "detail": "tools: ['get_account_status', 'get_call_result', 'get_inbound_rules', 'list_calls', 'place_call', 'set_inbound_rules']"
+    },
+    {
+      "name": "Each new user gets a separate account with its own phone number and allowance",
+      "passed": true,
+      "detail": "accounts 5 and 6; numbers +12088864742 and +12085050523; 10.0 free minutes each"
+    },
+    {
+      "name": "A user saves inbound rules through MCP and reads them back",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "Calls to an unapproved number, the user's own number, and a malformed number are refused and start nothing",
+      "passed": true,
+      "detail": "unapproved: 'This service is in a test period and can call approved test numbers only.'"
+    },
+    {
+      "name": "place_call starts a call and returns a call id at once",
+      "passed": true,
+      "detail": "{\"call_id\": 9, \"status\": \"ringing\", \"to\": \"+12088864742\", \"from\": \"+12085050523\", \"next_step\": \"The call is in progress. Call get_call_result with this call_id after about 30 seconds, and again until "
+    },
+    {
+      "name": "The outbound call completes and the assistant reads a multi-turn transcript",
+      "passed": true,
+      "detail": "completed, 239 s, 16 turns"
+    },
+    {
+      "name": "The caller's agent negotiated: Wednesday was refused and Thursday 9 am was booked",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "The caller's transcript holds the confirmation code that exists only in the clinic's saved rules",
+      "passed": true,
+      "detail": "code RD-6898; digits heard: 299854968986898168986898168968986189954"
+    },
+    {
+      "name": "The inbound call was answered with the clinic's saved greeting and rules while no assistant was connected",
+      "passed": true,
+      "detail": "17 turns; from +12085050523"
+    },
+    {
+      "name": "A user cannot read the other user's call record or transcript through MCP",
+      "passed": true,
+      "detail": "refusals: 'Call 10 not found' / 'Call 9 not found'"
+    },
+    {
+      "name": "The same holds on the REST API with a signed-in session",
+      "passed": true,
+      "detail": "other's call: HTTP 404; own call: HTTP 200"
+    },
+    {
+      "name": "A user cannot read the other user's agent rules",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "A user cannot list or revoke the other user's access keys",
+      "passed": true,
+      "detail": "revoke attempt: HTTP 404"
+    },
+    {
+      "name": "A user cannot choose a caller number and cannot reach the provider keys, phone numbers, or agents through the underlying Dograh API",
+      "passed": true,
+      "detail": "{\"GET /api/v1/workflow/summary\": 404, \"GET /api/v1/organizations/telephony-config\": 404, \"GET /api/v1/user/configurations/user\": 404, \"GET /api/v1/model-connections\": 404, \"GET /api/v1/workflow/1/runs/10\": 404, \"POST /api/v1/public/agent/workflow/00000000-0000-0000-0000-000000000000\": 404, \"POST /api/v1/mcp/\": 404}"
+    },
+    {
+      "name": "A user cannot use the operator controls on another account",
+      "passed": true,
+      "detail": "HTTP 404"
+    },
+    {
+      "name": "A user at the free allowance cannot start another call",
+      "passed": true,
+      "detail": "used 4.0 min of 1; refusal: 'The free allowance of 1 call minutes is used. No more calls can be made or answered on this account.'"
+    },
+    {
+      "name": "A call to a user at the free allowance is not answered and uses no call time",
+      "passed": true,
+      "detail": "caller saw: completed, 0 s"
+    },
+    {
+      "name": "The operator restores the allowance and the user can call again",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "A key the user revoked is refused",
+      "passed": true,
+      "detail": "HTTP 401"
+    }
+  ],
+  "run_id": "1119055542",
+  "base_url": "http://localhost:8000",
+  "started_at": "2026-11-19T05:55:42.168357+00:00",
+  "confirmation_code": "RD-6898",
+  "cancellation_fee": 25,
+  "accounts": [
+    {
+      "name": "Riverside Dental",
+      "email": "verify-1119055542-riverside@example.com",
+      "organization_id": 5,
+      "phone_number": "+12088864742"
+    },
+    {
+      "name": "Maria Lopez",
+      "email": "verify-1119055542-maria@example.com",
+      "organization_id": 6,
+      "phone_number": "+12085050523"
+    }
+  ],
+  "outbound_call": {
+    "call_id": 9,
+    "direction": "outbound",
+    "status": "completed",
+    "started_at": "2026-11-19T05:55:45.848009+00:00",
+    "duration_seconds": 239,
+    "to": "+12088864742",
+    "from": "+12085050523",
+    "disposition": "end_call",
+    "task": "Call Riverside Dental and book a teeth cleaning for Maria Lopez, who is a new patient. She prefers Wednesday morning. If Wednesday morning is not possible, take the earliest morning appointment this week; she cannot come in the afternoon. Before you finish, get these answers: the day and time booked, the confirmation code, what a new patient must bring, and the fee for a late cancellation.",
+    "result": {
+      "task_completed": true,
+      "outcome_summary": "The caller requested to book a cleaning appointment for Maria Lopez. The front desk offered available times, and Thursday at 9 a.m. was selected. Maria Lopez was booked for Thursday at 9 a.m. as a new patient, with confirmation code RD6898, and was reminded to bring a photo ID and insurance card and informed of a $25 cancellation fee for less than 24 hours' notice.",
+      "follow_up_needed": ""
+    },
+    "transcript": "[2026-11-19T05:55:49.391+00:00] user: Riverside Dental. This is the front desk. How can I help you?\n[2026-11-19T05:56:05.292+00:00] user: Thank you for calling for Maria Lopez. Just to let you know, we're closed on Wednesday mornings for staff training. I can't offer that time. Soonest cleaning appointments we have this week are Tuesday at two thirty in the afternoon or Thursday at nine in the morning. Would either of those work for Maria?\n[2026-11-19T05:56:23.266+00:00] assistant: Thank you for letting me know. Maria can't do afternoons, so Thursday at nine in the morning would be perfect. Can we please book that appointment for her?\n[2026-11-19T05:56:34.050+00:00] user: Great. I can book Maria for Thursday at nine in the morning. Before I confirm the appointment, need her full name and date of birth, please.\n[2026-11-19T05:56:43.308+00:00] assistant: Of course. Her full name is Maria Lopez, and her date of birth is March fourteenth, nineteen eighty-eight.\n[2026-11-19T05:56:52.954+00:00] user: Thank you. Just to confirm, I have Maria Lopez Date of birth, March fourteenth nineteen eighty eight. Is that correct?\n[2026-11-19T05:57:00.708+00:00] assistant: Yes, that's correct\u2014Maria Lopez, date of birth March fourteenth, nineteen eighty-eight. Thank you.\n[2026-11-19T05:57:10.371+00:00] user: Perfect. Thank you. As Maria is a new patient, please remind her to bring a photo ID and her insurance card to the appointment. Also, she needs to cancel, a twenty five dollar fee for cancellations with less than twenty four hours notice. Her cleaning appointment is booked for Thursday at nine in the morning. The confirmation code is r d six eight nine eight. That's r as in river, d as in dental, six eight nine eight. Could you please repeat that code back to me? One character at a time? Make sure you have it correctly?\n[2026-11-19T05:57:46.750+00:00] assistant: Yes, let me repeat that back to you one character at a time: r as in river, d as in dental, six, eight, nine, eight. Is that correct?\n[2026-11-19T05:58:00.371+00:00] user: Almost. You missed the d after r. The code is r d six eight nine eight. R as in river, d as in dental,\nsix eight nine. Eight. Could you repeat that back to me? One character at a time.\n[2026-11-19T05:58:17.231+00:00] assistant: Yes, thank you for clarifying. The code is: r as in river, d as in dental, six, eight, nine, eight. Is that correct?\n[2026-11-19T05:58:30.040+00:00] user: Thank you for repeating that. Just to confirm, the code should be r d six eight. Nine That's R as in river, as in dental, six. Eight. Nine. Eight. Could you please repeat all six characters back to me, one at a time?\n[2026-11-19T05:58:47.472+00:00] assistant: Absolutely. The code is: r as in river, d as in dental, six, eight, nine, eight. Is that correct?\n[2026-11-19T05:58:58.211+00:00] user: Yes. That's perfect. The confirmation code is r d eight. Nine So I have Maria Lopez booked for a cleaning on Thursday. At nine in the morning. She should bring the photo ID and her insurance card. And there's a twenty five dollar fee for cancellations with less than twenty four hours notice. Is there anything else I can help you with today?\n[2026-11-19T05:59:21.713+00:00] assistant: Thank you for confirming everything. That covers all my questions. Maria is booked for Thursday at nine in the morning, with confirmation code r d six eight nine eight. She\u2019ll bring her photo ID and insurance card, and she knows about the cancellation fee. Thanks so much for your help! Have a great day.\n[2026-11-19T05:59:43.712+00:00] assistant: Thank you so much for your help\u2014goodbye!\n"
+  },
+  "inbound_call": {
+    "call_id": 10,
+    "direction": "inbound",
+    "status": "completed",
+    "started_at": "2026-11-19T05:55:46.891097+00:00",
+    "duration_seconds": 240,
+    "to": "+12088864742",
+    "from": "+12085050523",
+    "disposition": "user_hangup",
+    "result": {
+      "caller_name": "",
+      "call_summary": "The caller phoned on behalf of Maria Lopez to book a new patient teeth cleaning appointment, requesting a Wednesday morning. The assistant explained that Wednesday mornings are unavailable and offered alternative times; the caller chose Thursday at 9 a.m. and provided Maria's full name and date of birth. The assistant confirmed the appointment, gave a confirmation code, and reminded the caller about bringing ID and insurance and the cancellation policy; no callback number or additional message was left."
+    },
+    "transcript": "[2026-11-19T05:55:48.257+00:00] assistant: Riverside Dental, this is the front desk. How can I help you?\n[2026-11-19T05:55:55.192+00:00] user: Hello. I'm calling on behalf of Maria Lopez. To book a teeth cleaning appointment. She's a new patient and would prefer a Wednesday morning.\n[2026-11-19T05:56:04.218+00:00] assistant: Thank you for calling for Maria Lopez. Just to let you know, we\u2019re closed on Wednesday mornings for staff training, so I can\u2019t offer that time. The soonest cleaning appointments we have this week are Tuesday at two thirty in the afternoon or Thursday at nine in the morning. Would either of those work for Maria?\n[2026-11-19T05:56:24.482+00:00] user: Thank you for letting me know. Can't do afternoons. Thursday at nine in the morning would be perfect. Can we please book that appointment for her?\n[2026-11-19T05:56:33.660+00:00] assistant: Great, I can book Maria for Thursday at nine in the morning. Before I confirm the appointment, I\u2019ll need her full name and date of birth, please.\n[2026-11-19T05:56:43.770+00:00] user: Of course. Her full name is Maria Lopez, Her date of birth is March fourteenth nineteen eighty eight.\n[2026-11-19T05:56:51.621+00:00] assistant: Thank you. Just to confirm, I have Maria Lopez, date of birth March fourteenth, nineteen eighty-eight. Is that correct?\n[2026-11-19T05:57:01.695+00:00] user: Yes. That's correct. Maria Lopez. Date of birth March fourteenth nineteen eighty eight. Thank you.\n[2026-11-19T05:57:09.742+00:00] assistant: Perfect, thank you. As Maria is a new patient, please remind her to bring a photo ID and her insurance card to the appointment. Also, if she needs to cancel, there\u2019s a twenty-five dollar fee for cancellations with less than twenty-four hours\u2019 notice.\n\nHer cleaning appointment is booked for Thursday at nine in the morning. The confirmation code is R D 6 8 9 8. That\u2019s R as in River, D as in Dental, six, eight, nine, eight. Could you please repeat that code back to me, one character at a time, to make sure you have it correctly?\n[2026-11-19T05:57:47.462+00:00] user: Yes. Let me repeat that back to you one character at a time. R as in river, as in dental, six eight nine eight. Is that correct?\n[2026-11-19T05:57:58.906+00:00] assistant: Almost! You missed the D after R. The code is R, D, six, eight, nine, eight. That\u2019s R as in River, D as in Dental, six, eight, nine, eight. Could you repeat that back to me, one character at a time?\n[2026-11-19T05:58:18.254+00:00] user: Yes. Thank you for clarifying. The code is r as in river, as in dental, six eight. Nine. Eight. Is that correct?\n[2026-11-19T05:58:28.743+00:00] assistant: Thank you for repeating that. Just to confirm, the code should be R, D, six, eight, nine, eight. That\u2019s R as in River, D as in Dental, six, eight, nine, eight. Could you please repeat all six characters back to me, one at a time?\n[2026-11-19T05:58:48.938+00:00] user: Absolutely. Is r as in river, d as in dental, six eight nine. Eight. Is that correct?\n[2026-11-19T05:58:57.664+00:00] assistant: Yes, that\u2019s perfect! The confirmation code is R, D, six, eight, nine, eight.\n\nSo, I have Maria Lopez booked for a cleaning on Thursday at nine in the morning. She should bring a photo ID and her insurance card, and there\u2019s a twenty-five dollar fee for cancellations with less than twenty-four hours\u2019 notice. Is there anything else I can help you with today?\n[2026-11-19T05:59:22.493+00:00] user: Thank you for confirming everything. That covers all my questions. Maria is booked Thursday at nine in the morning. With confirmation code r d six eight nine eight. Bring her photo ID and insurance card. And she knows about the cancellation fee. Thanks so much for your help. Have a great day.\n[2026-11-19T05:59:44.864+00:00] assistant: Thank you for calling, have a wonderful day! Goodbye.\n"
+  },
+  "quota": {
+    "before": {
+      "phone_number": "+12085050523",
+      "phone_number_status": "ready",
+      "free_minutes_total": 10.0,
+      "free_minutes_used": 4.0,
+      "free_minutes_remaining": 6.0,
+      "calls_in_last_24_hours": 1,
+      "daily_call_limit": 20,
+      "max_call_minutes": 10.0,
+      "can_call": true,
+      "blocked_reason": null,
+      "test_period": true
+    },
+    "blocked_status": {
+      "phone_number": "+12085050523",
+      "phone_number_status": "ready",
+      "free_minutes_total": 1.0,
+      "free_minutes_used": 4.0,
+      "free_minutes_remaining": 0.0,
+      "calls_in_last_24_hours": 1,
+      "daily_call_limit": 20,
+      "max_call_minutes": 10.0,
+      "can_call": false,
+      "blocked_reason": "The free allowance of 1 call minutes is used. No more calls can be made or answered on this account.",
+      "test_period": true
+    },
+    "refusal": "The free allowance of 1 call minutes is used. No more calls can be made or answered on this account.",
+    "call_to_blocked_account": {
+      "call_id": 11,
+      "direction": "outbound",
+      "status": "completed",
+      "started_at": "2026-11-19T05:59:51.405985+00:00",
+      "duration_seconds": 0,
+      "to": "+12085050523",
+      "from": "+12088864742",
+      "disposition": "busy",
+      "task": "Tell Maria Lopez that her appointment is confirmed.",
+      "result": {},
+      "transcript": "",
+      "next_step": "The call ended. If it was answered, the transcript appears within a minute; ask again once."
+    },
+    "after": {
+      "phone_number": "+12085050523",
+      "phone_number_status": "ready",
+      "free_minutes_total": 1.0,
+      "free_minutes_used": 4.0,
+      "free_minutes_remaining": 0.0,
+      "calls_in_last_24_hours": 2,
+      "daily_call_limit": 20,
+      "max_call_minutes": 10.0,
+      "can_call": false,
+      "blocked_reason": "The free allowance of 1 call minutes is used. No more calls can be made or answered on this account.",
+      "test_period": true
+    }
+  },
+  "finished_at": "2026-11-19T06:01:53.678472+00:00"
+}

@@ -17,6 +17,18 @@ builder_mcp_operation: ContextVar[str | None] = ContextVar(
 )
 
 
+async def user_for_credential(credential: str) -> UserModel:
+    """The account of an API key, or of an OAuth access token of the platform."""
+    from api.services.platform import oauth
+
+    if credential.startswith(oauth.ACCESS_PREFIX):
+        user = await oauth.user_for_access_token(credential)
+        if user is None:
+            raise HTTPException(status_code=401, detail="Invalid or expired token")
+        return user
+    return await _handle_api_key_auth(credential)
+
+
 async def authenticate_mcp_request() -> UserModel:
     """Resolve the authenticated Dograh user for an MCP tool invocation.
 
@@ -43,7 +55,7 @@ async def authenticate_mcp_request() -> UserModel:
             status_code=401,
             detail="Missing API key — send X-API-Key or Authorization: Bearer <key>",
         )
-    user = await _handle_api_key_auth(api_key)
+    user = await user_for_credential(api_key)
 
     _stamp_identity(user)
     return user

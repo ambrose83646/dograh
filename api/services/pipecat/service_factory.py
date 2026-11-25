@@ -1458,7 +1458,9 @@ def create_llm_service_from_provider(
         if base_url:
             _validate_runtime_service_url(base_url, "base_url")
             kwargs["base_url"] = base_url
-        if "gpt-5" in model:
+        # gpt-6-sol and gpt-6-luna have the same rule on Chat Completions:
+        # function tools only with effort "none".
+        if "gpt-5" in model or "gpt-6-sol" in model or "gpt-6-luna" in model:
             return OpenAILLMService(
                 enable_direct_mode=enable_direct_mode,
                 api_key=api_key,
